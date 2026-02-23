@@ -19,7 +19,7 @@ pnpm check        # TypeScript type checking (root: client + server + shared)
 pnpm check:all    # Type-check all workspace packages
 pnpm format       # Prettier (double quotes, semicolons, 2-space, 80 chars)
 
-# Testing (204 TS tests + 90 core Python tests)
+# Testing (220 TS tests + 348 Python tests)
 pnpm test:all                           # Run all package tests (Vitest)
 cd packages/ce-core && npx vitest run   # Single package tests
 npx vitest run src/pack.test.ts         # Single test file (from package dir)
@@ -71,6 +71,15 @@ client app → ce-core, ce-memory, ce-providers
 - **placeItems(items, { strategy, model })**: Position-aware reordering based on model attention profiles. Places high-priority items where models attend most (start/end).
 - **analyzeContext(items)**: Quality metrics — density, diversity, freshness, redundancy, overall score. No LLM needed.
 - **createContextManager(options)**: Automatic context compaction across turns. Tracks budgets, auto-summarizes old turns, preserves recent verbatim.
+- **packWithCacheTopology(items, budget, options, cacheConfig)**: Partition items by volatility (static/session/request) to maximize prefix cache hits. Static items sorted deterministically for stable prefix.
+- **packWithAllocation(items, budget, allocations)**: Kind-aware budget allocation with min/max/target constraints and surplus redistribution by priority.
+- **createSession(options)**: Differential context sessions — tracks what changed between compiles. Reports added/removed/changed/kept with reuse ratio for cache estimation.
+- **pipeline(budget)**: Composable fluent API chaining all operations: `.add() → .allocate() → .cacheTopology() → .qualityGate() → .session() → .build()`.
+- **estimateCost(pack, model)**: Concrete dollar cost estimates with prefix cache savings. Supports Claude, GPT-4.1, o3 pricing.
+- **projectCosts(pack, model, count, { requestsPerDay })**: Cost projection over time with monthly estimates.
+- **createHandoff(pack, options)**: Serialize context to BEADS JSONL for agent handoff. Converts ContextItems to BEADS issues.
+- **pickupHandoff(jsonl)**: Deserialize BEADS JSONL to recover context. Separates context items from work items.
+- **getReadyIssues(issues)**: Filter BEADS issues by readiness (equivalent to `bd ready`).
 
 ### Key Types
 
@@ -86,6 +95,12 @@ Logger { debug, info, warn, error } // compatible with console, pino, winston
 ContextManager { addTurn(), addItems(), compile(), getTokenUsage() }
 ContextQuality { density, diversity, freshness, redundancy, overall }
 AttentionProfile { name, effectiveCapacity, positionWeights[] }
+CacheAwarePack extends ContextPack { cacheKey, cacheableTokens, volatileTokens, cacheEfficiency }
+AllocatedPack extends ContextPack { allocations: Record<kind, KindResult>, allocationEfficiency }
+SessionPack { selected, dropped, totalTokens, delta: SessionDelta | null, cacheKey, compileCount }
+PipelineResult { selected, dropped, totalTokens, quality?, cacheKey?, delta?, allocations?, stages }
+BeadsIssue { id, title, description, status, priority, issue_type, labels, dependencies, metadata }
+CostEstimate { costWithoutCache, costWithCache, savings, savingsPercent, cacheEfficiency }
 ```
 
 ### Validation & Errors (ce-core)
@@ -112,17 +127,28 @@ presets.anthropic // { estimator: anthropicTokenEstimator }
 
 ### Python SDK (full TS parity + extras)
 
-Python has full feature parity with TypeScript: `pack`, `trace_pack`, `diff`, `estimate_tokens`, `to_context_item`, `memory_to_context`, `place_items`, `effective_budget`, `analyze_context`, `create_context_manager`, `create_cached_estimator`, `pack_stream`.
+Python has full feature parity with TypeScript: all core algorithms, cache topology, allocation, sessions, pipeline, cost estimation, BEADS, bridge, placement, quality, compaction, cache, stream.
 
 **Python-only extras:**
 - **AgentContextManager** (`framework.py`): High-level orchestration — adaptive budgeting, segmentation, memory queries, handoff protocol for multi-agent coordination.
 - **Segmenters** (`segmentation.py`): StructuralSegmenter (markdown headers), SemanticSegmenter (embeddings), PerplexitySegmenter (LLM-based), HybridSegmenter. All include boundary protection (UUIDs, dates, identifiers).
 - **Advanced pack algorithm**: Python pack supports negation/supersession, hierarchical inclusion, semantic redundancy detection, and relation boosts. TS pack is simpler (greedy only).
-- Python CLI adds `ce place`, `ce quality`, `ce effective-budget` commands beyond TS CLI.
 
-### CLI (`ce`)
+### CLI (`ce`) — 11 commands
 
-TTY-aware output: human-readable with ANSI colors when interactive, JSON when piped. Supports `--json` flag to force JSON, `--no-color` to disable colors, and stdin via `-i -` or pipe.
+TTY-aware output: human-readable with ANSI colors when interactive, JSON when piped.
+
+- `ce pack` — Pack context items within budget
+- `ce trace` — Pack with decision trace
+- `ce diff` — Diff two packs/item sets
+- `ce budget` — Estimate tokens
+- `ce lint` — Validate against JSON schemas
+- `ce place` — Attention-optimized item placement
+- `ce quality` — Analyze context quality metrics
+- `ce effective-budget` — Compute effective budget for model
+- `ce handoff` — Create BEADS JSONL for agent context handoff
+- `ce pickup` — Pick up context from BEADS JSONL
+- `ce cost` — Estimate API costs with prefix cache savings
 
 Exit codes: 0 success, 1 validation, 2 file error, 3 internal. Python CLI (`python -m context_engineering`) has feature parity.
 
