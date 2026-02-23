@@ -33,7 +33,53 @@ pip install -e .
 | `analyze_context_pack(pack)` | Quality metrics for a `ContextPack` |
 | `create_context_manager(budget, ...)` | Automatic context compaction manager for multi-turn agents |
 | `create_cached_estimator(estimator, max_size?)` | LRU-cached wrapper around any token estimator |
-| `pack_stream(items, budget, ...)` | Async generator variant of `pack` -- yields items as selected |
+| `pack_stream(items, budget, ...)` | Async generator variant of `pack` — yields items as selected |
+
+### Cache Topology
+
+| Export | Description |
+|---|---|
+| `pack_with_cache_topology(items, budget, ...)` | Pack with stable prefix for cache reuse |
+| `classify_volatility(item)` | Classify item as static/session/request |
+
+### Budget Allocation
+
+| Export | Description |
+|---|---|
+| `pack_with_allocation(items, budget, allocations, ...)` | Per-kind budget allocation with min/max/target ratios |
+
+### Sessions
+
+| Export | Description |
+|---|---|
+| `create_session(budget, ...)` | Stateful context session with differential tracking |
+
+### Pipeline
+
+| Export | Description |
+|---|---|
+| `create_pipeline(budget)` | Composable pipeline builder chaining all operations |
+
+### Cost Estimation
+
+| Export | Description |
+|---|---|
+| `estimate_cost(pack, model, ...)` | Per-request cost with cache savings |
+| `project_costs(pack, model, count, ...)` | Multi-request projection with monthly estimates |
+| `MODEL_PRICING` | Built-in pricing for Claude, GPT-4.1, GPT-4o, o3, o4-mini |
+
+### BEADS Agent Handoff
+
+| Export | Description |
+|---|---|
+| `create_handoff(pack, ...)` | Serialize context pack to BEADS JSONL |
+| `pickup_handoff(jsonl)` | Recover context items from BEADS JSONL |
+| `context_item_to_beads(item, ...)` | Convert ContextItem to BEADS issue |
+| `beads_to_context_item(issue)` | Convert BEADS issue back to ContextItem |
+| `read_beads_jsonl(input)` | Parse BEADS JSONL string |
+| `write_beads_jsonl(issues)` | Serialize BEADS issues to JSONL |
+| `merge_beads_jsonl(existing, updates)` | Merge BEADS JSONL by ID |
+| `get_ready_issues(issues)` | Filter to ready (open, unblocked) issues |
 
 ### Types
 
@@ -48,6 +94,14 @@ pip install -e .
 | `BridgeOptions` | Memory-to-item options: `priority`, `recency_half_life`, `now`, `kind` |
 | `AttentionProfile` | Model attention curve: `name`, `effective_capacity`, `position_weights` |
 | `ContextQuality` | Quality metrics: `density`, `diversity`, `freshness`, `redundancy`, `overall` |
+| `CacheAwarePack` | Extends ContextPack with `cache_key`, `cacheable_tokens`, `cache_efficiency` |
+| `AllocatedPack` | Extends ContextPack with per-kind allocation results |
+| `SessionPack` | Session compile result with differential `delta` |
+| `PipelineResult` | Pipeline output with all stage metadata |
+| `CostEstimate` | Per-request cost breakdown with cache savings |
+| `CostProjection` | Multi-request projection with monthly estimates |
+| `BeadsIssue` | BEADS issue type for agent handoff |
+| `KindAllocation` | Per-kind budget: `kind`, `target_ratio`, `min_ratio?`, `max_ratio?` |
 | `Turn` | Conversation turn: `role`, `content`, `tokens`, `is_summary` |
 | `ContextManager` | Compaction manager: `add_turn()`, `add_items()`, `compile()`, `get_token_usage()` |
 
@@ -109,10 +163,17 @@ ce diff --before before.json --after after.json
 ce budget -t "hello world" -p openai
 ce lint -s context-item -i items.jsonl
 
-# Placement & quality (new)
+# Placement & quality
 ce place -i items.json -s attention-optimized -m claude
 ce quality -i items.json
 ce effective-budget -t 128000 -m claude
+
+# Agent handoff (BEADS)
+ce handoff -i items.json -b 8000 -o .beads/issues.jsonl --agent agent-1
+ce pickup -i .beads/issues.jsonl --ready
+
+# Cost estimation
+ce cost -i items.json -m claude-sonnet-4-6 --requests 10000 --requests-per-day 500
 ```
 
 ## Tri-Provider Framework (`context_framework`)
