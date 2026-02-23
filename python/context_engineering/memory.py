@@ -187,8 +187,11 @@ class FileStore(MemoryStore):
         self._loaded = True
 
     def _persist(self):
-        with open(self.file_path, "w") as f:
+        # Atomic write: write to temp file, then rename (atomic on POSIX).
+        tmp_path = self.file_path + ".tmp"
+        with open(tmp_path, "w") as f:
             for i in self._items.values(): f.write(i.model_dump_json(by_alias=True) + "\n")
+        os.replace(tmp_path, self.file_path)
 
     def put(self, item: MemoryItem | List[MemoryItem]):
         self._load(); items = item if isinstance(item, list) else [item]
