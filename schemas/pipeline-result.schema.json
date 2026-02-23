@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "PipelineResult",
+  "title": "PipelineResult",
+  "description": "Result of a composable context pipeline build",
+  "type": "object",
+  "required": ["selected", "dropped", "totalTokens", "budget", "inputCount", "stages"],
+  "properties": {
+    "selected": {
+      "type": "array",
+      "items": { "$ref": "ContextItem" }
+    },
+    "dropped": {
+      "type": "array",
+      "items": { "$ref": "ContextItem" }
+    },
+    "totalTokens": { "type": "number" },
+    "budget": {
+      "type": "object",
+      "required": ["maxTokens"],
+      "properties": {
+        "maxTokens": { "type": "number" },
+        "reserveTokens": { "type": "number" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "properties": {
+        "itemCount": { "type": "number" },
+        "totalTokens": { "type": "number" },
+        "density": { "type": "number" },
+        "diversity": { "type": "number" },
+        "freshness": { "type": "number" },
+        "redundancy": { "type": "number" },
+        "overall": { "type": "number" }
+      }
+    },
+    "cacheKey": { "type": "string" },
+    "cacheEfficiency": { "type": "number" },
+    "cacheableTokens": { "type": "number" },
+    "delta": {
+      "type": ["object", "null"],
+      "properties": {
+        "added": { "type": "array", "items": { "$ref": "ContextItem" } },
+        "removedIds": { "type": "array", "items": { "type": "string" } },
+        "changed": { "type": "array", "items": { "$ref": "ContextItem" } },
+        "keptCount": { "type": "number" },
+        "deltaTokens": { "type": "number" }
+      }
+    },
+    "allocations": { "type": "object", "additionalProperties": true },
+    "allocationEfficiency": { "type": "number" },
+    "inputCount": { "type": "number" },
+    "stages": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": true
+}

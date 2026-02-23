@@ -93,6 +93,10 @@ def _load_schema(name: str) -> Any:
         "context-pack": "context-pack.schema.json",
         "context-trace": "context-trace.schema.json",
         "memory-item": "memory-item.schema.json",
+        "cache-aware-pack": "cache-aware-pack.schema.json",
+        "cost-estimate": "cost-estimate.schema.json",
+        "beads-issue": "beads-issue.schema.json",
+        "pipeline-result": "pipeline-result.schema.json",
     }[name]
     schema_path = os.path.join(schema_dir, filename)
     with open(schema_path, "r", encoding="utf-8") as handle:
@@ -107,6 +111,10 @@ def _load_all_schemas() -> dict[str, Any]:
         "context-pack.schema.json",
         "context-trace.schema.json",
         "memory-item.schema.json",
+        "cache-aware-pack.schema.json",
+        "cost-estimate.schema.json",
+        "beads-issue.schema.json",
+        "pipeline-result.schema.json",
     ]:
         path = os.path.join(schema_dir, filename)
         with open(path, "r", encoding="utf-8") as handle:

@@ -185,7 +185,7 @@ program
   .description("Validate data against a JSON schema")
   .requiredOption(
     "-s, --schema <name>",
-    "Schema: context-item | context-pack | context-plan | context-trace | memory-item"
+    "Schema: context-item | context-pack | context-plan | context-trace | memory-item | cache-aware-pack | cost-estimate | beads-issue | pipeline-result"
   )
   .requiredOption("-i, --input <file>", "Path to JSON/JSONL")
   .action(async options => {
