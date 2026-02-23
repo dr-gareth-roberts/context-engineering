@@ -1,0 +1,40 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`pack > produces stable snapshot output 1`] = `
+{
+  "budget": {
+    "maxTokens": 90,
+  },
+  "dropped": [
+    {
+      "content": "Medium",
+      "id": "b",
+      "priority": 5,
+      "score": 5,
+      "tokens": 60,
+    },
+  ],
+  "selected": [
+    {
+      "content": "High priority",
+      "id": "a",
+      "priority": 10,
+      "score": 10,
+      "tokens": 50,
+    },
+    {
+      "content": "Low",
+      "id": "c",
+      "priority": 1,
+      "score": 1,
+      "tokens": 40,
+    },
+  ],
+  "stats": {
+    "droppedCount": 1,
+    "remainingTokens": 0,
+    "selectedCount": 2,
+  },
+  "totalTokens": 90,
+}
+`;
