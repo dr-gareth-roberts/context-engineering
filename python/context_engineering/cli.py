@@ -3,10 +3,38 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from typing import Any, List
 from jsonschema import Draft202012Validator, RefResolver
 
 from .core import Budget, ContextItem, pack, trace_pack, diff, estimate_tokens
+
+
+def _is_tty():
+    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+
+class _fmt:
+    @staticmethod
+    def _wrap(code, text):
+        if not _is_tty() or os.environ.get("NO_COLOR"):
+            return text
+        return f"\033[{code}m{text}\033[0m"
+
+    @staticmethod
+    def bold(text): return _fmt._wrap("1", text)
+    @staticmethod
+    def red(text): return _fmt._wrap("31", text)
+    @staticmethod
+    def green(text): return _fmt._wrap("32", text)
+    @staticmethod
+    def cyan(text): return _fmt._wrap("36", text)
+    @staticmethod
+    def dim(text): return _fmt._wrap("2", text)
+    @staticmethod
+    def success(text): return _fmt._wrap("32", f"OK {text}")
+    @staticmethod
+    def error(text): return _fmt._wrap("31", f"ERR {text}")
 
 
 def _load_items(path: str) -> List[ContextItem]:
@@ -82,17 +110,44 @@ def _lint(schema_name: str, data: Any) -> List[str]:
 
 
 def cmd_pack(args: argparse.Namespace) -> None:
-    items = _load_items(args.input)
+    if args.input == "-":
+        raw = sys.stdin.read()
+        items_data = json.loads(raw)
+        if isinstance(items_data, list):
+            items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data]
+        else:
+            items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data.get("items", [])]
+    else:
+        items = _load_items(args.input)
     budget = Budget(maxTokens=args.budget)
     result = pack(items, budget, allow_compression=True, provider=args.provider)
-    print(result.model_dump_json(by_alias=True, indent=2))
+    if not _is_tty():
+        print(result.model_dump_json(by_alias=True, indent=2))
+    else:
+        print(f"{_fmt.bold(f'Selected {len(result.selected)} items')}"
+              f" {_fmt.dim(f'(dropped {len(result.dropped)})')}")
+        print(f"Total tokens: {_fmt.cyan(str(result.total_tokens))}")
 
 
 def cmd_trace(args: argparse.Namespace) -> None:
-    items = _load_items(args.input)
+    if args.input == "-":
+        raw = sys.stdin.read()
+        items_data = json.loads(raw)
+        if isinstance(items_data, list):
+            items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data]
+        else:
+            items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data.get("items", [])]
+    else:
+        items = _load_items(args.input)
     budget = Budget(maxTokens=args.budget)
     result = trace_pack(items, budget, allow_compression=True, provider=args.provider)
-    print(result.model_dump_json(by_alias=True, indent=2))
+    if not _is_tty():
+        print(result.model_dump_json(by_alias=True, indent=2))
+    else:
+        print(_fmt.bold(f"Trace: {len(result.steps)} steps"))
+        for step in result.steps:
+            marker = _fmt.green("+ ") if step.decision == "include" else _fmt.red("- ")
+            print(f"  {marker}{step.id}: {step.decision} {_fmt.dim(step.reason or '')}")
 
 
 def cmd_diff(args: argparse.Namespace) -> None:
@@ -101,7 +156,13 @@ def cmd_diff(args: argparse.Namespace) -> None:
     with open(args.after, "r", encoding="utf-8") as handle:
         after = json.load(handle)
     result = diff(before, after)
-    print(json.dumps(result, default=lambda o: o.model_dump(by_alias=True) if hasattr(o, "model_dump") else o, indent=2))
+    if not _is_tty():
+        print(json.dumps(result, default=lambda o: o.model_dump(by_alias=True) if hasattr(o, "model_dump") else o, indent=2))
+    else:
+        print(_fmt.green(f"  + {len(result['added'])} added"))
+        print(_fmt.red(f"  - {len(result['removed'])} removed"))
+        print(_fmt.cyan(f"  ~ {len(result['changed'])} changed"))
+        print(_fmt.dim(f"  = {len(result['kept'])} kept"))
 
 
 def cmd_budget(args: argparse.Namespace) -> None:
@@ -112,7 +173,10 @@ def cmd_budget(args: argparse.Namespace) -> None:
     if not text:
         raise SystemExit("Provide --text or --file")
     tokens = estimate_tokens(text, provider=args.provider)
-    print(tokens)
+    if not _is_tty():
+        print(tokens)
+    else:
+        print(f"Estimated tokens: {_fmt.cyan(str(tokens))}")
 
 
 def cmd_lint(args: argparse.Namespace) -> None:
