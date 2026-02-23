@@ -12,24 +12,28 @@ interface MermaidDiagramProps {
 // Initialize Mermaid with custom theme
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'base',
+  theme: "base",
   themeVariables: {
-    primaryColor: '#E8F4FD',
-    primaryTextColor: '#2D3436',
-    primaryBorderColor: '#0066CC',
-    lineColor: '#0066CC',
-    secondaryColor: '#FFF3CD',
-    tertiaryColor: '#F8F9FA',
-    fontSize: '16px',
-    fontFamily: 'Work Sans, sans-serif',
+    primaryColor: "#E8F4FD",
+    primaryTextColor: "#2D3436",
+    primaryBorderColor: "#0066CC",
+    lineColor: "#0066CC",
+    secondaryColor: "#FFF3CD",
+    tertiaryColor: "#F8F9FA",
+    fontSize: "16px",
+    fontFamily: "Work Sans, sans-serif",
   },
   flowchart: {
-    curve: 'basis',
+    curve: "basis",
     padding: 20,
   },
 });
 
-export function MermaidDiagram({ chart, title, description }: MermaidDiagramProps) {
+export function MermaidDiagram({
+  chart,
+  title,
+  description,
+}: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [svgContent, setSvgContent] = useState<string>("");
@@ -55,7 +59,9 @@ export function MermaidDiagram({ chart, title, description }: MermaidDiagramProp
   };
 
   return (
-    <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-background p-8' : ''}`}>
+    <div
+      className={`relative ${isFullscreen ? "fixed inset-0 z-50 bg-background p-8" : ""}`}
+    >
       {title && (
         <div className="mb-4">
           <h4 className="text-xl font-display marker-blue mb-2">{title}</h4>
@@ -64,7 +70,7 @@ export function MermaidDiagram({ chart, title, description }: MermaidDiagramProp
           )}
         </div>
       )}
-      
+
       <div className="relative whiteboard-card p-6 bg-white">
         <Button
           onClick={toggleFullscreen}
@@ -82,7 +88,7 @@ export function MermaidDiagram({ chart, title, description }: MermaidDiagramProp
 
         <div
           ref={containerRef}
-          className={`mermaid-container overflow-x-auto ${isFullscreen ? 'flex items-center justify-center h-full' : ''}`}
+          className={`mermaid-container overflow-x-auto ${isFullscreen ? "flex items-center justify-center h-full" : ""}`}
           dangerouslySetInnerHTML={{ __html: svgContent }}
         />
       </div>
@@ -228,5 +234,5 @@ export const diagrams = {
     style C fill:#D5F5E3,stroke:#27AE60,stroke-width:2px
     style D fill:#FADBD8,stroke:#E74C3C,stroke-width:2px
     style N fill:#D5F5E3,stroke:#27AE60,stroke-width:3px
-    style O fill:#FADBD8,stroke:#E74C3C,stroke-width:2px`
+    style O fill:#FADBD8,stroke:#E74C3C,stroke-width:2px`,
 };

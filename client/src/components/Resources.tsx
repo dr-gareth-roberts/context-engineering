@@ -1,10 +1,23 @@
-import { ExternalLink, FileText, Github, BookOpen, Users, Video } from "lucide-react";
+import {
+  ExternalLink,
+  FileText,
+  Github,
+  BookOpen,
+  Users,
+  Video,
+} from "lucide-react";
 
 interface Resource {
   title: string;
   description: string;
   url: string;
-  type: "paper" | "article" | "github" | "documentation" | "community" | "video";
+  type:
+    | "paper"
+    | "article"
+    | "github"
+    | "documentation"
+    | "community"
+    | "video";
   author?: string;
   date?: string;
 }
@@ -13,138 +26,157 @@ const resources: Resource[] = [
   // Research Papers
   {
     title: "Attention Is All You Need",
-    description: "The foundational transformer paper that introduced the attention mechanism and KV-cache concept.",
+    description:
+      "The foundational transformer paper that introduced the attention mechanism and KV-cache concept.",
     url: "https://arxiv.org/abs/1706.03762",
     type: "paper",
     author: "Vaswani et al.",
-    date: "2017"
+    date: "2017",
   },
   {
-    title: "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
-    description: "Demonstrates how structured prompting improves reasoning capabilities.",
+    title:
+      "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+    description:
+      "Demonstrates how structured prompting improves reasoning capabilities.",
     url: "https://arxiv.org/abs/2201.11903",
     type: "paper",
     author: "Wei et al.",
-    date: "2022"
+    date: "2022",
   },
   {
     title: "ReAct: Synergizing Reasoning and Acting in Language Models",
-    description: "Introduces the ReAct pattern for combining reasoning with tool use.",
+    description:
+      "Introduces the ReAct pattern for combining reasoning with tool use.",
     url: "https://arxiv.org/abs/2210.03629",
     type: "paper",
     author: "Yao et al.",
-    date: "2022"
+    date: "2022",
   },
-  
+
   // Articles & Blog Posts
   {
     title: "Effective Context Engineering for AI Agents",
-    description: "Anthropic's comprehensive guide to building production-ready AI agents with proper context management.",
+    description:
+      "Anthropic's comprehensive guide to building production-ready AI agents with proper context management.",
     url: "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
     type: "article",
     author: "Anthropic Engineering",
-    date: "2025"
+    date: "2025",
   },
   {
     title: "Context Engineering for AI Agents: Lessons from Building Manus",
-    description: "Practical insights from building a production agent system with 100K+ token contexts.",
+    description:
+      "Practical insights from building a production agent system with 100K+ token contexts.",
     url: "https://manus.im/blog/Context-Engineering-for-AI-Agents-Lessons-from-Building-Manus",
     type: "article",
     author: "Manus Team",
-    date: "2025"
+    date: "2025",
   },
   {
-    title: "Efficient Context Management: Observation Masking and Tool Filtering",
-    description: "JetBrains Research on reducing context bloat in long-running agent sessions.",
+    title:
+      "Efficient Context Management: Observation Masking and Tool Filtering",
+    description:
+      "JetBrains Research on reducing context bloat in long-running agent sessions.",
     url: "https://blog.jetbrains.com/research/2025/12/efficient-context-management/",
     type: "article",
     author: "JetBrains Research",
-    date: "2025"
+    date: "2025",
   },
   {
     title: "Deep Agents 2.0: Architecture for Production AI Systems",
-    description: "Detailed breakdown of the four pillars of deep agent architecture.",
+    description:
+      "Detailed breakdown of the four pillars of deep agent architecture.",
     url: "https://www.philschmid.de/agents-2.0-deep-agents",
     type: "article",
     author: "Philipp Schmid",
-    date: "2025"
+    date: "2025",
   },
-  
+
   // GitHub Repositories
   {
     title: "AGENTS.md Specification",
-    description: "Official specification and examples for the AGENTS.md standard.",
+    description:
+      "Official specification and examples for the AGENTS.md standard.",
     url: "https://github.com/agents-md/agents.md",
     type: "github",
-    author: "AGENTS.md Community"
+    author: "AGENTS.md Community",
   },
   {
     title: "LangChain",
-    description: "Framework for developing applications powered by language models with built-in agent patterns.",
+    description:
+      "Framework for developing applications powered by language models with built-in agent patterns.",
     url: "https://github.com/langchain-ai/langchain",
     type: "github",
-    author: "LangChain"
+    author: "LangChain",
   },
   {
     title: "AutoGPT",
-    description: "Experimental open-source attempt to make GPT-4 fully autonomous.",
+    description:
+      "Experimental open-source attempt to make GPT-4 fully autonomous.",
     url: "https://github.com/Significant-Gravitas/AutoGPT",
     type: "github",
-    author: "Significant Gravitas"
+    author: "Significant Gravitas",
   },
   {
     title: "Semantic Kernel",
-    description: "Microsoft's SDK for integrating LLMs with conventional programming languages.",
+    description:
+      "Microsoft's SDK for integrating LLMs with conventional programming languages.",
     url: "https://github.com/microsoft/semantic-kernel",
     type: "github",
-    author: "Microsoft"
+    author: "Microsoft",
   },
-  
+
   // Documentation
   {
     title: "Anthropic Claude Documentation",
-    description: "Official documentation for Claude API, including best practices for context management.",
+    description:
+      "Official documentation for Claude API, including best practices for context management.",
     url: "https://docs.anthropic.com/",
     type: "documentation",
-    author: "Anthropic"
+    author: "Anthropic",
   },
   {
     title: "OpenAI Function Calling Guide",
-    description: "Comprehensive guide to using function calling (tool use) with GPT models.",
+    description:
+      "Comprehensive guide to using function calling (tool use) with GPT models.",
     url: "https://platform.openai.com/docs/guides/function-calling",
     type: "documentation",
-    author: "OpenAI"
+    author: "OpenAI",
   },
   {
     title: "Prompt Engineering Guide",
-    description: "Community-maintained guide covering all aspects of prompt engineering.",
+    description:
+      "Community-maintained guide covering all aspects of prompt engineering.",
     url: "https://www.promptingguide.ai/",
     type: "documentation",
-    author: "DAIR.AI"
+    author: "DAIR.AI",
   },
-  
+
   // Community & Forums
   {
     title: "r/LocalLLaMA",
-    description: "Reddit community focused on running and optimising LLMs, including context management discussions.",
+    description:
+      "Reddit community focused on running and optimising LLMs, including context management discussions.",
     url: "https://www.reddit.com/r/LocalLLaMA/",
     type: "community",
-    author: "Reddit Community"
+    author: "Reddit Community",
   },
   {
     title: "LangChain Discord",
-    description: "Active community discussing agent patterns, context engineering, and LLM applications.",
+    description:
+      "Active community discussing agent patterns, context engineering, and LLM applications.",
     url: "https://discord.gg/langchain",
     type: "community",
-    author: "LangChain Community"
+    author: "LangChain Community",
   },
   {
     title: "AI Engineer World's Fair",
-    description: "Annual conference focused on practical AI engineering, including agent systems.",
+    description:
+      "Annual conference focused on practical AI engineering, including agent systems.",
     url: "https://www.ai.engineer/",
     type: "community",
-    author: "Swyx & Team"
-  }
+    author: "Swyx & Team",
+  },
 ];
 
 const iconMap = {
@@ -153,7 +185,7 @@ const iconMap = {
   github: Github,
   documentation: FileText,
   community: Users,
-  video: Video
+  video: Video,
 };
 
 const colorMap = {
@@ -162,17 +194,20 @@ const colorMap = {
   github: "marker-black",
   documentation: "marker-blue",
   community: "marker-red",
-  video: "marker-green"
+  video: "marker-green",
 };
 
 export function Resources() {
-  const groupedResources = resources.reduce((acc, resource) => {
-    if (!acc[resource.type]) {
-      acc[resource.type] = [];
-    }
-    acc[resource.type].push(resource);
-    return acc;
-  }, {} as Record<string, Resource[]>);
+  const groupedResources = resources.reduce(
+    (acc, resource) => {
+      if (!acc[resource.type]) {
+        acc[resource.type] = [];
+      }
+      acc[resource.type].push(resource);
+      return acc;
+    },
+    {} as Record<string, Resource[]>
+  );
 
   const categoryTitles = {
     paper: "Research Papers",
@@ -180,7 +215,7 @@ export function Resources() {
     github: "GitHub Repositories",
     documentation: "Official Documentation",
     community: "Community & Forums",
-    video: "Video Resources"
+    video: "Video Resources",
   };
 
   return (
@@ -190,14 +225,16 @@ export function Resources() {
           Resources & References
         </h2>
         <p className="text-gray-700 mb-6">
-          A curated collection of research papers, articles, tools, and community resources to deepen your understanding of context engineering.
+          A curated collection of research papers, articles, tools, and
+          community resources to deepen your understanding of context
+          engineering.
         </p>
 
         <div className="space-y-10">
           {Object.entries(groupedResources).map(([type, items]) => {
             const Icon = iconMap[type as keyof typeof iconMap];
             const color = colorMap[type as keyof typeof colorMap];
-            
+
             return (
               <div key={type}>
                 <div className="flex items-center gap-3 mb-4">
@@ -246,7 +283,10 @@ export function Resources() {
             Contributing
           </h4>
           <p className="text-sm text-gray-700">
-            Know of a valuable resource that should be included? The context engineering community thrives on shared knowledge. Consider contributing to the AGENTS.md specification or sharing your learnings through blog posts and open-source projects.
+            Know of a valuable resource that should be included? The context
+            engineering community thrives on shared knowledge. Consider
+            contributing to the AGENTS.md specification or sharing your
+            learnings through blog posts and open-source projects.
           </p>
         </div>
       </div>

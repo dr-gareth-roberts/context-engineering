@@ -9,19 +9,21 @@ async function run() {
   await store.put({
     id: "session-context",
     content: "User is asking about TypeScript.",
-    ttlSeconds: 2
+    ttlSeconds: 2,
   });
 
   // 2. Store a high-importance memory
   await store.put({
     id: "user-name",
     content: "User name is Alice.",
-    salience: 10
+    salience: 10,
   });
 
   console.log("Initial query:");
   let items = await store.query();
-  items.forEach(m => console.log(`- [${m.id}] ${m.content} (Salience: ${m.salience})`));
+  items.forEach(m =>
+    console.log(`- [${m.id}] ${m.content} (Salience: ${m.salience})`)
+  );
 
   console.log("\nWaiting 3 seconds for TTL to expire...");
   await new Promise(resolve => setTimeout(resolve, 3000));
@@ -29,9 +31,11 @@ async function run() {
   console.log("Query after expiry:");
   items = await store.query();
   items.forEach(m => console.log(`- [${m.id}] ${m.content}`));
-  
+
   if (items.length === 1) {
-    console.log("\nSuccess: 'session-context' expired and was removed automatically.");
+    console.log(
+      "\nSuccess: 'session-context' expired and was removed automatically."
+    );
   }
 }
 
