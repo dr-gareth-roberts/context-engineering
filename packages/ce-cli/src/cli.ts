@@ -8,6 +8,12 @@ import {
   runDiff,
   runBudget,
   lintFile,
+  runPlace,
+  runQuality,
+  runEffectiveBudget,
+  runHandoff,
+  runPickup,
+  runCost,
 } from "./lib.js";
 import {
   fmt,
@@ -24,7 +30,7 @@ const program = new Command();
 program
   .name("ce")
   .description(
-    "Context engineering CLI — pack, trace, diff, lint, and estimate tokens"
+    "Context engineering CLI — pack, trace, diff, place, quality, handoff, pickup, cost, lint, and budget"
   )
   .version("0.1.0")
   .option("--no-color", "Disable colored output")
@@ -258,5 +264,277 @@ program
       outputError(err instanceof Error ? err.message : String(err));
     }
   });
+
+program
+  .command("place")
+  .description("Pack and reorder items for optimal attention placement")
+  .requiredOption(
+    "-i, --input <file>",
+    "Path to items JSON/JSONL (use - for stdin)"
+  )
+  .option("-b, --budget <number>", "Token budget", "4096")
+  .option(
+    "-s, --strategy <strategy>",
+    "Placement strategy: score-order | attention-optimized",
+    "attention-optimized"
+  )
+  .option("-m, --model <model>", "Model family: claude | gpt4 | default", "default")
+  .option(
+    "-p, --provider <provider>",
+    "Token estimator: openai | anthropic | heuristic",
+    "heuristic"
+  )
+  .option("--json", "Force JSON output")
+  .action(async options => {
+    if (options.json) setForceJson(true);
+    try {
+      const items = await loadItems(options.input);
+      const result = runPlace(items, Number(options.budget), {
+        strategy: options.strategy,
+        model: options.model,
+        provider: options.provider === "heuristic" ? undefined : options.provider,
+      });
+      outputResult(result, () => {
+        console.log(
+          fmt.bold(`Placed ${result.selected.length} items`) +
+            fmt.dim(` (${result.strategy})`)
+        );
+        console.log(`Total tokens: ${fmt.cyan(String(result.totalTokens))}`);
+        result.selected.forEach((item, i) =>
+          console.log(
+            `  ${fmt.dim(`${i + 1}.`)} ${item.id} ${fmt.dim(`(${item.tokens ?? "?"} tokens)`)}`
+          )
+        );
+      });
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
+    }
+  });
+
+program
+  .command("quality")
+  .description("Analyze context quality metrics (density, diversity, redundancy)")
+  .requiredOption(
+    "-i, --input <file>",
+    "Path to items JSON/JSONL (use - for stdin)"
+  )
+  .option("-b, --budget <number>", "Token budget", "4096")
+  .option(
+    "-p, --provider <provider>",
+    "Token estimator: openai | anthropic | heuristic",
+    "heuristic"
+  )
+  .option("--json", "Force JSON output")
+  .action(async options => {
+    if (options.json) setForceJson(true);
+    try {
+      const items = await loadItems(options.input);
+      const quality = runQuality(items, Number(options.budget), {
+        provider: options.provider === "heuristic" ? undefined : options.provider,
+      });
+      outputResult(quality, () => {
+        console.log(fmt.bold("Context Quality Analysis"));
+        console.log(`  Items:      ${fmt.cyan(String(quality.itemCount))}`);
+        console.log(`  Tokens:     ${fmt.cyan(String(quality.totalTokens))}`);
+        console.log(`  Density:    ${colorMetric(quality.density)}`);
+        console.log(`  Diversity:  ${colorMetric(quality.diversity)}`);
+        console.log(`  Freshness:  ${colorMetric(quality.freshness)}`);
+        console.log(`  Redundancy: ${colorMetric(1 - quality.redundancy)} ${fmt.dim(`(${quality.redundancy} raw)`)}`);
+        console.log(`  ${fmt.bold("Overall:")}    ${colorMetric(quality.overall)}`);
+      });
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
+    }
+  });
+
+program
+  .command("effective-budget")
+  .description("Calculate effective token budget for a model (accounts for context degradation)")
+  .requiredOption("-t, --tokens <number>", "Advertised context window size")
+  .option("-m, --model <model>", "Model family: claude | gpt4 | default", "default")
+  .option("--json", "Force JSON output")
+  .action(options => {
+    if (options.json) setForceJson(true);
+    const result = runEffectiveBudget(Number(options.tokens), options.model);
+    outputResult(result, () => {
+      console.log(
+        `${fmt.bold("Advertised:")} ${fmt.cyan(String(result.advertised))} tokens`
+      );
+      console.log(
+        `${fmt.bold("Effective:")}  ${fmt.green(String(result.effective))} tokens ${fmt.dim(`(${Math.round(result.ratio * 100)}%)`)}`
+      );
+      console.log(fmt.dim(`Model: ${result.model}`));
+    });
+  });
+
+program
+  .command("handoff")
+  .description("Create BEADS JSONL handoff from context items")
+  .requiredOption(
+    "-i, --input <file>",
+    "Path to items JSON/JSONL (use - for stdin)"
+  )
+  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("-o, --output <file>", "Output file (default: stdout)")
+  .option("--cache-topology", "Use cache-topology-aware packing")
+  .option("--include-dropped", "Include dropped items as deferred issues")
+  .option("--agent <name>", "Agent identity for handoff")
+  .option("--session-id <id>", "Session identifier")
+  .option("--notes <text>", "Handoff notes")
+  .option(
+    "-p, --provider <provider>",
+    "Token estimator: openai | anthropic | heuristic",
+    "heuristic"
+  )
+  .option("--json", "Force JSON output (outputs stats, not JSONL)")
+  .action(async options => {
+    if (options.json) setForceJson(true);
+    try {
+      const items = await loadItems(options.input);
+      const result = runHandoff(items, Number(options.budget), {
+        provider: options.provider === "heuristic" ? undefined : options.provider,
+        cacheTopology: options.cacheTopology,
+        includeDropped: options.includeDropped,
+        agent: options.agent,
+        sessionId: options.sessionId,
+        notes: options.notes,
+      });
+
+      if (options.output) {
+        await fs.writeFile(options.output, result.jsonl + "\n");
+      }
+
+      if (isJsonMode()) {
+        console.log(JSON.stringify(options.output ? result.stats : { jsonl: result.jsonl, stats: result.stats }, null, 2));
+      } else if (options.output) {
+        console.log(fmt.success(`Wrote ${result.stats.totalIssues} issues to ${options.output}`));
+        console.log(`  Active:   ${fmt.green(String(result.stats.activeItems))}`);
+        console.log(`  Deferred: ${fmt.dim(String(result.stats.deferredItems))}`);
+      } else {
+        // Write JSONL to stdout
+        console.log(result.jsonl);
+      }
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
+    }
+  });
+
+program
+  .command("pickup")
+  .description("Pick up context from a BEADS JSONL handoff")
+  .requiredOption("-i, --input <file>", "Path to BEADS JSONL file (use - for stdin)")
+  .option("--ready", "Only include ready items (open, non-blocked, non-deferred)")
+  .option("--json", "Force JSON output")
+  .action(async options => {
+    if (options.json) setForceJson(true);
+    try {
+      let jsonl: string;
+      if (options.input === "-") {
+        jsonl = await readStdin();
+      } else {
+        jsonl = await fs.readFile(options.input, "utf-8");
+      }
+      const result = runPickup(jsonl, { ready: options.ready });
+      outputResult(result, () => {
+        console.log(fmt.bold("Pickup Summary"));
+        console.log(`  Context items: ${fmt.green(String(result.stats.contextItems))}`);
+        console.log(`  Deferred:      ${fmt.dim(String(result.stats.deferredItems))}`);
+        console.log(`  Work items:    ${fmt.cyan(String(result.stats.workItems))}`);
+        if (result.stats.handoffSessionId) {
+          console.log(`  Session:       ${fmt.dim(result.stats.handoffSessionId)}`);
+        }
+        if (result.items.length > 0) {
+          console.log(fmt.dim("\nRecovered items:"));
+          result.items.forEach(item =>
+            console.log(
+              `  ${fmt.green("•")} ${item.id} ${fmt.dim(`[${item.kind ?? "unknown"}] (${item.tokens ?? "?"} tokens)`)}`
+            )
+          );
+        }
+      });
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
+    }
+  });
+
+program
+  .command("cost")
+  .description("Estimate API costs with prefix cache savings")
+  .requiredOption(
+    "-i, --input <file>",
+    "Path to items JSON/JSONL (use - for stdin)"
+  )
+  .requiredOption(
+    "-m, --model <model>",
+    "Model: claude-opus-4-6 | claude-sonnet-4-6 | claude-haiku-4-5 | gpt-4.1 | gpt-4o | o3 | o4-mini"
+  )
+  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("--output-tokens <number>", "Estimated output tokens", "500")
+  .option("--requests <number>", "Number of requests to project")
+  .option("--requests-per-day <number>", "Requests per day (for monthly estimate)")
+  .option(
+    "-p, --provider <provider>",
+    "Token estimator: openai | anthropic | heuristic",
+    "heuristic"
+  )
+  .option("--json", "Force JSON output")
+  .action(async options => {
+    if (options.json) setForceJson(true);
+    try {
+      const items = await loadItems(options.input);
+      const { estimate, projection } = runCost(
+        items,
+        Number(options.budget),
+        options.model,
+        {
+          provider: options.provider === "heuristic" ? undefined : options.provider,
+          outputTokens: Number(options.outputTokens),
+          requestCount: options.requests ? Number(options.requests) : undefined,
+          requestsPerDay: options.requestsPerDay
+            ? Number(options.requestsPerDay)
+            : undefined,
+        },
+      );
+
+      outputResult(projection ?? estimate, () => {
+        console.log(fmt.bold(`Cost Estimate — ${estimate.model}`));
+        console.log(`  Input tokens:  ${fmt.cyan(String(estimate.inputTokens))}`);
+        console.log(`  Cached:        ${fmt.green(String(estimate.cachedTokens))} ${fmt.dim(`(${Math.round(estimate.cacheEfficiency * 100)}% cache hit)`)}`);
+        console.log(`  Uncached:      ${fmt.dim(String(estimate.uncachedTokens))}`);
+        console.log(`  Output tokens: ${fmt.dim(String(estimate.outputTokens))}`);
+        console.log();
+        console.log(`  Without cache: ${fmt.dim("$" + estimate.costWithoutCache.toFixed(6))}`);
+        console.log(`  With cache:    ${fmt.green("$" + estimate.costWithCache.toFixed(6))}`);
+        console.log(`  ${fmt.bold("Savings:")}      ${fmt.green("$" + estimate.savings.toFixed(6))} ${fmt.dim(`(${estimate.savingsPercent}%)`)}`);
+
+        if (projection) {
+          console.log();
+          console.log(fmt.bold(`Projection — ${projection.requestCount} requests`));
+          console.log(`  Without cache: $${projection.totalWithoutCache.toFixed(2)}`);
+          console.log(`  With cache:    ${fmt.green("$" + projection.totalWithCache.toFixed(2))}`);
+          console.log(`  ${fmt.bold("Total savings:")} ${fmt.green("$" + projection.totalSavings.toFixed(2))}`);
+
+          if (projection.monthlyEstimate) {
+            const m = projection.monthlyEstimate;
+            console.log();
+            console.log(fmt.bold(`Monthly — ${m.requestsPerDay} req/day`));
+            console.log(`  Without cache: $${m.monthlyCostWithoutCache.toFixed(2)}/mo`);
+            console.log(`  With cache:    ${fmt.green("$" + m.monthlyCostWithCache.toFixed(2) + "/mo")}`);
+            console.log(`  ${fmt.bold("Monthly savings:")} ${fmt.green("$" + m.monthlySavings.toFixed(2) + "/mo")}`);
+          }
+        }
+      });
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
+    }
+  });
+
+/** Color a 0-1 metric value: green if good, yellow if mid, red if bad */
+function colorMetric(value: number): string {
+  const text = value.toFixed(3);
+  if (value >= 0.7) return fmt.green(text);
+  if (value >= 0.4) return fmt.yellow(text);
+  return fmt.red(text);
+}
 
 program.parseAsync(process.argv);

@@ -6,12 +6,35 @@ import _Ajv from "ajv";
 // Under Node16 module resolution, the default import is the namespace object,
 // so we extract the constructor from .default to satisfy both runtime and types.
 const Ajv = _Ajv as unknown as typeof _Ajv.default;
-import { pack, tracePack, diff, estimateTokens } from "@ce/core";
+import {
+  pack,
+  tracePack,
+  diff,
+  estimateTokens,
+  placeItems,
+  analyzeContext,
+  effectiveBudget,
+  packWithCacheTopology,
+  createHandoff,
+  pickupHandoff,
+  getReadyIssues,
+  writeBeadsJSONL,
+  readBeadsJSONL,
+  estimateCost,
+  projectCosts,
+} from "@ce/core";
 import type {
   ContextItem,
   ContextPack,
   PackDiff,
   TokenEstimator,
+  PlacementStrategy,
+  ContextQuality,
+  CacheAwarePack,
+  HandoffResult,
+  PickupResult,
+  CostEstimate,
+  CostProjection,
 } from "@ce/core";
 import { openaiTokenEstimator, anthropicTokenEstimator } from "@ce/providers";
 
@@ -189,4 +212,144 @@ export async function lintFile(schemaName: SchemaName, data: unknown) {
 
   const valid = validate(data);
   return { valid, errors: validate.errors ?? [] };
+}
+
+// ─── Place ────────────────────────────────────────────────────────────
+
+export function runPlace(
+  items: ContextItem[],
+  budget: number,
+  options: {
+    strategy?: PlacementStrategy;
+    model?: string;
+    provider?: string;
+  } = {},
+): { selected: ContextItem[]; totalTokens: number; strategy: string } {
+  const packed = pack(items, { maxTokens: budget }, {
+    tokenEstimator: resolveTokenEstimator(options.provider),
+  });
+  const placed = placeItems(packed.selected, {
+    strategy: options.strategy ?? "attention-optimized",
+    model: options.model,
+  });
+  return {
+    selected: placed,
+    totalTokens: packed.totalTokens,
+    strategy: options.strategy ?? "attention-optimized",
+  };
+}
+
+// ─── Quality ──────────────────────────────────────────────────────────
+
+export function runQuality(
+  items: ContextItem[],
+  budget: number,
+  options: { provider?: string } = {},
+): ContextQuality {
+  const packed = pack(items, { maxTokens: budget }, {
+    tokenEstimator: resolveTokenEstimator(options.provider),
+  });
+  return analyzeContext(packed.selected);
+}
+
+// ─── Effective Budget ─────────────────────────────────────────────────
+
+export function runEffectiveBudget(
+  advertisedTokens: number,
+  model?: string,
+): { advertised: number; effective: number; model: string; ratio: number } {
+  const effective = effectiveBudget(advertisedTokens, model);
+  const m = model ?? "default";
+  return {
+    advertised: advertisedTokens,
+    effective,
+    model: m,
+    ratio: Math.round((effective / advertisedTokens) * 100) / 100,
+  };
+}
+
+// ─── Handoff ──────────────────────────────────────────────────────────
+
+export function runHandoff(
+  items: ContextItem[],
+  budget: number,
+  options: {
+    provider?: string;
+    cacheTopology?: boolean;
+    includeDropped?: boolean;
+    agent?: string;
+    sessionId?: string;
+    notes?: string;
+  } = {},
+): HandoffResult {
+  let packed: ContextPack;
+
+  if (options.cacheTopology) {
+    packed = packWithCacheTopology(items, { maxTokens: budget }, {
+      tokenEstimator: resolveTokenEstimator(options.provider),
+    });
+  } else {
+    packed = pack(items, { maxTokens: budget }, {
+      tokenEstimator: resolveTokenEstimator(options.provider),
+    });
+  }
+
+  return createHandoff(packed, {
+    includeDropped: options.includeDropped,
+    agent: options.agent,
+    sessionId: options.sessionId,
+    handoffNotes: options.notes,
+  });
+}
+
+// ─── Pickup ───────────────────────────────────────────────────────────
+
+export function runPickup(
+  jsonl: string,
+  options: { ready?: boolean } = {},
+): PickupResult {
+  const result = pickupHandoff(jsonl);
+
+  if (options.ready) {
+    const allIssues = readBeadsJSONL(jsonl);
+    const ready = getReadyIssues(allIssues);
+    return {
+      ...result,
+      items: result.items.filter(item =>
+        ready.some(issue => issue.id === `ce-${item.id}`)
+      ),
+    };
+  }
+
+  return result;
+}
+
+// ─── Cost ─────────────────────────────────────────────────────────────
+
+export function runCost(
+  items: ContextItem[],
+  budget: number,
+  model: string,
+  options: {
+    provider?: string;
+    outputTokens?: number;
+    requestCount?: number;
+    requestsPerDay?: number;
+  } = {},
+): { estimate: CostEstimate; projection?: CostProjection } {
+  const packed = packWithCacheTopology(items, { maxTokens: budget }, {
+    tokenEstimator: resolveTokenEstimator(options.provider),
+  }) as CacheAwarePack;
+
+  const estimate = estimateCost(packed, model, options.outputTokens);
+
+  let projection: CostProjection | undefined;
+  if (options.requestCount) {
+    projection = projectCosts(packed, model, options.requestCount, {
+      outputTokens: options.outputTokens,
+      requestsPerDay: options.requestsPerDay,
+    });
+  }
+
+  return { estimate, projection };
 }
