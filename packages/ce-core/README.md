@@ -38,6 +38,13 @@ console.log(result.totalTokens); // tokens used
 | `estimateTokens(text, options?)` | Token count estimation (default: word heuristic) |
 | `createScorer(weights?)` | Build a custom `ItemScorer` with priority/recency/salience weights |
 | `createCachedEstimator(estimator, options?)` | LRU-cached wrapper around any `TokenEstimator` |
+| `toContextItem(memory, options?)` | Convert a `MemoryItem` to a scored `ContextItem` |
+| `memoryToContext(memories, options?)` | Batch convert `MemoryItem[]` to `ContextItem[]` |
+| `placeItems(items, options?)` | Reorder items for optimal model attention placement |
+| `effectiveBudget(tokens, model?)` | De-rate token budget based on model attention degradation |
+| `analyzeContext(items)` | Quality metrics: density, diversity, freshness, redundancy |
+| `analyzeContextPack(pack)` | Quality metrics for a `ContextPack` |
+| `createContextManager(options)` | Automatic context compaction manager for multi-turn agents |
 
 ### Types
 
@@ -52,6 +59,11 @@ console.log(result.totalTokens); // tokens used
 | `ScoringWeights` | `{ priority?, recency?, salience? }` -- defaults: 1.0, 0.7, 0.5 |
 | `TokenEstimator` | `(text, options?) => number` |
 | `ItemScorer` | `(item: ContextItem) => number` |
+| `ContextQuality` | Quality metrics result with `density`, `diversity`, `freshness`, `redundancy`, `overall` |
+| `AttentionProfile` | Model attention curve: `name`, `effectiveCapacity`, `positionWeights[]` |
+| `ContextManager` | Compaction manager: `addTurn()`, `addItems()`, `compile()`, `getTokenUsage()` |
+| `Turn` | Conversation turn: `role`, `content`, `tokens?`, `isSummary?` |
+| `BridgeOptions` | Memory-to-item options: `priority?`, `recencyHalfLife?`, `now?`, `kind?` |
 
 ### Errors
 
@@ -67,7 +79,7 @@ console.log(result.totalTokens); // tokens used
 
 ### Utilities
 
-`noopLogger`, `defaultTokenEstimator`, `defaultItemScorer`
+`noopLogger`, `defaultTokenEstimator`, `defaultItemScorer`, `ATTENTION_PROFILES`
 
 ## License
 
