@@ -6,6 +6,20 @@ function normalize(input: ContextPack | ContextItem[]): ContextItem[] {
   return input.selected ?? [];
 }
 
+/**
+ * Compare two context packs or item arrays to find differences.
+ *
+ * @param before - The original context pack or items
+ * @param after - The updated context pack or items
+ * @returns A PackDiff with added, removed, kept, and changed items
+ * @throws {ValidationError} If before or after is null/undefined
+ *
+ * @example
+ * ```ts
+ * const changes = diff(oldPack, newPack);
+ * console.log(`${changes.added.length} new items`);
+ * ```
+ */
 export function diff(
   before: ContextPack | ContextItem[],
   after: ContextPack | ContextItem[]
