@@ -104,3 +104,11 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.eggs/
