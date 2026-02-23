@@ -121,6 +121,12 @@ export interface SessionOptions {
   packOptions?: PackOptions;
 }
 
+/**
+ * Create a stateful context session that tracks changes between compiles.
+ *
+ * @param options - Session configuration including token budget and default pack options
+ * @returns A ContextSession instance
+ */
 export function createSession(options: SessionOptions): ContextSession {
   const budget = options.budget;
   const defaultPackOptions = options.packOptions ?? {};

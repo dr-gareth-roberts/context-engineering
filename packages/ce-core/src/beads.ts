@@ -133,6 +133,16 @@ export interface BeadsIssue {
  * Parse a BEADS JSONL string into an array of issues.
  * Each line is a self-contained JSON object.
  * Blank lines and lines starting with # are skipped.
+ *
+ * @param input - BEADS JSONL string to parse
+ * @returns Array of parsed BEADS issues
+ *
+ * @example
+ * ```ts
+ * const jsonl = fs.readFileSync(".beads/issues.jsonl", "utf-8");
+ * const issues = readBeadsJSONL(jsonl);
+ * console.log(issues.length);
+ * ```
  */
 export function readBeadsJSONL(input: string): BeadsIssue[] {
   const issues: BeadsIssue[] = [];
@@ -157,6 +167,15 @@ export function readBeadsJSONL(input: string): BeadsIssue[] {
 /**
  * Serialize an array of BEADS issues to JSONL format.
  * One JSON object per line, no trailing newline.
+ *
+ * @param issues - Array of BEADS issues to serialize
+ * @returns JSONL string with one issue per line
+ *
+ * @example
+ * ```ts
+ * const jsonl = writeBeadsJSONL(issues);
+ * fs.writeFileSync(".beads/issues.jsonl", jsonl);
+ * ```
  */
 export function writeBeadsJSONL(issues: BeadsIssue[]): string {
   return issues
@@ -198,6 +217,17 @@ const DEFAULT_KIND_TO_ISSUE_TYPE: Record<string, BeadsIssueType> = {
  * The context item's content becomes the description, its kind maps
  * to issue_type and labels, and its priority maps to BEADS priority
  * (inverted: high context priority → low BEADS priority number).
+ *
+ * @param item - The context item to convert
+ * @param options - Bridge options for agent, source system, and kind mapping
+ *
+ * @example
+ * ```ts
+ * const issue = contextItemToBeads(
+ *   { id: "doc1", content: "API docs...", kind: "system", priority: 10 },
+ *   { agent: "agent-1" },
+ * );
+ * ```
  */
 export function contextItemToBeads(
   item: ContextItem,
@@ -253,6 +283,8 @@ export function contextItemToBeads(
  *
  * Reads the _ce metadata extension to recover original context
  * item properties. Falls back to inferring from BEADS fields.
+ *
+ * @param issue - The BEADS issue to convert back to a context item
  */
 export function beadsToContextItem(issue: BeadsIssue): ContextItem {
   const ceMetadata = (issue.metadata as Record<string, unknown>)?._ce as Record<string, unknown> | undefined;
@@ -322,6 +354,10 @@ export interface HandoffResult {
  * Converts the packed context into BEADS issues that another agent
  * can pick up. Selected items become open issues, dropped items
  * become deferred issues (if includeDropped is true).
+ *
+ * @param pack - The context pack to convert to a handoff
+ * @param options - Handoff options including agent identity and session ID
+ * @returns HandoffResult with JSONL string, parsed issues, and stats
  *
  * @example
  * ```ts
@@ -424,6 +460,9 @@ export interface PickupResult {
  * Reads the JSONL, separates context items from work items,
  * and recovers the original ContextItem format.
  *
+ * @param jsonl - BEADS JSONL string to parse
+ * @returns PickupResult with recovered context items, deferred items, and work items
+ *
  * @example
  * ```ts
  * const jsonl = fs.readFileSync(".beads/issues.jsonl", "utf-8");
@@ -494,6 +533,10 @@ export function pickupHandoff(jsonl: string): PickupResult {
 /**
  * Merge new issues into an existing BEADS JSONL string.
  * Issues with the same ID are replaced; new issues are appended.
+ *
+ * @param existing - Existing BEADS JSONL string
+ * @param updates - New or updated issues to merge in
+ * @returns Merged JSONL string
  */
 export function mergeBeadsJSONL(
   existing: string,
@@ -516,6 +559,9 @@ export function mergeBeadsJSONL(
  * - Not ephemeral
  * - No unresolved blocking dependencies
  * - defer_until is null or in the past
+ *
+ * @param issues - Array of BEADS issues to filter
+ * @returns Issues that are ready to be worked on
  */
 export function getReadyIssues(issues: BeadsIssue[]): BeadsIssue[] {
   const now = new Date().toISOString();

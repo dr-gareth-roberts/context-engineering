@@ -62,6 +62,12 @@ export interface ContextManager {
   clear(): void;
 }
 
+/**
+ * Create a context manager that tracks token budgets and compacts old turns.
+ *
+ * @param options - Compaction configuration including budget, summarization thresholds, and system prompt
+ * @returns A ContextManager instance
+ */
 export function createContextManager(options: CompactionOptions): ContextManager {
   const estimate = options.tokenEstimator ?? defaultTokenEstimator;
   const summarizeAfter = options.summarizeAfterTurns ?? 5;

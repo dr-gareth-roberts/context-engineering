@@ -55,6 +55,15 @@ export interface CacheAwarePack extends ContextPack {
  * - static: system prompts, tool definitions, few-shot examples (rarely change)
  * - session: conversation history, memory retrievals (change per session)
  * - request: current query, fresh RAG results (change every request)
+ *
+ * @param item - The context item to classify
+ * @returns The volatility level: "static", "session", or "request"
+ *
+ * @example
+ * ```ts
+ * const v = classifyVolatility({ id: "sys", content: "...", kind: "system" });
+ * console.log(v); // "static"
+ * ```
  */
 export function classifyVolatility(item: ContextItem): Volatility {
   // Explicit volatility in metadata takes precedence

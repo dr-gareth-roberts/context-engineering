@@ -27,6 +27,9 @@ export interface ContextQuality {
  * Computes density, diversity, freshness, and redundancy metrics
  * without requiring an LLM call — uses heuristic analysis.
  *
+ * @param items - Context items to analyze
+ * @returns Quality metrics including density, diversity, freshness, and redundancy
+ *
  * @example
  * ```ts
  * const packed = await pack(items, budget);
@@ -141,6 +144,16 @@ export function analyzeContext(items: ContextItem[]): ContextQuality {
 
 /**
  * Analyze a ContextPack directly.
+ *
+ * @param pack - The context pack to analyze
+ * @returns Quality metrics for the pack's selected items
+ *
+ * @example
+ * ```ts
+ * const packed = await pack(items, { maxTokens: 4000 });
+ * const quality = analyzeContextPack(packed);
+ * console.log(quality.overall);
+ * ```
  */
 export function analyzeContextPack(pack: ContextPack): ContextQuality {
   return analyzeContext(pack.selected);
