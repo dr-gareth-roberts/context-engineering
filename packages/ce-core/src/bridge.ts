@@ -17,6 +17,9 @@ export interface BridgeOptions {
  * Maps salience to metadata.salience (used by the scorer),
  * and computes recency from createdAt using exponential decay.
  *
+ * @param memory - The memory item to convert
+ * @param options - Bridge options for priority, recency decay, and kind
+ *
  * @example
  * ```ts
  * const memories = await store.query({ limit: 20 });
@@ -53,6 +56,15 @@ export function toContextItem(
 
 /**
  * Convert an array of MemoryItems to ContextItems.
+ *
+ * @param memories - Array of memory items to convert
+ * @param options - Bridge options for priority, recency decay, and kind
+ *
+ * @example
+ * ```ts
+ * const memories = await store.query({ limit: 50 });
+ * const items = memoryToContext(memories, { priority: 7 });
+ * ```
  */
 export function memoryToContext(
   memories: MemoryItem[],

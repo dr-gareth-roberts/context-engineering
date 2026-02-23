@@ -128,6 +128,12 @@ export function placeItems(
  * @param advertisedTokens - The model's advertised context window
  * @param model - Model family name
  * @returns Recommended effective token limit
+ *
+ * @example
+ * ```ts
+ * const budget = effectiveBudget(128000, "claude");
+ * console.log(budget); // 89600
+ * ```
  */
 export function effectiveBudget(
   advertisedTokens: number,

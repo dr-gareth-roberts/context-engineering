@@ -19,6 +19,12 @@ export const defaultTokenEstimator: TokenEstimator = (text: string) => {
  * @param options - Optional model, provider, or custom estimator
  * @returns The estimated token count
  * @throws {EstimationError} If the estimator function throws
+ *
+ * @example
+ * ```ts
+ * const count = estimateTokens("Hello world");
+ * console.log(count); // 3
+ * ```
  */
 export function estimateTokens(
   text: string,
