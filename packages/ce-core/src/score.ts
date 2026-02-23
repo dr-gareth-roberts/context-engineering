@@ -11,6 +11,12 @@ const DEFAULT_WEIGHTS: Required<ScoringWeights> = {
  *
  * @param weights - Custom scoring weights (defaults: priority=1.0, recency=0.7, salience=0.5)
  * @returns An ItemScorer function
+ *
+ * @example
+ * ```ts
+ * const scorer = createScorer({ priority: 2.0, recency: 0.0 });
+ * const score = scorer(item);
+ * ```
  */
 export function createScorer(weights: ScoringWeights = {}): ItemScorer {
   const w = { ...DEFAULT_WEIGHTS, ...weights };
@@ -29,4 +35,5 @@ export function createScorer(weights: ScoringWeights = {}): ItemScorer {
   };
 }
 
+/** Default item scorer using standard weights (priority=1.0, recency=0.7, salience=0.5). */
 export const defaultItemScorer: ItemScorer = createScorer();

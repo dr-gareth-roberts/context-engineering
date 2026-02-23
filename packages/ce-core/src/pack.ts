@@ -70,6 +70,29 @@ function applyCompression(
   return null;
 }
 
+/**
+ * Pack context items into a token budget using greedy score-based selection.
+ *
+ * Items are scored (default: priority*1.0 + recency*0.7 + salience*0.5),
+ * sorted by score, and greedily selected until the budget is exhausted.
+ * If compression is enabled, oversized items may be compressed to fit.
+ *
+ * @param items - Context items to pack
+ * @param budget - Token budget with maxTokens and optional reserveTokens
+ * @param options - Packing options (custom scorer, estimator, compression, weights)
+ * @returns A ContextPack with selected items, dropped items, and stats
+ * @throws {ValidationError} If items or budget fail validation
+ * @throws {BudgetExceededError} If reserveTokens >= maxTokens
+ * @throws {EstimationError} If token estimation fails
+ *
+ * @example
+ * ```ts
+ * const result = pack(
+ *   [{ id: "doc", content: "Hello world", priority: 5 }],
+ *   { maxTokens: 1000 }
+ * );
+ * ```
+ */
 export function pack(
   items: ContextItem[],
   budget: Budget,
