@@ -261,6 +261,29 @@ def test_cli_invalid_command():
     assert result.returncode != 0
 
 
+def test_cli_error_file_not_found():
+    """CLI produces clean error message for missing file, not a raw traceback."""
+    result = run_cli("pack", "-i", "/nonexistent/path/items.json")
+    assert result.returncode == 1
+    assert "File not found" in result.stderr or "No such file" in result.stderr
+    # Should NOT have a Python traceback
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_error_invalid_json():
+    """CLI produces clean error for invalid JSON input."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
+        tmp.write("{broken json")
+        tmp_path = tmp.name
+    try:
+        result = run_cli("pack", "-i", tmp_path)
+        assert result.returncode == 1
+        assert "JSON" in result.stderr or "json" in result.stderr
+        assert "Traceback" not in result.stderr
+    finally:
+        os.unlink(tmp_path)
+
+
 def test_cli_diff():
     """diff command with --before and --after pack files."""
     # Create two temporary pack files with different items

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { promises as fs } from "fs";
+import type { ContextItem } from "@ce/core";
 import {
   loadItemsFromFile,
   runPack,
@@ -42,12 +43,12 @@ program
 function parsePositiveInt(value: string, name: string): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0 || Math.floor(n) !== n) {
-    outputError(`${name} must be a positive integer, got: ${value}`);
+    return outputError(`${name} must be a positive integer, got: ${value}`);
   }
   return n;
 }
 
-async function loadItems(input: string) {
+async function loadItems(input: string): Promise<ContextItem[]> {
   try {
     if (input === "-") {
       const raw = await readStdin();
@@ -58,12 +59,12 @@ async function loadItems(input: string) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("ENOENT")) {
-      outputError(
+      return outputError(
         `File not found: ${input}`,
         "Check the file path and try again"
       );
     }
-    outputError(`Failed to load items: ${msg}`);
+    return outputError(`Failed to load items: ${msg}`);
   }
 }
 
