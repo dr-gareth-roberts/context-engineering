@@ -6,3 +6,4 @@ export * from "./score";
 export * from "./pack";
 export * from "./diff";
 export * from "./trace";
+export * from "./stream";
