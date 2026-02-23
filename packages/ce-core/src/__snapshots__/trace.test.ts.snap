@@ -1,0 +1,65 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tracePack > produces stable snapshot 1`] = `
+{
+  "pack": {
+    "budget": {
+      "maxTokens": 90,
+    },
+    "dropped": [
+      {
+        "content": "Medium",
+        "id": "b",
+        "priority": 5,
+        "score": 5,
+        "tokens": 60,
+      },
+    ],
+    "selected": [
+      {
+        "content": "High",
+        "id": "a",
+        "priority": 10,
+        "score": 10,
+        "tokens": 50,
+      },
+      {
+        "content": "Low",
+        "id": "c",
+        "priority": 1,
+        "score": 1,
+        "tokens": 40,
+      },
+    ],
+    "stats": {
+      "droppedCount": 1,
+      "remainingTokens": 0,
+      "selectedCount": 2,
+    },
+    "totalTokens": 90,
+  },
+  "steps": [
+    {
+      "decision": "include",
+      "id": "a",
+      "reason": "fits_budget",
+      "score": 10,
+      "tokens": 50,
+    },
+    {
+      "decision": "exclude",
+      "id": "b",
+      "reason": "over_budget",
+      "score": 5,
+      "tokens": 60,
+    },
+    {
+      "decision": "include",
+      "id": "c",
+      "reason": "fits_budget",
+      "score": 1,
+      "tokens": 40,
+    },
+  ],
+}
+`;
