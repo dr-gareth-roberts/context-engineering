@@ -19,7 +19,7 @@ pnpm check        # TypeScript type checking (root: client + server + shared)
 pnpm check:all    # Type-check all workspace packages
 pnpm format       # Prettier (double quotes, semicolons, 2-space, 80 chars)
 
-# Testing (122 TS tests + 193 Python tests)
+# Testing (204 TS tests + 193 Python tests)
 pnpm test:all                           # Run all package tests (Vitest)
 cd packages/ce-core && npx vitest run   # Single package tests
 npx vitest run src/pack.test.ts         # Single test file (from package dir)
@@ -67,6 +67,10 @@ client app → ce-core, ce-memory, ce-providers
 - **estimateTokens()**: Pluggable token counting — default heuristic (words × 1.3), OpenAI (cl100k_base via tiktoken), Anthropic (words × 1.4). Returns 0 for empty/null input.
 - **createScorer(weights?)**: Factory for custom scoring functions. Weights: `{ priority, recency, salience }`.
 - **createCachedEstimator(estimator, { maxSize })**: LRU cache wrapper for token estimators. Keyed by content hash.
+- **toContextItem(memory, options?)**: Bridge MemoryItems to ContextItems with proper scoring (recency decay, salience mapping).
+- **placeItems(items, { strategy, model })**: Position-aware reordering based on model attention profiles. Places high-priority items where models attend most (start/end).
+- **analyzeContext(items)**: Quality metrics — density, diversity, freshness, redundancy, overall score. No LLM needed.
+- **createContextManager(options)**: Automatic context compaction across turns. Tracks budgets, auto-summarizes old turns, preserves recent verbatim.
 
 ### Key Types
 
@@ -79,6 +83,9 @@ ContextPack { budget, selected[], dropped[], totalTokens, stats? }
 MemoryStore { put(), get(), query(), forget() }
 LLMProvider { generate(messages, options?) }
 Logger { debug, info, warn, error } // compatible with console, pino, winston
+ContextManager { addTurn(), addItems(), compile(), getTokenUsage() }
+ContextQuality { density, diversity, freshness, redundancy, overall }
+AttentionProfile { name, effectiveCapacity, positionWeights[] }
 ```
 
 ### Validation & Errors (ce-core)
@@ -133,7 +140,7 @@ Vite builds client → `dist/public`. esbuild bundles `server/index.ts` → `dis
 ## Key Conventions
 
 - **Package manager:** pnpm 10.4.1 (enforced via `packageManager` field)
-- **TypeScript:** Strict mode, ESNext target, bundler module resolution, all packages ESM
+- **TypeScript:** Strict mode, Node16 module/moduleResolution, all packages ESM with `.js` extensions
 - **Python:** 3.10+, Pydantic models, type hints throughout
 - **UI components:** shadcn/ui (new-york style, `components.json`). Add via shadcn CLI
 - **Styling:** Tailwind CSS v4 with CSS custom properties. Custom marker colors (marker-blue, marker-red, marker-green, marker-black) for whiteboard aesthetic
