@@ -9,7 +9,7 @@ Context Engineering Toolkit — dual TypeScript/Python SDKs + CLI for LLM contex
 ## Commands
 
 ```bash
-# Testing (376 TS + 380 Python = 756 tests)
+# Testing (389 TS + 398 Python = 787 tests)
 pnpm test:all                           # All TS package tests (Vitest)
 cd packages/ce-core && npx vitest run   # Single package
 npx vitest run src/pack.test.ts         # Single file (from package dir)
@@ -36,7 +36,7 @@ packages/ce-core       Core algorithms — the tight center of the toolkit
 packages/ce-memory     Memory stores: InMemoryStore, FileStore (JSONL), SqliteStore
 packages/ce-providers  OpenAI + Anthropic adapters, token estimators
 packages/ce-cli        CLI (`ce`) — 11 commands, TTY-aware output
-python/                Python SDK — full parity with TS + extras
+python/                Python SDK — shares core API with TS + Python-only extras
 schemas/               JSON Schemas shared across languages
 client/                React 19 docs + demos web app
 server/                Minimal Express server for the web app
@@ -120,11 +120,12 @@ Extended: `place`, `quality`, `effective-budget`, `handoff`, `pickup`, `cost`
 
 Python CLI: `python -m context_engineering <command>` — full parity.
 
-### Python-only extras
+### Python-only features (not in TS)
 
+- **Advanced pack**: Negation/supersession, hierarchical inclusion, semantic redundancy detection, relation boosts, `simulate_budgets()`
 - **AgentContextManager** (`framework.py`): Orchestration with adaptive budgeting, segmentation, memory, handoff
 - **Segmenters** (`segmentation.py`): Structural, Semantic, Perplexity, Hybrid — with boundary protection
-- **Advanced pack**: Negation/supersession, hierarchical inclusion, semantic redundancy detection
+- **Extra ContextItem fields**: `supersedes`, `embedding`, `parent_id`, `cost`, `latency`, `links`
 
 ## Conventions
 
