@@ -40,14 +40,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  
+
   /* Custom whiteboard colours */
-  --marker-blue: #0066CC;
-  --marker-red: #E74C3C;
-  --marker-green: #27AE60;
-  --marker-black: #2D3436;
-  --highlight-yellow: #FFF3CD;
-  --whiteboard: #FFFEF5;
+  --marker-blue: #0066cc;
+  --marker-red: #e74c3c;
+  --marker-green: #27ae60;
+  --marker-black: #2d3436;
+  --highlight-yellow: #fff3cd;
+  --whiteboard: #fffef5;
 
   --color-marker-blue: var(--marker-blue);
   --color-marker-red: var(--marker-red);
@@ -55,83 +55,83 @@
   --color-marker-black: var(--marker-black);
   --color-highlight-yellow: var(--highlight-yellow);
   --color-whiteboard: var(--background);
-  
+
   /* Custom fonts */
-  --font-display: 'Caveat', cursive;
-  --font-body: 'Work Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: "Caveat", cursive;
+  --font-body: "Work Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 :root {
-  --primary: #0066CC;
-  --primary-foreground: #FFFFFF;
-  --sidebar-primary: #0066CC;
-  --sidebar-primary-foreground: #FFFFFF;
-  --chart-1: #0066CC;
-  --chart-2: #27AE60;
-  --chart-3: #E74C3C;
-  --chart-4: #F39C12;
-  --chart-5: #9B59B6;
+  --primary: #0066cc;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #0066cc;
+  --sidebar-primary-foreground: #ffffff;
+  --chart-1: #0066cc;
+  --chart-2: #27ae60;
+  --chart-3: #e74c3c;
+  --chart-4: #f39c12;
+  --chart-5: #9b59b6;
   --radius: 0.5rem;
-  --background: #FFFEF5;
-  --foreground: #2D3436;
-  --card: #FFFFFF;
-  --card-foreground: #2D3436;
-  --popover: #FFFFFF;
-  --popover-foreground: #2D3436;
-  --secondary: #F8F9FA;
-  --secondary-foreground: #2D3436;
-  --muted: #F1F3F4;
-  --muted-foreground: #636E72;
-  --accent: #E8F4FD;
-  --accent-foreground: #0066CC;
-  --destructive: #E74C3C;
-  --destructive-foreground: #FFFFFF;
-  --border: #DFE6E9;
-  --input: #DFE6E9;
-  --ring: #0066CC;
-  
+  --background: #fffef5;
+  --foreground: #2d3436;
+  --card: #ffffff;
+  --card-foreground: #2d3436;
+  --popover: #ffffff;
+  --popover-foreground: #2d3436;
+  --secondary: #f8f9fa;
+  --secondary-foreground: #2d3436;
+  --muted: #f1f3f4;
+  --muted-foreground: #636e72;
+  --accent: #e8f4fd;
+  --accent-foreground: #0066cc;
+  --destructive: #e74c3c;
+  --destructive-foreground: #ffffff;
+  --border: #dfe6e9;
+  --input: #dfe6e9;
+  --ring: #0066cc;
+
   /* Marker Overrides for Light Mode */
-  --marker-blue: #0066CC;
-  --marker-red: #E74C3C;
-  --marker-green: #27AE60;
-  --marker-black: #2D3436;
-  --highlight-yellow: #FFF3CD;
+  --marker-blue: #0066cc;
+  --marker-red: #e74c3c;
+  --marker-green: #27ae60;
+  --marker-black: #2d3436;
+  --highlight-yellow: #fff3cd;
 }
 
 .dark {
-  --primary: #3B82F6;
-  --primary-foreground: #FFFFFF;
-  --sidebar-primary: #3B82F6;
-  --sidebar-primary-foreground: #FFFFFF;
-  --chart-1: #3B82F6;
-  --chart-2: #10B981;
-  --chart-3: #EF4444;
-  --chart-4: #F59E0B;
-  --chart-5: #A855F7;
-  --background: #1A1A1A;
-  --foreground: #E5E7EB;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --chart-1: #3b82f6;
+  --chart-2: #10b981;
+  --chart-3: #ef4444;
+  --chart-4: #f59e0b;
+  --chart-5: #a855f7;
+  --background: #1a1a1a;
+  --foreground: #e5e7eb;
   --card: #262626;
-  --card-foreground: #E5E7EB;
+  --card-foreground: #e5e7eb;
   --popover: #262626;
-  --popover-foreground: #E5E7EB;
-  --secondary: #3F3F46;
-  --secondary-foreground: #E5E7EB;
-  --muted: #3F3F46;
-  --muted-foreground: #A1A1AA;
-  --accent: #1E3A8A;
-  --accent-foreground: #93C5FD;
-  --destructive: #DC2626;
-  --destructive-foreground: #FFFFFF;
-  --border: #3F3F46;
-  --input: #3F3F46;
-  --ring: #3B82F6;
+  --popover-foreground: #e5e7eb;
+  --secondary: #3f3f46;
+  --secondary-foreground: #e5e7eb;
+  --muted: #3f3f46;
+  --muted-foreground: #a1a1aa;
+  --accent: #1e3a8a;
+  --accent-foreground: #93c5fd;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #3f3f46;
+  --input: #3f3f46;
+  --ring: #3b82f6;
 
   /* Marker Overrides for Dark Mode */
-  --marker-blue: #60A5FA;
-  --marker-red: #F87171;
-  --marker-green: #4ADE80;
-  --marker-black: #F3F4F6;
+  --marker-blue: #60a5fa;
+  --marker-red: #f87171;
+  --marker-green: #4ade80;
+  --marker-black: #f3f4f6;
   --highlight-yellow: #454138;
 }
 
@@ -141,7 +141,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Work Sans', sans-serif;
+    font-family: "Work Sans", sans-serif;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -154,13 +154,16 @@
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
   }
-  
-  h1, h2, h3 {
-    font-family: 'Caveat', cursive;
+
+  h1,
+  h2,
+  h3 {
+    font-family: "Caveat", cursive;
   }
-  
-  code, pre {
-    font-family: 'JetBrains Mono', monospace;
+
+  code,
+  pre {
+    font-family: "JetBrains Mono", monospace;
   }
 }
 
@@ -192,41 +195,45 @@
       max-width: 1280px;
     }
   }
-  
+
   /* Whiteboard-inspired styles */
   .font-display {
-    font-family: 'Caveat', cursive;
+    font-family: "Caveat", cursive;
   }
-  
+
   .font-body {
-    font-family: 'Work Sans', sans-serif;
+    font-family: "Work Sans", sans-serif;
   }
-  
+
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "JetBrains Mono", monospace;
   }
-  
+
   .marker-blue {
     color: var(--marker-blue);
   }
-  
+
   .marker-red {
     color: var(--marker-red);
   }
-  
+
   .marker-green {
     color: var(--marker-green);
   }
-  
+
   .marker-black {
     color: var(--marker-black);
   }
-  
+
   .highlight-yellow {
-    background: linear-gradient(180deg, transparent 60%, var(--highlight-yellow) 60%);
+    background: linear-gradient(
+      180deg,
+      transparent 60%,
+      var(--highlight-yellow) 60%
+    );
     padding: 0 4px;
   }
-  
+
   .whiteboard-card {
     @apply bg-card text-card-foreground;
     border: 2px solid var(--marker-black);
@@ -234,18 +241,18 @@
     box-shadow: 4px 4px 0 var(--marker-black);
     position: relative;
   }
-  
+
   .whiteboard-card::before {
-    content: '';
+    content: "";
     position: absolute;
     top: -8px;
     left: 20px;
     width: 40px;
     height: 16px;
-    background: #F39C12;
+    background: #f39c12;
     border-radius: 2px;
   }
-  
+
   .section-divider {
     height: 3px;
     background: repeating-linear-gradient(
@@ -257,14 +264,14 @@
     );
     margin: 3rem 0;
   }
-  
+
   .hand-underline {
     position: relative;
     display: inline-block;
   }
-  
+
   .hand-underline::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: -4px;
     left: 0;
@@ -287,18 +294,17 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F3F4;
+  background: #f1f3f4;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #B2BEC3;
+  background: #b2bec3;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #636E72;
+  background: #636e72;
 }
-
 
 /* Print styles for PDF generation */
 @media print {
@@ -306,72 +312,72 @@ html {
     size: A4;
     margin: 1.5cm;
   }
-  
+
   body {
     background: white !important;
     font-size: 11pt;
     line-height: 1.4;
   }
-  
+
   .container {
     max-width: 100% !important;
     padding: 0 !important;
   }
-  
+
   /* Hide non-essential elements */
   .print\\:hidden {
     display: none !important;
   }
-  
+
   /* Show print-only elements */
   .print\\:block {
     display: block !important;
   }
-  
+
   /* Ensure proper page breaks */
   .print\\:break-inside-avoid {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  
+
   .print\\:break-before-page {
     break-before: page;
     page-break-before: always;
   }
-  
+
   /* Adjust spacing for print */
   section {
     margin-bottom: 1.5rem !important;
   }
-  
+
   h1 {
     font-size: 28pt !important;
   }
-  
+
   h2 {
     font-size: 20pt !important;
     margin-bottom: 0.75rem !important;
   }
-  
+
   h3 {
     font-size: 14pt !important;
   }
-  
+
   /* Expand all sections for print */
   .whiteboard-card {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
   }
-  
+
   .whiteboard-card::before {
     display: none !important;
   }
-  
+
   /* Ensure links are visible */
   a[href]::after {
     content: none;
   }
-  
+
   /* Code blocks */
   pre {
     white-space: pre-wrap !important;
@@ -381,27 +387,27 @@ html {
     border: 1px solid #ddd !important;
     padding: 0.5rem !important;
   }
-  
+
   /* Concept cards */
   .border-l-4 {
     border-left-width: 3px !important;
   }
-  
+
   /* Grid layouts */
   .grid {
     display: block !important;
   }
-  
+
   .grid > * {
     margin-bottom: 0.5rem !important;
   }
-  
+
   /* Images */
   img {
     max-width: 100% !important;
     height: auto !important;
   }
-  
+
   /* Footer */
   footer {
     margin-top: 2rem !important;

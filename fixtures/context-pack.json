@@ -1,11 +1,23 @@
 {
   "budget": { "maxTokens": 64 },
   "selected": [
-    { "id": "system", "content": "You are a concise and rigorous assistant.", "tokens": 12 },
-    { "id": "project", "content": "Project goal: build a context engineering toolkit.", "tokens": 16 }
+    {
+      "id": "system",
+      "content": "You are a concise and rigorous assistant.",
+      "tokens": 12
+    },
+    {
+      "id": "project",
+      "content": "Project goal: build a context engineering toolkit.",
+      "tokens": 16
+    }
   ],
   "dropped": [
-    { "id": "long-note", "content": "A very long note that can be compressed if needed.", "tokens": 60 }
+    {
+      "id": "long-note",
+      "content": "A very long note that can be compressed if needed.",
+      "tokens": 60
+    }
   ],
   "totalTokens": 28,
   "stats": {

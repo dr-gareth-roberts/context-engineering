@@ -14,7 +14,7 @@ import {
   FileCode,
   Cpu,
   Zap,
-  Box
+  Box,
 } from "lucide-react";
 import { pack, diff, type ContextItem } from "@ce/core";
 import { CodeBlock, codeExamples } from "@/components/CodeBlock";
@@ -26,15 +26,15 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+    transition: { staggerChildren: 0.1 },
+  },
 };
 
 const defaultItems = `[
@@ -72,7 +72,8 @@ function parseItems(raw: string): { items: ContextItem[]; error?: string } {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return { items: parsed };
-    if (parsed?.items && Array.isArray(parsed.items)) return { items: parsed.items };
+    if (parsed?.items && Array.isArray(parsed.items))
+      return { items: parsed.items };
     return { items: [], error: "Expected an array or { items: [] }" };
   } catch (error) {
     return { items: [], error: (error as Error).message };
@@ -109,19 +110,31 @@ export default function Home() {
   const [traceInput, setTraceInput] = useState(defaultTrace);
 
   const parsed = useMemo(() => parseItems(itemsJson), [itemsJson]);
-  
+
   const packA = useMemo(() => {
     if (parsed.error || !parsed.items.length) return null;
     try {
-        return pack(parsed.items, { maxTokens: Number(budgetA) || 0 }, { allowCompression: true });
-    } catch (e) { return null; }
+      return pack(
+        parsed.items,
+        { maxTokens: Number(budgetA) || 0 },
+        { allowCompression: true }
+      );
+    } catch (e) {
+      return null;
+    }
   }, [parsed, budgetA]);
 
   const packB = useMemo(() => {
     if (parsed.error || !parsed.items.length) return null;
     try {
-        return pack(parsed.items, { maxTokens: Number(budgetB) || 0 }, { allowCompression: true });
-    } catch (e) { return null; }
+      return pack(
+        parsed.items,
+        { maxTokens: Number(budgetB) || 0 },
+        { allowCompression: true }
+      );
+    } catch (e) {
+      return null;
+    }
   }, [parsed, budgetB]);
 
   const packDiff = useMemo(() => {
@@ -132,7 +145,7 @@ export default function Home() {
   const traceParsed = useMemo(() => parseTrace(traceInput), [traceInput]);
   const decisionCounts = useMemo(() => {
     const counts = { include: 0, exclude: 0, compress: 0 };
-    traceParsed.steps.forEach((step) => {
+    traceParsed.steps.forEach(step => {
       const d = step.decision;
       if (d === "include") counts.include++;
       else if (d === "exclude") counts.exclude++;
@@ -144,7 +157,7 @@ export default function Home() {
   const navItems = [
     { label: "Why CE?", id: "why" },
     { label: "Patterns", id: "patterns" },
-    { label: "Playground", id: "playground" }
+    { label: "Playground", id: "playground" },
   ];
 
   return (
@@ -157,16 +170,20 @@ export default function Home() {
               <Brain className="w-6 h-6 marker-blue" />
             </div>
             <div>
-              <p className="font-display text-2xl marker-black leading-none">CE Toolkit</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Production Ready</p>
+              <p className="font-display text-2xl marker-black leading-none">
+                CE Toolkit
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
+                Production Ready
+              </p>
             </div>
           </div>
-          
+
           <nav className="hidden md:flex items-center gap-8">
             {navItems.map(item => (
-              <a 
-                key={item.id} 
-                href={`#${item.id}`} 
+              <a
+                key={item.id}
+                href={`#${item.id}`}
                 className="text-sm font-bold marker-black/60 hover:marker-blue transition-all uppercase tracking-tight"
               >
                 {item.label}
@@ -175,7 +192,12 @@ export default function Home() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={toggleTheme} className="rounded-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="rounded-full"
+            >
               {theme === "dark" ? "☀️" : "🌙"}
             </Button>
             <Button className="bg-marker-black hover:bg-marker-black/90 text-background shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] font-bold">
@@ -199,21 +221,35 @@ export default function Home() {
               CONTEXT AS AN ENGINEERING PROBLEM
             </div>
             <h1 className="font-display text-6xl md:text-8xl leading-[0.9] marker-black">
-              Pack context <br/><span className="marker-blue">not prompts.</span>
+              Pack context <br />
+              <span className="marker-blue">not prompts.</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-xl leading-relaxed">
-              Stop guessing if your agent's context will fit. CE Toolkit provides the algorithms to score, rank, and compress context items into deterministic token budgets.
+              Stop guessing if your agent's context will fit. CE Toolkit
+              provides the algorithms to score, rank, and compress context items
+              into deterministic token budgets.
             </p>
             <div className="flex flex-wrap gap-5 pt-4">
-              <Button size="lg" className="bg-marker-blue hover:bg-marker-blue/90 text-white h-14 px-8 text-lg rounded-none shadow-[6px_6px_0_0_rgba(0,102,204,0.2)] font-display" asChild>
-                <a href="#playground">Try the Playground <ChevronRight className="w-5 h-5 ml-2" /></a>
+              <Button
+                size="lg"
+                className="bg-marker-blue hover:bg-marker-blue/90 text-white h-14 px-8 text-lg rounded-none shadow-[6px_6px_0_0_rgba(0,102,204,0.2)] font-display"
+                asChild
+              >
+                <a href="#playground">
+                  Try the Playground <ChevronRight className="w-5 h-5 ml-2" />
+                </a>
               </Button>
-              <Button size="lg" variant="outline" className="h-14 px-8 text-lg rounded-none border-2 border-marker-black hover:bg-marker-black/5 font-display" asChild>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-14 px-8 text-lg rounded-none border-2 border-marker-black hover:bg-marker-black/5 font-display"
+                asChild
+              >
                 <a href="#patterns">Read Patterns</a>
               </Button>
             </div>
           </motion.div>
-          
+
           <motion.div variants={fadeInUp} className="relative">
             <div className="absolute -top-4 -left-4 w-full h-full border-2 border-dashed border-marker-blue/30 rounded-lg -z-10 rotate-1"></div>
             <Card className="whiteboard-card p-2 overflow-hidden bg-card">
@@ -223,7 +259,9 @@ export default function Home() {
                   <div className="w-3 h-3 rounded-full bg-highlight-yellow" />
                   <div className="w-3 h-3 rounded-full bg-marker-green/40" />
                 </div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">example-pack.ts</span>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  example-pack.ts
+                </span>
               </div>
               <CodeBlock
                 language="typescript"
@@ -236,36 +274,53 @@ export default function Home() {
         {/* WHY SECTION */}
         <section id="why" className="scroll-mt-24 mb-32">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <h2 className="font-display text-5xl marker-black underline decoration-marker-red/20 decoration-8 underline-offset-8">Why Context Engineering?</h2>
-            <p className="text-muted-foreground text-lg">Modern agents fail when context overflows or becomes irrelevant. We treat context as a finite resource that needs management.</p>
+            <h2 className="font-display text-5xl marker-black underline decoration-marker-red/20 decoration-8 underline-offset-8">
+              Why Context Engineering?
+            </h2>
+            <p className="text-muted-foreground text-lg">
+              Modern agents fail when context overflows or becomes irrelevant.
+              We treat context as a finite resource that needs management.
+            </p>
           </div>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             <div className="whiteboard-card p-8 bg-card space-y-4">
               <div className="w-12 h-12 rounded-lg bg-marker-blue/10 flex items-center justify-center border-2 border-marker-blue/20">
                 <Zap className="w-6 h-6 marker-blue" />
               </div>
-              <h3 className="font-display text-2xl marker-black">Deterministic Packing</h3>
+              <h3 className="font-display text-2xl marker-black">
+                Deterministic Packing
+              </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                RAG gives you "relevant" documents. CE Toolkit gives you the *best* documents that fit into your *specific* token budget, every time.
+                RAG gives you "relevant" documents. CE Toolkit gives you the
+                *best* documents that fit into your *specific* token budget,
+                every time.
               </p>
             </div>
             <div className="whiteboard-card p-8 bg-card space-y-4 rotate-1">
               <div className="w-12 h-12 rounded-lg bg-marker-green/10 flex items-center justify-center border-2 border-marker-green/20">
                 <BookOpen className="w-6 h-6 marker-green" />
               </div>
-              <h3 className="font-display text-2xl marker-black">Progressive Compression</h3>
+              <h3 className="font-display text-2xl marker-black">
+                Progressive Compression
+              </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                If a 500-token document won't fit, CE can automatically swap it for a 50-token summary rather than dropping the information entirely.
+                If a 500-token document won't fit, CE can automatically swap it
+                for a 50-token summary rather than dropping the information
+                entirely.
               </p>
             </div>
             <div className="whiteboard-card p-8 bg-card space-y-4 -rotate-1">
               <div className="w-12 h-12 rounded-lg bg-marker-red/10 flex items-center justify-center border-2 border-marker-red/20">
                 <Cpu className="w-6 h-6 marker-red" />
               </div>
-              <h3 className="font-display text-2xl marker-black">Cross-Platform SDKs</h3>
+              <h3 className="font-display text-2xl marker-black">
+                Cross-Platform SDKs
+              </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Identical algorithms in TypeScript and Python ensure your frontend demos and backend production logic behave exactly the same way.
+                Identical algorithms in TypeScript and Python ensure your
+                frontend demos and backend production logic behave exactly the
+                same way.
               </p>
             </div>
           </div>
@@ -274,7 +329,9 @@ export default function Home() {
         {/* PATTERNS SECTION */}
         <section id="patterns" className="scroll-mt-24 mb-32">
           <div className="flex items-center gap-4 mb-12">
-            <h2 className="font-display text-5xl marker-black">Context Patterns</h2>
+            <h2 className="font-display text-5xl marker-black">
+              Context Patterns
+            </h2>
             <div className="flex-1 h-[2px] bg-marker-black/10" />
             <div className="px-3 py-1 bg-highlight-yellow marker-black text-xs font-mono font-bold rounded-full border border-marker-black/20">
               CORE DESIGNS
@@ -286,12 +343,21 @@ export default function Home() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Box className="w-6 h-6 marker-blue" />
-                  <h3 className="font-display text-3xl marker-black">Observation Masking</h3>
+                  <h3 className="font-display text-3xl marker-black">
+                    Observation Masking
+                  </h3>
                 </div>
-                <p className="text-muted-foreground">Compress tool output to preserve signal while reducing tokens. Instead of sending raw JSON, you truncate and extract key fields.</p>
+                <p className="text-muted-foreground">
+                  Compress tool output to preserve signal while reducing tokens.
+                  Instead of sending raw JSON, you truncate and extract key
+                  fields.
+                </p>
               </div>
               <Card className="whiteboard-card p-0 bg-card overflow-hidden">
-                <CodeBlock language="python" code={codeExamples.observationMasking} />
+                <CodeBlock
+                  language="python"
+                  code={codeExamples.observationMasking}
+                />
               </Card>
             </div>
 
@@ -299,12 +365,21 @@ export default function Home() {
               <div className="space-y-4 lg:order-2">
                 <div className="flex items-center gap-3">
                   <Layers className="w-6 h-6 marker-green" />
-                  <h3 className="font-display text-3xl marker-black">KV-Cache Optimisation</h3>
+                  <h3 className="font-display text-3xl marker-black">
+                    KV-Cache Optimisation
+                  </h3>
                 </div>
-                <p className="text-muted-foreground">Keep your system prompt and tool definitions static. Only append new messages to maximize KV-Cache hits across agent steps.</p>
+                <p className="text-muted-foreground">
+                  Keep your system prompt and tool definitions static. Only
+                  append new messages to maximize KV-Cache hits across agent
+                  steps.
+                </p>
               </div>
               <Card className="whiteboard-card p-0 bg-card overflow-hidden lg:order-1 rotate-1">
-                <CodeBlock language="python" code={codeExamples.kvCacheOptimisation} />
+                <CodeBlock
+                  language="python"
+                  code={codeExamples.kvCacheOptimisation}
+                />
               </Card>
             </div>
 
@@ -312,12 +387,21 @@ export default function Home() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Terminal className="w-6 h-6 marker-red" />
-                  <h3 className="font-display text-3xl marker-black">Deep Agent Planning</h3>
+                  <h3 className="font-display text-3xl marker-black">
+                    Deep Agent Planning
+                  </h3>
                 </div>
-                <p className="text-muted-foreground">Provide agents with structured phases. They can easily track what has been done and what to do next without hallucinating plans.</p>
+                <p className="text-muted-foreground">
+                  Provide agents with structured phases. They can easily track
+                  what has been done and what to do next without hallucinating
+                  plans.
+                </p>
               </div>
               <Card className="whiteboard-card p-0 bg-card overflow-hidden -rotate-1">
-                <CodeBlock language="python" code={codeExamples.deepAgentPlanning} />
+                <CodeBlock
+                  language="python"
+                  code={codeExamples.deepAgentPlanning}
+                />
               </Card>
             </div>
 
@@ -325,25 +409,40 @@ export default function Home() {
               <div className="space-y-4 lg:order-2">
                 <div className="flex items-center gap-3">
                   <Settings className="w-6 h-6 marker-black" />
-                  <h3 className="font-display text-3xl marker-black">Tool Masking</h3>
+                  <h3 className="font-display text-3xl marker-black">
+                    Tool Masking
+                  </h3>
                 </div>
-                <p className="text-muted-foreground">Pass ALL tools to the LLM definitions to keep KV-cache stable, but use \`tool_choice\` masking to enforce state machines and prevent invalid tool calls.</p>
+                <p className="text-muted-foreground">
+                  Pass ALL tools to the LLM definitions to keep KV-cache stable,
+                  but use \`tool_choice\` masking to enforce state machines and
+                  prevent invalid tool calls.
+                </p>
               </div>
               <Card className="whiteboard-card p-0 bg-card overflow-hidden lg:order-1">
                 <CodeBlock language="python" code={codeExamples.toolMasking} />
               </Card>
             </div>
-            
+
             <div className="grid lg:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Database className="w-6 h-6 marker-blue" />
-                  <h3 className="font-display text-3xl marker-black">Cron Job Pattern</h3>
+                  <h3 className="font-display text-3xl marker-black">
+                    Cron Job Pattern
+                  </h3>
                 </div>
-                <p className="text-muted-foreground">Stateless execution for scheduled tasks. The agent wakes up, loads its context, executes, and saves summary states for the next run.</p>
+                <p className="text-muted-foreground">
+                  Stateless execution for scheduled tasks. The agent wakes up,
+                  loads its context, executes, and saves summary states for the
+                  next run.
+                </p>
               </div>
               <Card className="whiteboard-card p-0 bg-card overflow-hidden rotate-1">
-                <CodeBlock language="python" code={codeExamples.cronJobPattern} />
+                <CodeBlock
+                  language="python"
+                  code={codeExamples.cronJobPattern}
+                />
               </Card>
             </div>
 
@@ -351,12 +450,20 @@ export default function Home() {
               <div className="space-y-4 lg:order-2">
                 <div className="flex items-center gap-3">
                   <FileCode className="w-6 h-6 marker-green" />
-                  <h3 className="font-display text-3xl marker-black">Context Summarisation</h3>
+                  <h3 className="font-display text-3xl marker-black">
+                    Context Summarisation
+                  </h3>
                 </div>
-                <p className="text-muted-foreground">Intelligently summarize older message history when approaching the context window limits, preserving recent crucial context.</p>
+                <p className="text-muted-foreground">
+                  Intelligently summarize older message history when approaching
+                  the context window limits, preserving recent crucial context.
+                </p>
               </div>
               <Card className="whiteboard-card p-0 bg-card overflow-hidden lg:order-1 -rotate-1">
-                <CodeBlock language="python" code={codeExamples.contextSummarisation} />
+                <CodeBlock
+                  language="python"
+                  code={codeExamples.contextSummarisation}
+                />
               </Card>
             </div>
           </div>
@@ -365,52 +472,68 @@ export default function Home() {
         {/* PLAYGROUND */}
         <section id="playground" className="mt-24 scroll-mt-24 mb-32">
           <div className="flex items-center gap-4 mb-8">
-            <h2 className="font-display text-5xl marker-black">Real-time Playground</h2>
+            <h2 className="font-display text-5xl marker-black">
+              Real-time Playground
+            </h2>
             <div className="flex-1 h-[2px] bg-marker-black/10" />
             <div className="px-3 py-1 bg-marker-green/10 marker-green text-xs font-mono font-bold rounded-full border border-marker-green/20">
               LIVE FRAMEWORK
             </div>
           </div>
-          
+
           <div className="grid lg:grid-cols-2 gap-10">
             <div className="space-y-6">
               <Card className="whiteboard-card">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 border-b-2 border-marker-black/5">
-                  <CardTitle className="font-display text-2xl marker-black">1. Define Context Items</CardTitle>
-                  <Button variant="ghost" size="sm" onClick={() => setItemsJson(defaultItems)} className="text-[10px] font-mono uppercase marker-blue underline font-bold">Reset</Button>
+                  <CardTitle className="font-display text-2xl marker-black">
+                    1. Define Context Items
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setItemsJson(defaultItems)}
+                    className="text-[10px] font-mono uppercase marker-blue underline font-bold"
+                  >
+                    Reset
+                  </Button>
                 </CardHeader>
                 <CardContent className="pt-6">
                   <Textarea
                     value={itemsJson}
-                    onChange={(e) => setItemsJson(e.target.value)}
+                    onChange={e => setItemsJson(e.target.value)}
                     className="font-mono text-xs min-h-[350px] bg-marker-black/[0.02] border-2 border-marker-black/10 text-foreground"
                   />
                   {parsed.error && (
                     <div className="mt-3 p-3 bg-marker-red/10 border-2 border-marker-red/20 marker-red text-xs font-mono rounded">
-                      <AlertCircle className="w-4 h-4 inline mr-2" /> Error: {parsed.error}
+                      <AlertCircle className="w-4 h-4 inline mr-2" /> Error:{" "}
+                      {parsed.error}
                     </div>
                   )}
                 </CardContent>
               </Card>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold marker-black uppercase ml-1">Budget A (Tokens)</label>
-                    <Input 
-                    type="number" 
-                    value={budgetA} 
-                    onChange={(e) => setBudgetA(e.target.value)}
+                  <label className="text-[10px] font-bold marker-black uppercase ml-1">
+                    Budget A (Tokens)
+                  </label>
+                  <Input
+                    type="number"
+                    value={budgetA}
+                    onChange={e => setBudgetA(e.target.value)}
                     className="font-mono border-2 border-marker-black/10 bg-background"
-                    />
+                  />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold marker-black uppercase ml-1">Budget B (Tokens)</label>
-                    <Input 
-                    type="number" 
-                    value={budgetB} 
-                    onChange={(e) => setBudgetB(e.target.value)}
+                  <label className="text-[10px] font-bold marker-black uppercase ml-1">
+                    Budget B (Tokens)
+                  </label>
+                  <Input
+                    type="number"
+                    value={budgetB}
+                    onChange={e => setBudgetB(e.target.value)}
                     className="font-mono border-2 border-marker-black/10 bg-background"
-                    />
+                  />
                 </div>
               </div>
             </div>
@@ -419,13 +542,19 @@ export default function Home() {
               <Card className="whiteboard-card bg-marker-black text-background shadow-[8px_8px_0_0_rgba(45,52,54,0.3)]">
                 <CardHeader className="border-b border-background/10">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="font-display text-3xl text-background">Live Pack Result</CardTitle>
+                    <CardTitle className="font-display text-3xl text-background">
+                      Live Pack Result
+                    </CardTitle>
                     <div className="flex gap-4">
                       <div className="text-center">
-                        <p className="text-[10px] uppercase text-background/50 tracking-tighter font-bold">A: {packA?.totalTokens ?? 0}t</p>
+                        <p className="text-[10px] uppercase text-background/50 tracking-tighter font-bold">
+                          A: {packA?.totalTokens ?? 0}t
+                        </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] uppercase text-background/50 tracking-tighter font-bold">B: {packB?.totalTokens ?? 0}t</p>
+                        <p className="text-[10px] uppercase text-background/50 tracking-tighter font-bold">
+                          B: {packB?.totalTokens ?? 0}t
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -433,30 +562,51 @@ export default function Home() {
                 <CardContent className="pt-6 max-h-[500px] overflow-y-auto">
                   <div className="space-y-6">
                     <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-marker-green mb-4">Selection Diffs (A → B)</h4>
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-marker-green mb-4">
+                        Selection Diffs (A → B)
+                      </h4>
                       {packDiff ? (
                         <div className="space-y-2 font-mono text-[11px]">
                           {packDiff.removed.map(item => (
-                            <div key={item.id} className="p-2 border border-marker-red/30 bg-marker-red/10 rounded flex items-center justify-between">
+                            <div
+                              key={item.id}
+                              className="p-2 border border-marker-red/30 bg-marker-red/10 rounded flex items-center justify-between"
+                            >
                               <span className="marker-red">- {item.id}</span>
-                              <span className="text-background/40 text-[9px] uppercase font-bold">Dropped in B</span>
+                              <span className="text-background/40 text-[9px] uppercase font-bold">
+                                Dropped in B
+                              </span>
                             </div>
                           ))}
                           {packDiff.added.map(item => (
-                            <div key={item.id} className="p-2 border border-marker-green/30 bg-marker-green/10 rounded flex items-center justify-between">
+                            <div
+                              key={item.id}
+                              className="p-2 border border-marker-green/30 bg-marker-green/10 rounded flex items-center justify-between"
+                            >
                               <span className="marker-green">+ {item.id}</span>
-                              <span className="text-background/40 text-[9px] uppercase font-bold">Added in B</span>
+                              <span className="text-background/40 text-[9px] uppercase font-bold">
+                                Added in B
+                              </span>
                             </div>
                           ))}
                           {packDiff.kept.map(item => (
-                            <div key={item.id} className="p-2 border border-background/10 bg-background/5 rounded flex items-center justify-between">
-                              <span className="text-background/60">• {item.id}</span>
-                              <span className="text-background/20 text-[9px] uppercase font-bold">Constant</span>
+                            <div
+                              key={item.id}
+                              className="p-2 border border-background/10 bg-background/5 rounded flex items-center justify-between"
+                            >
+                              <span className="text-background/60">
+                                • {item.id}
+                              </span>
+                              <span className="text-background/20 text-[9px] uppercase font-bold">
+                                Constant
+                              </span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-background/40 italic text-center py-4">Waiting for items...</p>
+                        <p className="text-xs text-background/40 italic text-center py-4">
+                          Waiting for items...
+                        </p>
                       )}
                     </div>
                   </div>
@@ -465,8 +615,13 @@ export default function Home() {
 
               <div className="p-6 bg-marker-blue/5 border-2 border-dashed border-marker-blue/20 rounded-lg text-center space-y-3">
                 <FileCode className="w-8 h-8 marker-blue mx-auto opacity-50" />
-                <p className="font-display text-xl marker-black">Interactive Trace</p>
-                <p className="text-xs text-muted-foreground">Adjust the budgets above to see how the ranking engine makes inclusion decisions.</p>
+                <p className="font-display text-xl marker-black">
+                  Interactive Trace
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Adjust the budgets above to see how the ranking engine makes
+                  inclusion decisions.
+                </p>
               </div>
             </div>
           </div>
@@ -479,21 +634,48 @@ export default function Home() {
           <div className="col-span-2 space-y-4">
             <div className="flex items-center gap-3">
               <Brain className="w-6 h-6 marker-black" />
-              <p className="font-display text-2xl marker-black">Context Engineering Toolkit</p>
+              <p className="font-display text-2xl marker-black">
+                Context Engineering Toolkit
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground max-w-xs">A professional-grade suite for managing LLM context windows with precision and transparency.</p>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              A professional-grade suite for managing LLM context windows with
+              precision and transparency.
+            </p>
           </div>
           <div className="space-y-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Navigation</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Navigation
+            </p>
             <ul className="space-y-2 text-sm font-medium">
-              <li><a href="#why" className="hover:marker-blue transition-colors">Why CE?</a></li>
-              <li><a href="#patterns" className="hover:marker-blue transition-colors">Patterns</a></li>
-              <li><a href="#playground" className="hover:marker-blue transition-colors">Playground</a></li>
+              <li>
+                <a href="#why" className="hover:marker-blue transition-colors">
+                  Why CE?
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#patterns"
+                  className="hover:marker-blue transition-colors"
+                >
+                  Patterns
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#playground"
+                  className="hover:marker-blue transition-colors"
+                >
+                  Playground
+                </a>
+              </li>
             </ul>
           </div>
         </div>
         <div className="container flex flex-col md:flex-row justify-between items-center gap-4 pt-12 border-t border-marker-black/5">
-          <p className="text-[10px] text-muted-foreground font-mono">© 2026 CE-TOOLKIT. LOCAL MONOREPO VERSION.</p>
+          <p className="text-[10px] text-muted-foreground font-mono">
+            © 2026 CE-TOOLKIT. LOCAL MONOREPO VERSION.
+          </p>
           <div className="flex gap-6 grayscale opacity-50">
             <Code className="w-4 h-4" />
             <Terminal className="w-4 h-4" />

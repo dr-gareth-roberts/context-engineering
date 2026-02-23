@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Check, Copy } from "lucide-react";
-import hljs from 'highlight.js/lib/core';
-import typescript from 'highlight.js/lib/languages/typescript';
-import python from 'highlight.js/lib/languages/python';
-import yaml from 'highlight.js/lib/languages/yaml';
-import bash from 'highlight.js/lib/languages/bash';
-import 'highlight.js/styles/github-dark.css';
+import hljs from "highlight.js/lib/core";
+import typescript from "highlight.js/lib/languages/typescript";
+import python from "highlight.js/lib/languages/python";
+import yaml from "highlight.js/lib/languages/yaml";
+import bash from "highlight.js/lib/languages/bash";
+import "highlight.js/styles/github-dark.css";
 
 // Register languages
-hljs.registerLanguage('typescript', typescript);
-hljs.registerLanguage('python', python);
-hljs.registerLanguage('yaml', yaml);
-hljs.registerLanguage('bash', bash);
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("python", python);
+hljs.registerLanguage("yaml", yaml);
+hljs.registerLanguage("bash", bash);
 
 interface CodeBlockProps {
   code: string;
@@ -20,17 +20,17 @@ interface CodeBlockProps {
   showLineNumbers?: boolean;
 }
 
-export function CodeBlock({ 
-  code, 
-  language = "text", 
+export function CodeBlock({
+  code,
+  language = "text",
   title,
-  showLineNumbers = false 
+  showLineNumbers = false,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const codeRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (codeRef.current && language !== 'text') {
+    if (codeRef.current && language !== "text") {
       hljs.highlightElement(codeRef.current);
     }
   }, [code, language]);
@@ -41,14 +41,16 @@ export function CodeBlock({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const lines = code.split('\n');
+  const lines = code.split("\n");
 
   return (
     <div className="relative group rounded-lg overflow-hidden border-2 border-marker-black bg-[#FDFDFD] my-4 shadow-[4px_4px_0_0_rgba(45,52,54,0.1)]">
       {title && (
         <div className="flex items-center justify-between px-4 py-2 bg-white border-b-2 border-marker-black/10">
           <span className="text-sm font-mono marker-black">{title}</span>
-          <span className="text-xs font-mono text-muted-foreground uppercase">{language}</span>
+          <span className="text-xs font-mono text-muted-foreground uppercase">
+            {language}
+          </span>
         </div>
       )}
       <div className="relative">
@@ -65,18 +67,16 @@ export function CodeBlock({
         </button>
         <pre className="p-4 overflow-x-auto text-sm bg-transparent">
           <code ref={codeRef} className={`language-${language} text-slate-900`}>
-            {showLineNumbers ? (
-              lines.map((line, i) => (
-                <div key={i} className="flex">
-                  <span className="select-none text-muted-foreground/40 w-8 text-right mr-4 shrink-0 font-mono">
-                    {i + 1}
-                  </span>
-                  <span>{line}</span>
-                </div>
-              ))
-            ) : (
-              code
-            )}
+            {showLineNumbers
+              ? lines.map((line, i) => (
+                  <div key={i} className="flex">
+                    <span className="select-none text-muted-foreground/40 w-8 text-right mr-4 shrink-0 font-mono">
+                      {i + 1}
+                    </span>
+                    <span>{line}</span>
+                  </div>
+                ))
+              : code}
           </code>
         </pre>
       </div>
@@ -500,5 +500,5 @@ class ContextManager:
         if results_obtained:
             summary_parts.append(f"Results: {len(results_obtained)} obtained")
         
-        return " | ".join(summary_parts) if summary_parts else "No significant events"`
+        return " | ".join(summary_parts) if summary_parts else "No significant events"`,
 };

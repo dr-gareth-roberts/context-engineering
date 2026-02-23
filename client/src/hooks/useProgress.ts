@@ -18,7 +18,7 @@ const STORAGE_KEY = "context-engineering-progress";
 const defaultProgress: ProgressData = {
   completedSections: [],
   quizScores: [],
-  lastVisit: new Date().toISOString()
+  lastVisit: new Date().toISOString(),
 };
 
 export function useProgress() {
@@ -52,7 +52,7 @@ export function useProgress() {
       completedSections: prev.completedSections.includes(sectionId)
         ? prev.completedSections
         : [...prev.completedSections, sectionId],
-      lastVisit: new Date().toISOString()
+      lastVisit: new Date().toISOString(),
     }));
   };
 
@@ -65,9 +65,9 @@ export function useProgress() {
       ...prev,
       quizScores: [
         ...prev.quizScores,
-        { ...score, timestamp: new Date().toISOString() }
+        { ...score, timestamp: new Date().toISOString() },
       ],
-      lastVisit: new Date().toISOString()
+      lastVisit: new Date().toISOString(),
     }));
   };
 
@@ -84,7 +84,9 @@ export function useProgress() {
   };
 
   const getCompletionPercentage = (totalSections: number): number => {
-    return Math.round((progress.completedSections.length / totalSections) * 100);
+    return Math.round(
+      (progress.completedSections.length / totalSections) * 100
+    );
   };
 
   const resetProgress = () => {
@@ -100,6 +102,6 @@ export function useProgress() {
     getBestQuizScore,
     getLatestQuizScore,
     getCompletionPercentage,
-    resetProgress
+    resetProgress,
   };
 }
