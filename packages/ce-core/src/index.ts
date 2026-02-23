@@ -8,3 +8,4 @@ export * from "./diff";
 export * from "./trace";
 export * from "./stream";
 export * from "./logger";
+export * from "./cache";
