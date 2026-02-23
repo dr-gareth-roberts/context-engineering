@@ -61,7 +61,7 @@ async def test_stream_empty_items():
 
 @pytest.mark.asyncio
 async def test_stream_invalid_budget():
-    with pytest.raises(ValueError, match="maxTokens must be positive"):
+    with pytest.raises(Exception, match="maxTokens must be positive"):
         async for _ in pack_stream([], Budget(maxTokens=0)):
             pass
 

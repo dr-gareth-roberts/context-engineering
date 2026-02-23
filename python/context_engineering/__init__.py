@@ -1,3 +1,10 @@
+from .errors import (
+    ContextEngineeringError,
+    ValidationError,
+    BudgetExceededError,
+    EstimationError,
+    ValidationDetail,
+)
 from .core import (
     Budget,
     ContextItem,
@@ -7,6 +14,7 @@ from .core import (
     ContextHandoff,
     ScoringWeights,
     Compression,
+    create_context_item,
     pack,
     trace_pack,
     diff,
@@ -70,6 +78,12 @@ from .beads import (
 )
 
 __all__ = [
+    # Errors
+    "ContextEngineeringError",
+    "ValidationError",
+    "BudgetExceededError",
+    "EstimationError",
+    "ValidationDetail",
     # Core types
     "Budget",
     "ContextItem",
@@ -80,6 +94,7 @@ __all__ = [
     "Compression",
     "ScoringWeights",
     # Core functions
+    "create_context_item",
     "pack",
     "trace_pack",
     "diff",

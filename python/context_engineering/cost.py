@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from .cache_topology import CacheAwarePack
+from .errors import EstimationError
 
 
 @dataclass
@@ -92,7 +93,7 @@ def estimate_cost(
     price = pricing or MODEL_PRICING.get(model)
     if not price:
         models = ", ".join(MODEL_PRICING.keys())
-        raise ValueError(f'Unknown model "{model}". Pass custom pricing or use one of: {models}')
+        raise EstimationError(f'Unknown model "{model}". Pass custom pricing or use one of: {models}')
 
     cached = pack.cacheable_tokens
     uncached = pack.volatile_tokens
