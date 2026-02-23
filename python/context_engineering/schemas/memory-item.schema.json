@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "MemoryItem",
+  "title": "MemoryItem",
+  "type": "object",
+  "required": ["id", "content", "createdAt"],
+  "properties": {
+    "id": { "type": "string" },
+    "content": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" },
+    "salience": { "type": "number" },
+    "ttlSeconds": { "type": "number" },
+    "metadata": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": true
+}

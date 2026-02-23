@@ -42,6 +42,9 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["context_engineering*", "context_framework*"]
 
+[tool.setuptools.package-data]
+context_engineering = ["schemas/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
