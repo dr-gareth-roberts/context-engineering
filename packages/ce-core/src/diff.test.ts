@@ -86,4 +86,21 @@ describe("diff", () => {
     const result = diff(before, after);
     expect(result).toMatchSnapshot();
   });
+
+  it("handles duplicate IDs by using the last occurrence", () => {
+    const dupesBefore: ContextItem[] = [
+      { id: "a", content: "First A", tokens: 10 },
+      { id: "a", content: "Second A", tokens: 20 },
+    ];
+    const dupesAfter: ContextItem[] = [
+      { id: "a", content: "Second A", tokens: 20 },
+    ];
+    const result = diff(dupesBefore, dupesAfter);
+    // Map construction uses last entry for duplicate keys, so "Second A" is the before value
+    expect(result.kept.length).toBe(1);
+    expect(result.kept[0].content).toBe("Second A");
+    expect(result.changed).toEqual([]);
+    expect(result.added).toEqual([]);
+    expect(result.removed).toEqual([]);
+  });
 });

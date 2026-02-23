@@ -135,6 +135,34 @@ describe("InMemoryStore", () => {
     expect(item.id).toBeDefined();
     expect(item.id.length).toBeGreaterThan(0);
   });
+
+  it("expires items after TTL elapses", async () => {
+    const store = new InMemoryStore();
+    const pastDate = new Date(Date.now() - 5000).toISOString();
+    await store.put({
+      id: "ttl-item",
+      content: "Short lived",
+      createdAt: pastDate,
+      ttlSeconds: 2,
+    });
+
+    // Item should be expired (created 5s ago, TTL is 2s)
+    const expiredResults = await store.query();
+    expect(expiredResults.find(i => i.id === "ttl-item")).toBeUndefined();
+
+    // But with includeExpired it should still be there
+    const allResults = await store.query({ includeExpired: true });
+    expect(allResults.find(i => i.id === "ttl-item")).toBeDefined();
+
+    // A non-expired item with TTL should still appear
+    await store.put({
+      id: "ttl-fresh",
+      content: "Still alive",
+      ttlSeconds: 9999,
+    });
+    const freshResults = await store.query();
+    expect(freshResults.find(i => i.id === "ttl-fresh")).toBeDefined();
+  });
 });
 
 describe("FileStore", () => {
@@ -170,6 +198,25 @@ describe("FileStore", () => {
     await store.put({ id: "nested", content: "Deep" });
     const fetched = await store.get("nested");
     expect(fetched?.content).toBe("Deep");
+  });
+
+  it("forget removes an item and persists the change", async () => {
+    const filePath = tempPath("forget.jsonl");
+    const store1 = new FileStore(filePath);
+    await store1.put([
+      { id: "keep", content: "Keep me" },
+      { id: "remove", content: "Remove me" },
+    ]);
+
+    const deleted = await store1.forget("remove");
+    expect(deleted).toBe(true);
+    expect(await store1.get("remove")).toBeNull();
+    expect(await store1.get("keep")).not.toBeNull();
+
+    // Verify persistence by loading a fresh store from the same file
+    const store2 = new FileStore(filePath);
+    expect(await store2.get("remove")).toBeNull();
+    expect((await store2.get("keep"))?.content).toBe("Keep me");
   });
 });
 
@@ -245,6 +292,38 @@ describe("SqliteStore", () => {
     const deleted = await store.forget("del");
     expect(deleted).toBe(true);
     expect(await store.get("del")).toBeNull();
+    store.close();
+  });
+
+  it("queries with minSalience filter", async () => {
+    const store = new SqliteStore(":memory:");
+    await store.put([
+      { id: "high", content: "Important", salience: 0.9 },
+      { id: "medium", content: "Moderate", salience: 0.5 },
+      { id: "low", content: "Meh", salience: 0.1 },
+    ]);
+    const results = await store.query({ minSalience: 0.5 });
+    expect(results.length).toBe(2);
+    const ids = results.map(r => r.id);
+    expect(ids).toContain("high");
+    expect(ids).toContain("medium");
+    expect(ids).not.toContain("low");
+    store.close();
+  });
+
+  it("queries with text filter", async () => {
+    const store = new SqliteStore(":memory:");
+    await store.put([
+      { id: "a", content: "Hello world" },
+      { id: "b", content: "Goodbye world" },
+      { id: "c", content: "Hello universe" },
+    ]);
+    const results = await store.query({ text: "hello" });
+    expect(results.length).toBe(2);
+    const ids = results.map(r => r.id);
+    expect(ids).toContain("a");
+    expect(ids).toContain("c");
+    expect(ids).not.toContain("b");
     store.close();
   });
 });
