@@ -13,7 +13,10 @@
         "required": ["id", "decision"],
         "properties": {
           "id": { "type": "string" },
-          "decision": { "type": "string", "enum": ["include", "exclude", "compress"] },
+          "decision": {
+            "type": "string",
+            "enum": ["include", "exclude", "compress"]
+          },
           "tokens": { "type": "number" },
           "score": { "type": "number" },
           "reason": { "type": "string" },

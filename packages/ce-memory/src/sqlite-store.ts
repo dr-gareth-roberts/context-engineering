@@ -41,9 +41,11 @@ export class SqliteStore implements MemoryStore {
     this.db.exec(createSql);
   }
 
-  async put(item: Partial<MemoryItem> | Partial<MemoryItem>[]): Promise<MemoryItem[]> {
+  async put(
+    item: Partial<MemoryItem> | Partial<MemoryItem>[]
+  ): Promise<MemoryItem[]> {
     const list = Array.isArray(item) ? item : [item];
-    const normalized = list.map((entry) => normalizeMemoryItem(entry));
+    const normalized = list.map(entry => normalizeMemoryItem(entry));
     const stmt = this.db.prepare(
       `INSERT INTO ${this.tableName}
        (id, content, created_at, updated_at, salience, ttl_seconds, metadata_json)
@@ -65,7 +67,7 @@ export class SqliteStore implements MemoryStore {
           updated_at: entry.updatedAt ?? entry.createdAt,
           salience: entry.salience ?? 1,
           ttl_seconds: entry.ttlSeconds ?? null,
-          metadata_json: JSON.stringify(entry.metadata ?? {})
+          metadata_json: JSON.stringify(entry.metadata ?? {}),
         });
       }
     });
@@ -99,7 +101,7 @@ export class SqliteStore implements MemoryStore {
       updatedAt: row.updated_at ?? undefined,
       salience: row.salience ?? undefined,
       ttlSeconds: row.ttl_seconds ?? undefined,
-      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined
+      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
     };
   }
 
@@ -115,14 +117,14 @@ export class SqliteStore implements MemoryStore {
       metadata_json: string | null;
     }>;
 
-    const items: MemoryItem[] = rows.map((row) => ({
+    const items: MemoryItem[] = rows.map(row => ({
       id: row.id,
       content: row.content,
       createdAt: row.created_at,
       updatedAt: row.updated_at ?? undefined,
       salience: row.salience ?? undefined,
       ttlSeconds: row.ttl_seconds ?? undefined,
-      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined
+      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
     }));
 
     return applyQueryFilter(items, query);

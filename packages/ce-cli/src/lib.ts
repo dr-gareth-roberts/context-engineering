@@ -3,7 +3,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Ajv from "ajv";
 import { pack, tracePack, diff, estimateTokens } from "@ce/core";
-import type { ContextItem, ContextPack, PackDiff, TokenEstimator } from "@ce/core";
+import type {
+  ContextItem,
+  ContextPack,
+  PackDiff,
+  TokenEstimator,
+} from "@ce/core";
 import { openaiTokenEstimator, anthropicTokenEstimator } from "@ce/providers";
 
 export type SchemaName =
@@ -18,10 +23,12 @@ const schemaFileMap: Record<SchemaName, string> = {
   "context-plan": "context-plan.schema.json",
   "context-pack": "context-pack.schema.json",
   "context-trace": "context-trace.schema.json",
-  "memory-item": "memory-item.schema.json"
+  "memory-item": "memory-item.schema.json",
 };
 
-export async function loadItemsFromFile(filePath: string): Promise<ContextItem[]> {
+export async function loadItemsFromFile(
+  filePath: string
+): Promise<ContextItem[]> {
   const raw = await fs.readFile(filePath, "utf-8");
   const trimmed = raw.trim();
 
@@ -31,7 +38,7 @@ export async function loadItemsFromFile(filePath: string): Promise<ContextItem[]
     return trimmed
       .split(/\r?\n/)
       .filter(Boolean)
-      .map((line) => JSON.parse(line));
+      .map(line => JSON.parse(line));
   }
 
   const parsed = JSON.parse(trimmed);
@@ -40,7 +47,9 @@ export async function loadItemsFromFile(filePath: string): Promise<ContextItem[]
   throw new Error("Invalid items file: expected array or { items: [] }");
 }
 
-export function resolveTokenEstimator(provider?: string): TokenEstimator | undefined {
+export function resolveTokenEstimator(
+  provider?: string
+): TokenEstimator | undefined {
   if (provider === "openai") return openaiTokenEstimator;
   if (provider === "anthropic") return anthropicTokenEstimator;
   return undefined;
@@ -51,7 +60,11 @@ export function runPack(
   budget: number,
   options: { provider?: string } = {}
 ): ContextPack {
-  return pack(items, { maxTokens: budget }, { tokenEstimator: resolveTokenEstimator(options.provider) });
+  return pack(
+    items,
+    { maxTokens: budget },
+    { tokenEstimator: resolveTokenEstimator(options.provider) }
+  );
 }
 
 export function runTrace(
@@ -59,7 +72,11 @@ export function runTrace(
   budget: number,
   options: { provider?: string } = {}
 ) {
-  return tracePack(items, { maxTokens: budget }, { tokenEstimator: resolveTokenEstimator(options.provider) });
+  return tracePack(
+    items,
+    { maxTokens: budget },
+    { tokenEstimator: resolveTokenEstimator(options.provider) }
+  );
 }
 
 export function runDiff(
@@ -69,8 +86,13 @@ export function runDiff(
   return diff(before, after);
 }
 
-export function runBudget(text: string, options: { provider?: string } = {}): number {
-  return estimateTokens(text, { estimator: resolveTokenEstimator(options.provider) });
+export function runBudget(
+  text: string,
+  options: { provider?: string } = {}
+): number {
+  return estimateTokens(text, {
+    estimator: resolveTokenEstimator(options.provider),
+  });
 }
 
 function findSchemasDir(startDir: string): string | null {
@@ -115,9 +137,13 @@ export async function loadSchemas(): Promise<Record<string, unknown>> {
 
 export async function lintFile(schemaName: SchemaName, data: unknown) {
   const schemas = await loadSchemas();
-  const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
+  const ajv = new Ajv({
+    allErrors: true,
+    strict: false,
+    validateSchema: false,
+  });
 
-  Object.values(schemas).forEach((schema) => {
+  Object.values(schemas).forEach(schema => {
     ajv.addSchema(schema as any);
   });
 

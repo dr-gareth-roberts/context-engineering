@@ -28,6 +28,6 @@ export function tracePack(
   return {
     pack,
     steps: steps ?? [],
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   };
 }

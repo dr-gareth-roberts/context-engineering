@@ -13,6 +13,7 @@
 ### Task 1: Add Zod to ce-core and create error classes
 
 **Files:**
+
 - Modify: `packages/ce-core/package.json` (add zod dependency)
 - Create: `packages/ce-core/src/errors.ts`
 
@@ -83,6 +84,7 @@ git commit -m "feat(ce-core): add error class hierarchy and zod dependency"
 ### Task 2: Create Zod schemas for ce-core types
 
 **Files:**
+
 - Create: `packages/ce-core/src/schemas.ts`
 
 **Step 1: Write the failing test**
@@ -91,11 +93,7 @@ Create `packages/ce-core/src/schemas.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import {
-  ContextItemSchema,
-  BudgetSchema,
-  CompressionSchema,
-} from "./schemas";
+import { ContextItemSchema, BudgetSchema, CompressionSchema } from "./schemas";
 
 describe("ContextItemSchema", () => {
   it("accepts a valid item", () => {
@@ -136,9 +134,7 @@ describe("ContextItemSchema", () => {
     const result = ContextItemSchema.safeParse({
       id: "test",
       content: "Long content",
-      compressions: [
-        { content: "Short", tokens: 5, note: "summary" },
-      ],
+      compressions: [{ content: "Short", tokens: 5, note: "summary" }],
     });
     expect(result.success).toBe(true);
   });
@@ -268,6 +264,7 @@ git commit -m "feat(ce-core): add Zod validation schemas for ContextItem and Bud
 ### Task 3: Add ScoringWeights type and configurable scoring
 
 **Files:**
+
 - Modify: `packages/ce-core/src/types.ts:70-74` (add weights to PackOptions)
 - Modify: `packages/ce-core/src/score.ts` (accept configurable weights)
 
@@ -393,7 +390,9 @@ const scorer = options.scorer ?? defaultItemScorer;
 to:
 
 ```ts
-const scorer = options.scorer ?? (options.weights ? createScorer(options.weights) : defaultItemScorer);
+const scorer =
+  options.scorer ??
+  (options.weights ? createScorer(options.weights) : defaultItemScorer);
 ```
 
 Add `import { createScorer, defaultItemScorer } from "./score";` (replace the existing import).
@@ -415,6 +414,7 @@ git commit -m "feat(ce-core): add configurable ScoringWeights and createScorer f
 ### Task 4: Add input validation to pack() and diff()
 
 **Files:**
+
 - Modify: `packages/ce-core/src/pack.ts:54-68` (add validation at entry)
 - Modify: `packages/ce-core/src/diff.ts:3-5` (validate inputs)
 - Modify: `packages/ce-core/src/estimate.ts` (handle edge cases)
@@ -438,7 +438,7 @@ const items: ContextItem[] = [
 describe("pack", () => {
   it("selects highest scored items within budget", () => {
     const packResult = pack(items, { maxTokens: 90 });
-    const selectedIds = packResult.selected.map((item) => item.id);
+    const selectedIds = packResult.selected.map(item => item.id);
     expect(selectedIds).toContain("a");
     expect(selectedIds).toContain("c");
     expect(selectedIds).not.toContain("b");
@@ -484,9 +484,9 @@ describe("pack", () => {
   });
 
   it("throws BudgetExceededError when reserveTokens >= maxTokens", () => {
-    expect(() =>
-      pack(items, { maxTokens: 100, reserveTokens: 100 })
-    ).toThrow(BudgetExceededError);
+    expect(() => pack(items, { maxTokens: 100, reserveTokens: 100 })).toThrow(
+      BudgetExceededError
+    );
   });
 
   it("drops all items when none fit budget", () => {
@@ -496,7 +496,11 @@ describe("pack", () => {
   });
 
   it("uses custom scorer via weights option", () => {
-    const result = pack(items, { maxTokens: 90 }, { weights: { priority: 0, recency: 1.0 } });
+    const result = pack(
+      items,
+      { maxTokens: 90 },
+      { weights: { priority: 0, recency: 1.0 } }
+    );
     expect(result.selected.length).toBeGreaterThan(0);
   });
 
@@ -517,7 +521,11 @@ Expected: FAIL — ValidationError not thrown (no validation yet)
 Modify `packages/ce-core/src/pack.ts`. Add imports at top:
 
 ```ts
-import { ValidationError, BudgetExceededError, EstimationError } from "./errors";
+import {
+  ValidationError,
+  BudgetExceededError,
+  EstimationError,
+} from "./errors";
 import { ContextItemSchema, BudgetSchema } from "./schemas";
 import { z } from "zod";
 ```
@@ -525,57 +533,58 @@ import { z } from "zod";
 In `internalPack()` function, add validation right after the opening `{` (before `const scorer`):
 
 ```ts
-  // Validate budget
-  const budgetResult = BudgetSchema.safeParse(budget);
-  if (!budgetResult.success) {
-    throw new ValidationError(
-      `Invalid budget: ${budgetResult.error.issues.map((i) => i.message).join(", ")}`,
-      budgetResult.error.issues.map((i) => ({
-        path: i.path.join("."),
-        message: i.message,
-      }))
-    );
-  }
+// Validate budget
+const budgetResult = BudgetSchema.safeParse(budget);
+if (!budgetResult.success) {
+  throw new ValidationError(
+    `Invalid budget: ${budgetResult.error.issues.map(i => i.message).join(", ")}`,
+    budgetResult.error.issues.map(i => ({
+      path: i.path.join("."),
+      message: i.message,
+    }))
+  );
+}
 
-  // Validate reserve < max
-  if (
-    budget.reserveTokens !== undefined &&
-    budget.reserveTokens >= budget.maxTokens
-  ) {
-    throw new BudgetExceededError(
-      `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
-    );
-  }
+// Validate reserve < max
+if (
+  budget.reserveTokens !== undefined &&
+  budget.reserveTokens >= budget.maxTokens
+) {
+  throw new BudgetExceededError(
+    `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
+  );
+}
 
-  // Validate items
-  const itemsResult = z.array(ContextItemSchema).safeParse(items);
-  if (!itemsResult.success) {
-    throw new ValidationError(
-      `Invalid items: ${itemsResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
-      itemsResult.error.issues.map((i) => ({
-        path: i.path.join("."),
-        message: i.message,
-      }))
-    );
-  }
+// Validate items
+const itemsResult = z.array(ContextItemSchema).safeParse(items);
+if (!itemsResult.success) {
+  throw new ValidationError(
+    `Invalid items: ${itemsResult.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+    itemsResult.error.issues.map(i => ({
+      path: i.path.join("."),
+      message: i.message,
+    }))
+  );
+}
 ```
 
 Also wrap token estimation in try-catch inside the `scoredItems` map (line 66-68):
 
 ```ts
-  const scoredItems = items.map((item) => {
-    let tokens: number;
-    try {
-      tokens =
-        item.tokens ?? estimateTokens(item.content, { estimator: tokenEstimator });
-    } catch (err) {
-      throw new EstimationError(
-        `Failed to estimate tokens for item "${item.id}": ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-    const score = scorer({ ...item, tokens });
-    return { ...item, tokens, score };
-  });
+const scoredItems = items.map(item => {
+  let tokens: number;
+  try {
+    tokens =
+      item.tokens ??
+      estimateTokens(item.content, { estimator: tokenEstimator });
+  } catch (err) {
+    throw new EstimationError(
+      `Failed to estimate tokens for item "${item.id}": ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+  const score = scorer({ ...item, tokens });
+  return { ...item, tokens, score };
+});
 ```
 
 **Step 4: Add validation to diff.ts**
@@ -583,12 +592,12 @@ Also wrap token estimation in try-catch inside the `scoredItems` map (line 66-68
 Modify `packages/ce-core/src/diff.ts`. Add at top of `diff()` function:
 
 ```ts
-  if (!before) {
-    throw new ValidationError("diff() 'before' argument is required");
-  }
-  if (!after) {
-    throw new ValidationError("diff() 'after' argument is required");
-  }
+if (!before) {
+  throw new ValidationError("diff() 'before' argument is required");
+}
+if (!after) {
+  throw new ValidationError("diff() 'after' argument is required");
+}
 ```
 
 Add import: `import { ValidationError } from "./errors";`
@@ -605,7 +614,10 @@ export function estimateTokens(
   if (text == null) return 0;
   const estimator = options?.estimator ?? defaultTokenEstimator;
   try {
-    return estimator(text, { model: options?.model, provider: options?.provider });
+    return estimator(text, {
+      model: options?.model,
+      provider: options?.provider,
+    });
   } catch (err) {
     throw new EstimationError(
       `Token estimation failed: ${err instanceof Error ? err.message : String(err)}`
@@ -633,6 +645,7 @@ git commit -m "feat(ce-core): add Zod input validation to pack(), diff(), and es
 ### Task 5: Comprehensive diff and trace tests
 
 **Files:**
+
 - Modify: `packages/ce-core/src/diff.test.ts` (expand test coverage)
 - Create: `packages/ce-core/src/trace.test.ts`
 - Create: `packages/ce-core/src/estimate.test.ts`
@@ -659,9 +672,9 @@ const after: ContextItem[] = [
 describe("diff", () => {
   it("detects added and removed items", () => {
     const result = diff(before, after);
-    expect(result.added.map((i) => i.id)).toEqual(["c"]);
-    expect(result.removed.map((i) => i.id)).toEqual(["b"]);
-    expect(result.kept.map((i) => i.id)).toEqual(["a"]);
+    expect(result.added.map(i => i.id)).toEqual(["c"]);
+    expect(result.removed.map(i => i.id)).toEqual(["b"]);
+    expect(result.kept.map(i => i.id)).toEqual(["a"]);
   });
 
   it("detects content changes", () => {
@@ -675,9 +688,7 @@ describe("diff", () => {
   });
 
   it("detects token changes", () => {
-    const changed: ContextItem[] = [
-      { id: "a", content: "Alpha", tokens: 999 },
-    ];
+    const changed: ContextItem[] = [{ id: "a", content: "Alpha", tokens: 999 }];
     const result = diff(before, changed);
     expect(result.changed.length).toBe(1);
   });
@@ -724,8 +735,8 @@ describe("diff", () => {
       totalTokens: 25,
     };
     const result = diff(beforePack, afterPack);
-    expect(result.added.map((i) => i.id)).toEqual(["c"]);
-    expect(result.removed.map((i) => i.id)).toEqual(["b"]);
+    expect(result.added.map(i => i.id)).toEqual(["c"]);
+    expect(result.removed.map(i => i.id)).toEqual(["b"]);
   });
 
   it("produces stable snapshot", () => {
@@ -754,12 +765,12 @@ describe("tracePack", () => {
   it("records include decisions", () => {
     const trace = tracePack(items, { maxTokens: 200 });
     expect(trace.steps.length).toBe(3);
-    expect(trace.steps.every((s) => s.decision === "include")).toBe(true);
+    expect(trace.steps.every(s => s.decision === "include")).toBe(true);
   });
 
   it("records exclude decisions when over budget", () => {
     const trace = tracePack(items, { maxTokens: 55 });
-    const excluded = trace.steps.filter((s) => s.decision === "exclude");
+    const excluded = trace.steps.filter(s => s.decision === "exclude");
     expect(excluded.length).toBeGreaterThan(0);
   });
 
@@ -778,7 +789,7 @@ describe("tracePack", () => {
       { maxTokens: 30 },
       { allowCompression: true }
     );
-    const compressed = trace.steps.filter((s) => s.decision === "compress");
+    const compressed = trace.steps.filter(s => s.decision === "compress");
     expect(compressed.length).toBe(1);
     expect(compressed[0].usedCompression).toBe(true);
     expect(compressed[0].compressedTokens).toBe(20);
@@ -833,7 +844,9 @@ describe("defaultTokenEstimator", () => {
 
   it("scales roughly with word count", () => {
     const short = defaultTokenEstimator("one two three");
-    const long = defaultTokenEstimator("one two three four five six seven eight nine ten");
+    const long = defaultTokenEstimator(
+      "one two three four five six seven eight nine ten"
+    );
     expect(long).toBeGreaterThan(short);
   });
 });
@@ -877,6 +890,7 @@ git commit -m "test(ce-core): comprehensive tests for diff, trace, estimate with
 ### Task 6: Add JSDoc to ce-core public API
 
 **Files:**
+
 - Modify: `packages/ce-core/src/pack.ts` (JSDoc for pack)
 - Modify: `packages/ce-core/src/diff.ts` (JSDoc for diff)
 - Modify: `packages/ce-core/src/trace.ts` (JSDoc for tracePack)
@@ -888,7 +902,8 @@ git commit -m "test(ce-core): comprehensive tests for diff, trace, estimate with
 Add JSDoc comments directly above each exported function. Examples:
 
 For `pack()`:
-```ts
+
+````ts
 /**
  * Pack context items into a token budget using greedy score-based selection.
  *
@@ -914,10 +929,11 @@ For `pack()`:
  * console.log(result.dropped);  // items that didn't fit
  * ```
  */
-```
+````
 
 For `diff()`:
-```ts
+
+````ts
 /**
  * Compare two context packs or item arrays to find differences.
  *
@@ -932,10 +948,11 @@ For `diff()`:
  * console.log(`${changes.added.length} new items`);
  * ```
  */
-```
+````
 
 For `tracePack()`:
-```ts
+
+````ts
 /**
  * Pack items with a decision trace for debugging and observability.
  *
@@ -953,9 +970,10 @@ For `tracePack()`:
  * trace.steps.forEach(s => console.log(`${s.id}: ${s.decision} — ${s.reason}`));
  * ```
  */
-```
+````
 
 For `estimateTokens()`:
+
 ```ts
 /**
  * Estimate the token count for a text string.
@@ -971,7 +989,8 @@ For `estimateTokens()`:
 ```
 
 For `createScorer()`:
-```ts
+
+````ts
 /**
  * Create an item scorer with custom weights.
  *
@@ -984,7 +1003,7 @@ For `createScorer()`:
  * const score = scorer(item); // Only considers priority
  * ```
  */
-```
+````
 
 **Step 2: Verify build**
 
@@ -1003,6 +1022,7 @@ git commit -m "docs(ce-core): add JSDoc to all public API functions"
 ### Task 7: Harden ce-memory — SQL injection fix, WAL mode, close()
 
 **Files:**
+
 - Modify: `packages/ce-memory/src/sqlite-store.ts` (fix SQL injection, add WAL, add close)
 
 **Step 1: Write the failing test**
@@ -1010,24 +1030,24 @@ git commit -m "docs(ce-core): add JSDoc to all public API functions"
 Add to `packages/ce-memory/src/memory.test.ts`:
 
 ```ts
-  it("rejects invalid table names", () => {
-    expect(
-      () => new SqliteStore(":memory:", { tableName: "DROP TABLE; --" })
-    ).toThrow();
-  });
+it("rejects invalid table names", () => {
+  expect(
+    () => new SqliteStore(":memory:", { tableName: "DROP TABLE; --" })
+  ).toThrow();
+});
 
-  it("accepts valid table names", () => {
-    const store = new SqliteStore(":memory:", { tableName: "my_items" });
-    expect(store).toBeDefined();
-  });
+it("accepts valid table names", () => {
+  const store = new SqliteStore(":memory:", { tableName: "my_items" });
+  expect(store).toBeDefined();
+});
 
-  it("closes database connection", async () => {
-    const store = new SqliteStore(":memory:");
-    await store.put({ id: "close-test", content: "data" });
-    store.close();
-    // After close, operations should throw
-    await expect(store.get("close-test")).rejects.toThrow();
-  });
+it("closes database connection", async () => {
+  const store = new SqliteStore(":memory:");
+  await store.put({ id: "close-test", content: "data" });
+  store.close();
+  // After close, operations should throw
+  await expect(store.get("close-test")).rejects.toThrow();
+});
 ```
 
 **Step 2: Run test to verify it fails**
@@ -1081,6 +1101,7 @@ git commit -m "fix(ce-memory): validate table names, add WAL mode, add close()"
 ### Task 8: Comprehensive ce-memory tests
 
 **Files:**
+
 - Modify: `packages/ce-memory/src/memory.test.ts` (expand tests)
 
 **Step 1: Write expanded tests**
@@ -1183,7 +1204,12 @@ describe("InMemoryStore", () => {
   it("filters expired items by default", async () => {
     const store = new InMemoryStore();
     const past = new Date(Date.now() - 10000).toISOString();
-    await store.put({ id: "old", content: "Expired", createdAt: past, ttlSeconds: 1 });
+    await store.put({
+      id: "old",
+      content: "Expired",
+      createdAt: past,
+      ttlSeconds: 1,
+    });
     const results = await store.query();
     expect(results.length).toBe(0);
   });
@@ -1191,7 +1217,12 @@ describe("InMemoryStore", () => {
   it("includes expired items when requested", async () => {
     const store = new InMemoryStore();
     const past = new Date(Date.now() - 10000).toISOString();
-    await store.put({ id: "old", content: "Expired", createdAt: past, ttlSeconds: 1 });
+    await store.put({
+      id: "old",
+      content: "Expired",
+      createdAt: past,
+      ttlSeconds: 1,
+    });
     const results = await store.query({ includeExpired: true });
     expect(results.length).toBe(1);
   });
@@ -1339,6 +1370,7 @@ git commit -m "test(ce-memory): comprehensive tests for all three store implemen
 ### Task 9: Add factory function and JSDoc to ce-memory
 
 **Files:**
+
 - Create: `packages/ce-memory/src/factory.ts`
 - Modify: `packages/ce-memory/src/index.ts` (export factory)
 
@@ -1356,7 +1388,9 @@ describe("createMemoryStore", () => {
   });
 
   it("creates file store", () => {
-    const store = createMemoryStore("file", { path: tempPath("factory.jsonl") });
+    const store = createMemoryStore("file", {
+      path: tempPath("factory.jsonl"),
+    });
     expect(store).toBeInstanceOf(FileStore);
   });
 
@@ -1380,7 +1414,7 @@ Expected: FAIL — cannot import `createMemoryStore`
 
 Create `packages/ce-memory/src/factory.ts`:
 
-```ts
+````ts
 import type { MemoryStore } from "./types";
 import { InMemoryStore } from "./in-memory-store";
 import { FileStore } from "./file-store";
@@ -1426,7 +1460,7 @@ export function createMemoryStore(
       throw new Error(`Unknown memory store type: ${type}`);
   }
 }
-```
+````
 
 **Step 4: Export from index**
 
@@ -1449,6 +1483,7 @@ git commit -m "feat(ce-memory): add createMemoryStore factory function"
 ### Task 10: Add token estimator tests and presets to ce-providers
 
 **Files:**
+
 - Create: `packages/ce-providers/src/token-estimators.test.ts`
 - Create: `packages/ce-providers/src/presets.ts`
 - Modify: `packages/ce-providers/src/index.ts` (export presets)
@@ -1459,7 +1494,10 @@ Create `packages/ce-providers/src/token-estimators.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { openaiTokenEstimator, anthropicTokenEstimator } from "./token-estimators";
+import {
+  openaiTokenEstimator,
+  anthropicTokenEstimator,
+} from "./token-estimators";
 
 describe("openaiTokenEstimator", () => {
   it("estimates tokens for normal text", () => {
@@ -1514,8 +1552,11 @@ describe("anthropicTokenEstimator", () => {
 
 Create `packages/ce-providers/src/presets.ts`:
 
-```ts
-import { openaiTokenEstimator, anthropicTokenEstimator } from "./token-estimators";
+````ts
+import {
+  openaiTokenEstimator,
+  anthropicTokenEstimator,
+} from "./token-estimators";
 import type { TokenEstimator } from "@ce/core";
 
 interface ProviderPreset {
@@ -1543,7 +1584,7 @@ export const presets = {
     estimator: anthropicTokenEstimator,
   } satisfies ProviderPreset,
 };
-```
+````
 
 **Step 3: Export from index**
 
@@ -1566,6 +1607,7 @@ git commit -m "feat(ce-providers): add token estimator tests and provider preset
 ### Task 11: Harden CLI — TTY detection, colors, stdin, help text
 
 **Files:**
+
 - Create: `packages/ce-cli/src/output.ts` (TTY-aware output helpers)
 - Modify: `packages/ce-cli/src/cli.ts` (integrate output helpers, stdin, help)
 
@@ -1642,7 +1684,7 @@ export async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = "";
     process.stdin.setEncoding("utf-8");
-    process.stdin.on("data", (chunk) => (data += chunk));
+    process.stdin.on("data", chunk => (data += chunk));
     process.stdin.on("end", () => resolve(data));
     process.stdin.on("error", reject);
   });
@@ -1652,6 +1694,7 @@ export async function readStdin(): Promise<string> {
 **Step 2: Rewrite cli.ts with better UX**
 
 Replace `packages/ce-cli/src/cli.ts` with improved version integrating:
+
 - `--no-color` global option
 - `--json` forces JSON output (already present but global)
 - stdin support: when `-i` is `-` or when stdin is piped, read from stdin
@@ -1662,6 +1705,7 @@ Replace `packages/ce-cli/src/cli.ts` with improved version integrating:
 Key changes per command:
 
 For `pack` action:
+
 ```ts
   .action(async (options) => {
     try {
@@ -1733,6 +1777,7 @@ git commit -m "feat(ce-cli): TTY-aware output, ANSI colors, stdin support, bette
 ### Task 12: Comprehensive CLI tests
 
 **Files:**
+
 - Modify: `packages/ce-cli/src/lib.test.ts` (expand test coverage)
 
 **Step 1: Expand lib tests**
@@ -1741,7 +1786,14 @@ Replace `packages/ce-cli/src/lib.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { runPack, runDiff, runBudget, lintFile, runTrace, loadItemsFromFile } from "./lib";
+import {
+  runPack,
+  runDiff,
+  runBudget,
+  lintFile,
+  runTrace,
+  loadItemsFromFile,
+} from "./lib";
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
@@ -1858,7 +1910,7 @@ describe("loadItemsFromFile", () => {
   it("loads JSONL", async () => {
     await fs.mkdir(tempDir, { recursive: true });
     const filePath = path.join(tempDir, "items.jsonl");
-    const content = items.map((i) => JSON.stringify(i)).join("\n");
+    const content = items.map(i => JSON.stringify(i)).join("\n");
     await fs.writeFile(filePath, content);
     const loaded = await loadItemsFromFile(filePath);
     expect(loaded.length).toBe(2);
@@ -1897,6 +1949,7 @@ git commit -m "test(ce-cli): comprehensive tests for all CLI lib functions"
 ### Task 13: Python SDK — add input validation to core.py
 
 **Files:**
+
 - Modify: `python/context_engineering/core.py` (add validation, error handling)
 
 **Step 1: Write the failing test**
@@ -2018,6 +2071,7 @@ git commit -m "feat(python): add input validation to pack() and estimate_tokens(
 ### Task 14: Python SDK — comprehensive memory tests
 
 **Files:**
+
 - Modify: `python/tests/test_memory.py` (expand coverage)
 
 **Step 1: Write expanded tests**
@@ -2172,6 +2226,7 @@ git commit -m "test(python): comprehensive memory store tests"
 ### Task 15: Python CLI — TTY detection, colors, stdin
 
 **Files:**
+
 - Modify: `python/context_engineering/cli.py` (add TTY detection, colors, stdin, error handling)
 
 **Step 1: Write the failing test**
@@ -2287,6 +2342,7 @@ git commit -m "feat(python-cli): TTY detection, ANSI colors, stdin support"
 ### Task 16: Python SDK — add docstrings to public API
 
 **Files:**
+
 - Modify: `python/context_engineering/core.py`
 - Modify: `python/context_engineering/memory.py`
 - Modify: `python/context_engineering/framework.py`
@@ -2294,6 +2350,7 @@ git commit -m "feat(python-cli): TTY detection, ANSI colors, stdin support"
 **Step 1: Add Google-style docstrings**
 
 For `pack()`:
+
 ```python
 def pack(items, budget, **kwargs):
     """Pack context items into a token budget using greedy score-based selection.
@@ -2341,6 +2398,7 @@ git commit -m "docs(python): add Google-style docstrings to all public APIs"
 ### Task 17: Production features — streaming pack
 
 **Files:**
+
 - Create: `packages/ce-core/src/stream.ts`
 - Modify: `packages/ce-core/src/index.ts` (export stream)
 
@@ -2402,10 +2460,14 @@ Expected: FAIL — module not found
 
 Create `packages/ce-core/src/stream.ts`:
 
-```ts
+````ts
 import type { Budget, ContextItem, PackOptions } from "./types";
 import { BudgetSchema, ContextItemSchema } from "./schemas";
-import { ValidationError, BudgetExceededError, EstimationError } from "./errors";
+import {
+  ValidationError,
+  BudgetExceededError,
+  EstimationError,
+} from "./errors";
 import { defaultItemScorer, createScorer } from "./score";
 import { estimateTokens } from "./estimate";
 import { z } from "zod";
@@ -2439,27 +2501,34 @@ export async function* packStream(
   const budgetResult = BudgetSchema.safeParse(budget);
   if (!budgetResult.success) {
     throw new ValidationError(
-      `Invalid budget: ${budgetResult.error.issues.map((i) => i.message).join(", ")}`,
-      budgetResult.error.issues.map((i) => ({
+      `Invalid budget: ${budgetResult.error.issues.map(i => i.message).join(", ")}`,
+      budgetResult.error.issues.map(i => ({
         path: i.path.join("."),
         message: i.message,
       }))
     );
   }
 
-  if (budget.reserveTokens !== undefined && budget.reserveTokens >= budget.maxTokens) {
+  if (
+    budget.reserveTokens !== undefined &&
+    budget.reserveTokens >= budget.maxTokens
+  ) {
     throw new BudgetExceededError(
       `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
     );
   }
 
-  const scorer = options.scorer ?? (options.weights ? createScorer(options.weights) : defaultItemScorer);
+  const scorer =
+    options.scorer ??
+    (options.weights ? createScorer(options.weights) : defaultItemScorer);
   const tokenEstimator = options.tokenEstimator;
   const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
 
   // Score and sort
-  const scoredItems = items.map((item) => {
-    const tokens = item.tokens ?? estimateTokens(item.content, { estimator: tokenEstimator });
+  const scoredItems = items.map(item => {
+    const tokens =
+      item.tokens ??
+      estimateTokens(item.content, { estimator: tokenEstimator });
     const score = scorer({ ...item, tokens });
     return { ...item, tokens, score };
   });
@@ -2480,7 +2549,7 @@ export async function* packStream(
     }
   }
 }
-```
+````
 
 **Step 4: Export from index**
 
@@ -2503,6 +2572,7 @@ git commit -m "feat(ce-core): add packStream async generator for streaming pack 
 ### Task 18: Production features — structured logging
 
 **Files:**
+
 - Create: `packages/ce-core/src/logger.ts`
 - Modify: `packages/ce-core/src/types.ts` (add logger to PackOptions)
 - Modify: `packages/ce-core/src/pack.ts` (integrate logger)
@@ -2541,26 +2611,44 @@ Modify `packages/ce-core/src/types.ts` — add to `PackOptions`:
 In `internalPack()`, after the scorer/tokenEstimator setup:
 
 ```ts
-  const logger = options.logger ?? noopLogger;
-  logger.info("pack:start", { itemCount: items.length, maxTokens, reserveTokens: budget.reserveTokens });
+const logger = options.logger ?? noopLogger;
+logger.info("pack:start", {
+  itemCount: items.length,
+  maxTokens,
+  reserveTokens: budget.reserveTokens,
+});
 ```
 
 After selecting an item:
 
 ```ts
-  logger.debug("pack:include", { id: item.id, tokens: item.tokens, score: item.score, remaining });
+logger.debug("pack:include", {
+  id: item.id,
+  tokens: item.tokens,
+  score: item.score,
+  remaining,
+});
 ```
 
 After dropping:
 
 ```ts
-  logger.debug("pack:exclude", { id: item.id, tokens: item.tokens, score: item.score, reason: "over_budget" });
+logger.debug("pack:exclude", {
+  id: item.id,
+  tokens: item.tokens,
+  score: item.score,
+  reason: "over_budget",
+});
 ```
 
 At the end:
 
 ```ts
-  logger.info("pack:complete", { selectedCount: selected.length, droppedCount: dropped.length, totalTokens });
+logger.info("pack:complete", {
+  selectedCount: selected.length,
+  droppedCount: dropped.length,
+  totalTokens,
+});
 ```
 
 **Step 4: Export from index**
@@ -2584,6 +2672,7 @@ git commit -m "feat(ce-core): add structured logging interface with no-op defaul
 ### Task 19: Production features — token estimation cache
 
 **Files:**
+
 - Create: `packages/ce-core/src/cache.ts`
 - Modify: `packages/ce-core/src/index.ts` (export cache)
 
@@ -2640,7 +2729,7 @@ Expected: FAIL
 
 Create `packages/ce-core/src/cache.ts`:
 
-```ts
+````ts
 import type { TokenEstimator } from "./types";
 
 interface CacheOptions {
@@ -2692,7 +2781,7 @@ export function createCachedEstimator(
     return result;
   };
 }
-```
+````
 
 **Step 4: Export from index**
 
@@ -2745,11 +2834,13 @@ git commit -m "chore: format all files"
 ### Task 21: Update CLAUDE.md with new APIs
 
 **Files:**
+
 - Modify: `CLAUDE.md` (document new public APIs)
 
 **Step 1: Update CLAUDE.md**
 
 Add to the Architecture section documentation for new APIs:
+
 - `createScorer()`, `ScoringWeights`
 - `packStream()`
 - `createCachedEstimator()`

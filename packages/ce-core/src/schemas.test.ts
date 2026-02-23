@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  ContextItemSchema,
-  BudgetSchema,
-  CompressionSchema,
-} from "./schemas";
+import { ContextItemSchema, BudgetSchema, CompressionSchema } from "./schemas";
 
 describe("ContextItemSchema", () => {
   it("accepts a valid item", () => {
@@ -44,9 +40,7 @@ describe("ContextItemSchema", () => {
     const result = ContextItemSchema.safeParse({
       id: "test",
       content: "Long content",
-      compressions: [
-        { content: "Short", tokens: 5, note: "summary" },
-      ],
+      compressions: [{ content: "Short", tokens: 5, note: "summary" }],
     });
     expect(result.success).toBe(true);
   });

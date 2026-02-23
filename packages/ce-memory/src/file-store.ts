@@ -34,16 +34,21 @@ export class FileStore implements MemoryStore {
   }
 
   private async persist() {
-    const lines = Array.from(this.items.values()).map((item) =>
+    const lines = Array.from(this.items.values()).map(item =>
       JSON.stringify(item)
     );
-    await fs.writeFile(this.filePath, lines.join("\n") + (lines.length ? "\n" : ""));
+    await fs.writeFile(
+      this.filePath,
+      lines.join("\n") + (lines.length ? "\n" : "")
+    );
   }
 
-  async put(item: Partial<MemoryItem> | Partial<MemoryItem>[]): Promise<MemoryItem[]> {
+  async put(
+    item: Partial<MemoryItem> | Partial<MemoryItem>[]
+  ): Promise<MemoryItem[]> {
     await this.ensureLoaded();
     const list = Array.isArray(item) ? item : [item];
-    const normalized = list.map((entry) => normalizeMemoryItem(entry));
+    const normalized = list.map(entry => normalizeMemoryItem(entry));
     for (const entry of normalized) {
       this.items.set(entry.id, entry);
     }
