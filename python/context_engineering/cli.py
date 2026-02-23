@@ -20,6 +20,12 @@ from .beads import (
 )
 from .cache_topology import pack_with_cache_topology, CacheConfig
 from .cost import estimate_cost, project_costs
+from .errors import ContextEngineeringError
+
+
+# Environment variable defaults for CI/CD ergonomics
+_ENV_BUDGET = int(os.environ.get("CE_BUDGET", "4096"))
+_ENV_PROVIDER = os.environ.get("CE_PROVIDER") or None
 
 
 def _is_tty():
@@ -431,14 +437,14 @@ def main() -> None:
 
     pack_parser = subparsers.add_parser("pack", help="Pack context items")
     pack_parser.add_argument("-i", "--input", required=True)
-    pack_parser.add_argument("-b", "--budget", type=int, default=4096)
-    pack_parser.add_argument("-p", "--provider", default=None)
+    pack_parser.add_argument("-b", "--budget", type=int, default=_ENV_BUDGET)
+    pack_parser.add_argument("-p", "--provider", default=_ENV_PROVIDER)
     pack_parser.set_defaults(func=cmd_pack)
 
     trace_parser = subparsers.add_parser("trace", help="Pack with trace output")
     trace_parser.add_argument("-i", "--input", required=True)
-    trace_parser.add_argument("-b", "--budget", type=int, default=4096)
-    trace_parser.add_argument("-p", "--provider", default=None)
+    trace_parser.add_argument("-b", "--budget", type=int, default=_ENV_BUDGET)
+    trace_parser.add_argument("-p", "--provider", default=_ENV_PROVIDER)
     trace_parser.set_defaults(func=cmd_trace)
 
     diff_parser = subparsers.add_parser("diff", help="Diff packs or items")
@@ -449,7 +455,7 @@ def main() -> None:
     budget_parser = subparsers.add_parser("budget", help="Estimate tokens")
     budget_parser.add_argument("-t", "--text")
     budget_parser.add_argument("-f", "--file")
-    budget_parser.add_argument("-p", "--provider", default="heuristic")
+    budget_parser.add_argument("-p", "--provider", default=_ENV_PROVIDER or "heuristic")
     budget_parser.set_defaults(func=cmd_budget)
 
     lint_parser = subparsers.add_parser("lint", help="Validate data")
@@ -476,8 +482,8 @@ def main() -> None:
     handoff_parser = subparsers.add_parser("handoff", help="Create BEADS JSONL handoff for agent context")
     handoff_parser.add_argument("-i", "--input", required=True)
     handoff_parser.add_argument("-o", "--output", default=None, help="Output file (default: stdout)")
-    handoff_parser.add_argument("-b", "--budget", type=int, default=4096)
-    handoff_parser.add_argument("-p", "--provider", default=None)
+    handoff_parser.add_argument("-b", "--budget", type=int, default=_ENV_BUDGET)
+    handoff_parser.add_argument("-p", "--provider", default=_ENV_PROVIDER)
     handoff_parser.add_argument("--agent", default=None, help="Agent identity")
     handoff_parser.add_argument("--session-id", default=None, help="Session ID")
     handoff_parser.add_argument("--notes", default=None, help="Handoff notes")
@@ -492,7 +498,7 @@ def main() -> None:
 
     cost_parser = subparsers.add_parser("cost", help="Estimate API cost with cache savings")
     cost_parser.add_argument("-i", "--input", required=True)
-    cost_parser.add_argument("-b", "--budget", type=int, default=4096)
+    cost_parser.add_argument("-b", "--budget", type=int, default=_ENV_BUDGET)
     cost_parser.add_argument("-m", "--model", default="claude-sonnet-4-6")
     cost_parser.add_argument("--output-tokens", type=int, default=500)
     cost_parser.add_argument("--requests-per-day", type=int, default=None)
@@ -510,6 +516,9 @@ def main() -> None:
         sys.exit(1)
     except json.JSONDecodeError as exc:
         print(_fmt.error(f"Invalid JSON: {exc.msg} (line {exc.lineno})"), file=sys.stderr)
+        sys.exit(1)
+    except ContextEngineeringError as exc:
+        print(_fmt.error(str(exc)), file=sys.stderr)
         sys.exit(1)
     except (ValueError, RuntimeError) as exc:
         print(_fmt.error(str(exc)), file=sys.stderr)

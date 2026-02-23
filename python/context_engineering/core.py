@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field
 import math
 import tiktoken
 
+from .errors import BudgetExceededError, ValidationError
+
 
 class Compression(BaseModel):
     content: str
@@ -30,6 +32,20 @@ class ContextItem(BaseModel):
     cost: float = 0.0
     latency: float = 0.0
     links: List[str] = Field(default_factory=list)
+
+
+def create_context_item(id: str, content: str, **kwargs) -> ContextItem:
+    """Create a ContextItem with sensible defaults.
+
+    Only ``id`` and ``content`` are required.  All other ContextItem fields
+    can be passed as keyword arguments.
+
+    Example::
+
+        item = create_context_item("readme", "# My Project\\n...")
+        item = create_context_item("code", source, kind="code", priority=10)
+    """
+    return ContextItem(id=id, content=content, **kwargs)
 
 
 class Budget(BaseModel):
@@ -162,12 +178,16 @@ def pack(items: List[ContextItem], budget: Budget, **kwargs: Any) -> ContextPack
         ContextPack with selected items, dropped items, and stats.
 
     Raises:
-        ValueError: If budget.maxTokens <= 0 or reserveTokens >= maxTokens.
+        ValidationError: If budget.maxTokens <= 0.
+        BudgetExceededError: If reserveTokens >= maxTokens.
     """
     if budget.max_tokens <= 0:
-        raise ValueError(f"maxTokens must be positive, got {budget.max_tokens}")
+        raise ValidationError(
+            f"maxTokens must be positive, got {budget.max_tokens}",
+            [{"path": "maxTokens", "message": "must be positive"}],
+        )
     if budget.reserve_tokens is not None and budget.reserve_tokens >= budget.max_tokens:
-        raise ValueError(
+        raise BudgetExceededError(
             f"reserveTokens ({budget.reserve_tokens}) must be less than "
             f"maxTokens ({budget.max_tokens})"
         )

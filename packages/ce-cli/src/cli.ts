@@ -68,6 +68,10 @@ async function loadItems(input: string): Promise<ContextItem[]> {
   }
 }
 
+// Environment variable defaults for CI/CD ergonomics
+const ENV_BUDGET = process.env.CE_BUDGET ?? "4096";
+const ENV_PROVIDER = process.env.CE_PROVIDER ?? "heuristic";
+
 program
   .command("pack")
   .description("Pack context items into a token budget")
@@ -75,11 +79,11 @@ program
     "-i, --input <file>",
     "Path to items JSON/JSONL (use - for stdin)"
   )
-  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("-b, --budget <number>", "Token budget", ENV_BUDGET)
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
-    "heuristic"
+    ENV_PROVIDER
   )
   .option("--json", "Force JSON output")
   .action(async options => {
@@ -117,11 +121,11 @@ program
     "-i, --input <file>",
     "Path to items JSON/JSONL (use - for stdin)"
   )
-  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("-b, --budget <number>", "Token budget", ENV_BUDGET)
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
-    "heuristic"
+    ENV_PROVIDER
   )
   .option("--json", "Force JSON output")
   .action(async options => {
@@ -247,7 +251,7 @@ program
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
-    "heuristic"
+    ENV_PROVIDER
   )
   .action(async options => {
     try {
@@ -281,7 +285,7 @@ program
     "-i, --input <file>",
     "Path to items JSON/JSONL (use - for stdin)"
   )
-  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("-b, --budget <number>", "Token budget", ENV_BUDGET)
   .option(
     "-s, --strategy <strategy>",
     "Placement strategy: score-order | attention-optimized",
@@ -291,7 +295,7 @@ program
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
-    "heuristic"
+    ENV_PROVIDER
   )
   .option("--json", "Force JSON output")
   .action(async options => {
@@ -327,11 +331,11 @@ program
     "-i, --input <file>",
     "Path to items JSON/JSONL (use - for stdin)"
   )
-  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("-b, --budget <number>", "Token budget", ENV_BUDGET)
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
-    "heuristic"
+    ENV_PROVIDER
   )
   .option("--json", "Force JSON output")
   .action(async options => {
@@ -383,7 +387,7 @@ program
     "-i, --input <file>",
     "Path to items JSON/JSONL (use - for stdin)"
   )
-  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("-b, --budget <number>", "Token budget", ENV_BUDGET)
   .option("-o, --output <file>", "Output file (default: stdout)")
   .option("--cache-topology", "Use cache-topology-aware packing")
   .option("--include-dropped", "Include dropped items as deferred issues")
@@ -393,7 +397,7 @@ program
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
-    "heuristic"
+    ENV_PROVIDER
   )
   .option("--json", "Force JSON output (outputs stats, not JSONL)")
   .action(async options => {
@@ -477,14 +481,14 @@ program
     "-m, --model <model>",
     "Model: claude-opus-4-6 | claude-sonnet-4-6 | claude-haiku-4-5 | gpt-4.1 | gpt-4o | o3 | o4-mini"
   )
-  .option("-b, --budget <number>", "Token budget", "4096")
+  .option("-b, --budget <number>", "Token budget", ENV_BUDGET)
   .option("--output-tokens <number>", "Estimated output tokens", "500")
   .option("--requests <number>", "Number of requests to project")
   .option("--requests-per-day <number>", "Requests per day (for monthly estimate)")
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
-    "heuristic"
+    ENV_PROVIDER
   )
   .option("--json", "Force JSON output")
   .action(async options => {

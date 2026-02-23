@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import AsyncGenerator, List, Optional
 
 from .core import Budget, ContextItem, estimate_tokens, calculate_weighted_score, ScoringWeights
+from .errors import BudgetExceededError, ValidationError
 
 
 async def pack_stream(
@@ -31,12 +32,16 @@ async def pack_stream(
         Selected ContextItems in score order.
 
     Raises:
-        ValueError: If budget is invalid.
+        ValidationError: If budget.maxTokens <= 0.
+        BudgetExceededError: If reserveTokens >= maxTokens.
     """
     if budget.max_tokens <= 0:
-        raise ValueError(f"maxTokens must be positive, got {budget.max_tokens}")
+        raise ValidationError(
+            f"maxTokens must be positive, got {budget.max_tokens}",
+            [{"path": "maxTokens", "message": "must be positive"}],
+        )
     if budget.reserve_tokens is not None and budget.reserve_tokens >= budget.max_tokens:
-        raise ValueError(
+        raise BudgetExceededError(
             f"reserveTokens ({budget.reserve_tokens}) must be less than "
             f"maxTokens ({budget.max_tokens})"
         )

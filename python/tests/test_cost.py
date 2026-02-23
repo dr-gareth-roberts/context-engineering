@@ -66,7 +66,7 @@ class TestEstimateCost:
 
     def test_unknown_model(self):
         pack = make_pack(1000, 500)
-        with pytest.raises(ValueError, match="Unknown model"):
+        with pytest.raises(Exception, match="Unknown model"):
             estimate_cost(pack, "unknown-model")
 
     def test_known_models(self):

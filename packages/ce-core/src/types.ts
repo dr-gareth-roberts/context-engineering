@@ -21,6 +21,25 @@ export interface ContextItem {
   compressions?: Compression[];
 }
 
+/**
+ * Create a ContextItem with sensible defaults.
+ *
+ * Only `id` and `content` are required — all other fields are optional overrides.
+ *
+ * @example
+ * ```ts
+ * const item = createContextItem("readme", "# My Project\n...");
+ * const withMeta = createContextItem("code", source, { kind: "code", priority: 10 });
+ * ```
+ */
+export function createContextItem(
+  id: string,
+  content: string,
+  overrides?: Partial<Omit<ContextItem, "id" | "content">>
+): ContextItem {
+  return { id, content, ...overrides };
+}
+
 export interface ContextPlan {
   budget: Budget;
   items: ContextItem[];
