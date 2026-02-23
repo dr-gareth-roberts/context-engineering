@@ -37,10 +37,12 @@ export class FileStore implements MemoryStore {
     const lines = Array.from(this.items.values()).map(item =>
       JSON.stringify(item)
     );
-    await fs.writeFile(
-      this.filePath,
-      lines.join("\n") + (lines.length ? "\n" : "")
-    );
+    const content = lines.join("\n") + (lines.length ? "\n" : "");
+    // Atomic write: write to temp file, then rename.
+    // rename() is atomic on POSIX and near-atomic on Windows.
+    const tmpPath = this.filePath + ".tmp";
+    await fs.writeFile(tmpPath, content);
+    await fs.rename(tmpPath, this.filePath);
   }
 
   async put(
