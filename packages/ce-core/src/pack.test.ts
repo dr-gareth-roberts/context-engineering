@@ -5,6 +5,7 @@ import {
   BudgetExceededError,
   EstimationError,
 } from "./errors.js";
+import { createContextItem } from "./types.js";
 import type { ContextItem, Summarizer, TokenEstimator } from "./types.js";
 import type { Logger } from "./logger.js";
 
@@ -127,5 +128,81 @@ describe("pack", () => {
     };
     pack(items, { maxTokens: 200 }, { logger: mockLogger });
     expect(mockLogger.info).toHaveBeenCalled();
+  });
+});
+
+describe("pack edge cases", () => {
+  it("selects item with tokens=0 without re-estimating", () => {
+    const zeroTokenItem: ContextItem[] = [
+      { id: "zero", content: "I have zero tokens", priority: 5, tokens: 0 },
+    ];
+    const result = pack(zeroTokenItem, { maxTokens: 10 });
+    expect(result.selected.length).toBe(1);
+    expect(result.selected[0].id).toBe("zero");
+    expect(result.selected[0].tokens).toBe(0);
+    expect(result.totalTokens).toBe(0);
+  });
+
+  it("throws ValidationError for item with negative tokens", () => {
+    const negativeTokenItem: ContextItem[] = [
+      { id: "neg", content: "Negative tokens", tokens: -5 },
+    ];
+    expect(() => pack(negativeTokenItem, { maxTokens: 100 })).toThrow(
+      ValidationError
+    );
+  });
+
+  it("packs items with all-undefined scoring fields", () => {
+    const bareItems: ContextItem[] = [
+      { id: "bare1", content: "Just content, no scores" },
+      { id: "bare2", content: "Another bare item" },
+    ];
+    const result = pack(bareItems, { maxTokens: 1000 });
+    expect(result.selected.length).toBe(2);
+    const ids = result.selected.map(i => i.id);
+    expect(ids).toContain("bare1");
+    expect(ids).toContain("bare2");
+  });
+
+  it("selects item that exactly fills budget=1", () => {
+    const tinyItem: ContextItem[] = [
+      { id: "tiny", content: "x", priority: 1, tokens: 1 },
+    ];
+    const result = pack(tinyItem, { maxTokens: 1 });
+    expect(result.selected.length).toBe(1);
+    expect(result.selected[0].id).toBe("tiny");
+    expect(result.totalTokens).toBe(1);
+  });
+
+  it("processes items with duplicate IDs without crashing", () => {
+    const dupeItems: ContextItem[] = [
+      { id: "dupe", content: "First", priority: 5, tokens: 10 },
+      { id: "dupe", content: "Second", priority: 3, tokens: 10 },
+    ];
+    const result = pack(dupeItems, { maxTokens: 100 });
+    expect(result.selected.length).toBe(2);
+    expect(result.totalTokens).toBe(20);
+  });
+});
+
+describe("createContextItem", () => {
+  it("creates a valid item with only id and content", () => {
+    const item = createContextItem("x", "hello");
+    expect(item.id).toBe("x");
+    expect(item.content).toBe("hello");
+    expect(item.priority).toBeUndefined();
+    expect(item.kind).toBeUndefined();
+    expect(item.tokens).toBeUndefined();
+  });
+
+  it("creates an item with overrides", () => {
+    const item = createContextItem("x", "hello", {
+      priority: 10,
+      kind: "code",
+    });
+    expect(item.id).toBe("x");
+    expect(item.content).toBe("hello");
+    expect(item.priority).toBe(10);
+    expect(item.kind).toBe("code");
   });
 });

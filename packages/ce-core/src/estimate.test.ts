@@ -43,3 +43,13 @@ describe("estimateTokens", () => {
     expect(estimateTokens("hello", { estimator: custom })).toBe(5);
   });
 });
+
+describe("defaultTokenEstimator edge cases", () => {
+  it("returns 0 for newlines-only string", () => {
+    expect(defaultTokenEstimator("\n\n\n")).toBe(0);
+  });
+
+  it("returns > 0 for unicode/emoji text", () => {
+    expect(defaultTokenEstimator("\u{1F389}\u{1F389}\u{1F389}")).toBeGreaterThan(0);
+  });
+});
