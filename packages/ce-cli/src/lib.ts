@@ -48,7 +48,11 @@ export async function loadItemsFromFile(
   const parsed = JSON.parse(trimmed);
   if (Array.isArray(parsed)) return parsed;
   if (parsed && Array.isArray(parsed.items)) return parsed.items;
-  throw new Error("Invalid items file: expected array or { items: [] }");
+  if (parsed && Array.isArray(parsed.selected))
+    return [...parsed.selected, ...(parsed.dropped ?? [])];
+  throw new Error(
+    "Invalid items file: expected array, { items: [] }, or a ContextPack ({ selected: [] })"
+  );
 }
 
 export function resolveTokenEstimator(
@@ -154,6 +158,35 @@ export async function lintFile(schemaName: SchemaName, data: unknown) {
   const schema = schemas[schemaName];
   if (!schema) throw new Error(`Unknown schema: ${schemaName}`);
   const validate = ajv.compile(schema as any);
+
+  // If data is an array and schema expects an object, validate each element
+  if (Array.isArray(data)) {
+    const schemaType = (schema as Record<string, unknown>).type;
+    if (schemaType === "object" || !schemaType) {
+      const allErrors: Array<{ index: number; errors: unknown[] }> = [];
+      for (let i = 0; i < data.length; i++) {
+        const valid = validate(data[i]);
+        if (!valid) {
+          allErrors.push({
+            index: i,
+            errors: (validate.errors ?? []).map(e => ({
+              ...e,
+              instancePath: `[${i}]${e.instancePath ?? ""}`,
+            })),
+          });
+        }
+      }
+      if (allErrors.length === 0) {
+        return { valid: true, errors: [], itemCount: data.length };
+      }
+      return {
+        valid: false,
+        errors: allErrors.flatMap(e => e.errors),
+        itemCount: data.length,
+      };
+    }
+  }
+
   const valid = validate(data);
   return { valid, errors: validate.errors ?? [] };
 }
