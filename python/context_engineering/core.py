@@ -160,7 +160,7 @@ def _apply_compression(item: ContextItem, remaining_tokens: int, provider: Optio
     if not item.compressions: return None
     candidates = []
     for c in item.compressions:
-        tokens = c.tokens or estimate_tokens(c.content, provider=provider)
+        tokens = c.tokens if c.tokens is not None else estimate_tokens(c.content, provider=provider)
         candidates.append((tokens, c))
     for tokens, c in sorted(candidates, key=lambda x: x[0]):
         if tokens <= remaining_tokens:
@@ -233,7 +233,12 @@ def internal_pack(
     # 1. Scored Pre-pass
     scored = []
     for item in items:
-        tokens = item.tokens or estimate_tokens(item.content, provider=provider)
+        tokens = item.tokens if item.tokens is not None else estimate_tokens(item.content, provider=provider)
+        if tokens < 0:
+            raise ValidationError(
+                f"Item '{item.id}' has negative tokens ({tokens})",
+                [{"path": f"items[{item.id}].tokens", "message": "must be non-negative"}],
+            )
         score = calculate_weighted_score(item, weights)
         scored.append(item.model_copy(update={"tokens": tokens, "score": score}))
 
@@ -293,7 +298,7 @@ def internal_pack(
                 continue
 
         # C. Selection
-        tokens = item.tokens or 0
+        tokens = item.tokens if item.tokens is not None else 0
         if tokens <= remaining:
             selected.append(item); selected_ids.add(item.id); remaining -= tokens
             if trace: steps.append(TraceStep(id=item.id, decision="include", tokens=tokens, score=item.score, reason="fits_budget"))
@@ -303,7 +308,7 @@ def internal_pack(
         if allow_compression:
             compressed = _apply_compression(item, remaining, provider)
             if compressed is not None:
-                selected.append(compressed); selected_ids.add(item.id); remaining -= compressed.tokens or 0
+                selected.append(compressed); selected_ids.add(item.id); remaining -= (compressed.tokens if compressed.tokens is not None else 0)
                 if trace: steps.append(TraceStep(id=item.id, decision="compress", tokens=tokens, score=item.score, used_compression=True, compressed_tokens=compressed.tokens, reason="compressed_to_fit"))
                 continue
 
@@ -312,7 +317,7 @@ def internal_pack(
         if trace: steps.append(TraceStep(id=item.id, decision="exclude", tokens=tokens, score=item.score, reason="over_budget"))
 
     pack_result = ContextPack(
-        budget=budget, selected=selected, dropped=dropped, totalTokens=sum(i.tokens or 0 for i in selected),
+        budget=budget, selected=selected, dropped=dropped, totalTokens=sum((i.tokens if i.tokens is not None else 0) for i in selected),
         stats={"remainingTokens": max(0, remaining), "selectedCount": len(selected), "droppedCount": len(dropped)}
     )
     return ContextTrace(pack=pack_result, steps=steps, createdAt=datetime.now(timezone.utc).isoformat()) if trace else pack_result

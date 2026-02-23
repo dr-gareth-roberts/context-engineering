@@ -143,3 +143,105 @@ def test_create_context_item_works_with_pack():
     ]
     result = pack(items, Budget(maxTokens=50))
     assert len(result.selected) == 2
+
+
+# --- Core edge case tests ---
+
+def test_pack_tokens_zero_respected():
+    """Item with tokens=0 should be selected and the 0 respected (not re-estimated)."""
+    items = [ContextItem(id="zero", content="some text", tokens=0)]
+    result = pack(items, Budget(maxTokens=10))
+    assert len(result.selected) == 1
+    assert result.selected[0].tokens == 0
+    assert result.total_tokens == 0
+
+
+def test_pack_negative_tokens_rejected():
+    """Item with negative tokens should be rejected."""
+    items = [ContextItem(id="neg", content="test", tokens=-5)]
+    with pytest.raises(ValidationError, match="negative tokens"):
+        pack(items, Budget(maxTokens=100))
+
+
+def test_pack_all_undefined_scoring():
+    """Items with no priority/recency/score should still pack successfully."""
+    items = [
+        ContextItem(id="a", content="hello world"),  # no priority, recency, score, tokens
+        ContextItem(id="b", content="foo bar"),
+    ]
+    result = pack(items, Budget(maxTokens=1000))
+    assert len(result.selected) == 2
+
+
+def test_pack_budget_1_positive_fit():
+    """Item with tokens=1 fits budget=1 exactly."""
+    items = [ContextItem(id="tiny", content="x", tokens=1)]
+    result = pack(items, Budget(maxTokens=1))
+    assert len(result.selected) == 1
+    assert result.total_tokens == 1
+
+
+def test_pack_duplicate_ids():
+    """Two items with the same ID are both processed without crash."""
+    items = [
+        ContextItem(id="dupe", content="first", tokens=10, priority=10),
+        ContextItem(id="dupe", content="second", tokens=10, priority=5),
+    ]
+    result = pack(items, Budget(maxTokens=50))
+    assert len(result.selected) == 2
+
+
+def test_estimate_tokens_none_input():
+    """estimate_tokens(None) returns 0."""
+    assert estimate_tokens(None) == 0
+
+
+def test_estimate_tokens_whitespace_only():
+    """Whitespace-only string returns 0 tokens."""
+    assert estimate_tokens("   \t  ") == 0
+
+
+def test_estimate_tokens_newlines_only():
+    """Newlines-only string returns 0."""
+    assert estimate_tokens("\n\n\n") == 0
+
+
+def test_estimate_tokens_unicode_emoji():
+    """Unicode/emoji text returns > 0."""
+    result = estimate_tokens("Hello 🎉🎉🎉 world")
+    assert result > 0
+
+
+def test_diff_one_empty():
+    """Diff with empty before and non-empty after returns all added."""
+    items = [ContextItem(id="a", content="new", tokens=10)]
+    result = diff([], items)
+    assert len(result["added"]) == 1
+    assert len(result["removed"]) == 0
+
+
+def test_diff_all_kept():
+    """Diff with identical inputs returns all kept."""
+    items = [
+        ContextItem(id="a", content="hello", tokens=10),
+        ContextItem(id="b", content="world", tokens=10),
+    ]
+    result = diff(items, items)
+    assert len(result["kept"]) == 2
+    assert len(result["added"]) == 0
+    assert len(result["removed"]) == 0
+    assert len(result["changed"]) == 0
+
+
+def test_create_context_item_empty_id():
+    """create_context_item with empty id creates the item (validation happens at pack time)."""
+    item = create_context_item("", "content")
+    assert item.id == ""
+    assert item.content == "content"
+
+
+def test_create_context_item_empty_content():
+    """create_context_item with empty content creates the item."""
+    item = create_context_item("x", "")
+    assert item.id == "x"
+    assert item.content == ""
