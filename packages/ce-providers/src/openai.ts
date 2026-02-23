@@ -1,5 +1,12 @@
 import OpenAI from "openai";
-import type { EmbeddingProvider, EmbeddingResult, LLMProvider, LLMResult, LLMMessage, LLMGenerationOptions } from "./types";
+import type {
+  EmbeddingProvider,
+  EmbeddingResult,
+  LLMProvider,
+  LLMResult,
+  LLMMessage,
+  LLMGenerationOptions,
+} from "./types";
 
 const DEFAULT_CHAT_MODEL = "gpt-4o-mini";
 const DEFAULT_EMBED_MODEL = "text-embedding-3-small";
@@ -17,7 +24,7 @@ export class OpenAIProvider implements LLMProvider {
     this.client = new OpenAI({
       apiKey: options.apiKey ?? process.env.OPENAI_API_KEY,
       baseURL: options.baseURL ?? process.env.OPENAI_BASE_URL,
-      organization: options.organization ?? process.env.OPENAI_ORG
+      organization: options.organization ?? process.env.OPENAI_ORG,
     });
   }
 
@@ -29,7 +36,7 @@ export class OpenAIProvider implements LLMProvider {
       model: options.model ?? DEFAULT_CHAT_MODEL,
       messages,
       max_tokens: options.maxTokens,
-      temperature: options.temperature
+      temperature: options.temperature,
     });
 
     const choice = response.choices[0];
@@ -38,14 +45,14 @@ export class OpenAIProvider implements LLMProvider {
       ? {
           inputTokens: response.usage.prompt_tokens,
           outputTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens
+          totalTokens: response.usage.total_tokens,
         }
       : undefined;
 
     return {
       text,
       model: response.model,
-      usage
+      usage,
     };
   }
 }
@@ -57,20 +64,23 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     this.client = new OpenAI({
       apiKey: options.apiKey ?? process.env.OPENAI_API_KEY,
       baseURL: options.baseURL ?? process.env.OPENAI_BASE_URL,
-      organization: options.organization ?? process.env.OPENAI_ORG
+      organization: options.organization ?? process.env.OPENAI_ORG,
     });
   }
 
-  async embed(inputs: string[] | string, options: { model?: string } = {}): Promise<EmbeddingResult> {
+  async embed(
+    inputs: string[] | string,
+    options: { model?: string } = {}
+  ): Promise<EmbeddingResult> {
     const inputArray = Array.isArray(inputs) ? inputs : [inputs];
     const response = await this.client.embeddings.create({
       model: options.model ?? DEFAULT_EMBED_MODEL,
-      input: inputArray
+      input: inputArray,
     });
 
     return {
-      vectors: response.data.map((item) => item.embedding),
-      model: response.model
+      vectors: response.data.map(item => item.embedding),
+      model: response.model,
     };
   }
 }

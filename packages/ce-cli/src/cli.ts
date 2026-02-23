@@ -28,7 +28,7 @@ program
   )
   .version("0.1.0")
   .option("--no-color", "Disable colored output")
-  .hook("preAction", (thisCommand) => {
+  .hook("preAction", thisCommand => {
     const opts = thisCommand.opts();
     if (opts.color === false) setNoColor(true);
   });
@@ -67,7 +67,7 @@ program
     "heuristic"
   )
   .option("--json", "Force JSON output")
-  .action(async (options) => {
+  .action(async options => {
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
@@ -83,7 +83,7 @@ program
         console.log(`Total tokens: ${fmt.cyan(String(result.totalTokens))}`);
         if (result.selected.length > 0) {
           console.log(fmt.dim("\nSelected:"));
-          result.selected.forEach((item) =>
+          result.selected.forEach(item =>
             console.log(
               `  ${fmt.green("•")} ${item.id} ${fmt.dim(`(${item.tokens ?? "?"} tokens)`)}`
             )
@@ -109,7 +109,7 @@ program
     "heuristic"
   )
   .option("--json", "Force JSON output")
-  .action(async (options) => {
+  .action(async options => {
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
@@ -120,7 +120,7 @@ program
       outputResult(trace, () => {
         console.log(fmt.bold(`Pack tokens: ${trace.pack.totalTokens}`));
         console.log(fmt.dim("\nDecisions:"));
-        trace.steps.forEach((step) => {
+        trace.steps.forEach(step => {
           const icon =
             step.decision === "include"
               ? fmt.green("✓")
@@ -143,7 +143,7 @@ program
   .requiredOption("--before <file>", "Before JSON file")
   .requiredOption("--after <file>", "After JSON file")
   .option("--json", "Force JSON output")
-  .action(async (options) => {
+  .action(async options => {
     if (options.json) setForceJson(true);
     try {
       const beforeRaw = await fs.readFile(options.before, "utf-8");
@@ -174,7 +174,7 @@ program
     "Schema: context-item | context-pack | context-plan | context-trace | memory-item"
   )
   .requiredOption("-i, --input <file>", "Path to JSON/JSONL")
-  .action(async (options) => {
+  .action(async options => {
     try {
       const raw = await fs.readFile(options.input, "utf-8");
       const trimmed = raw.trim();
@@ -234,7 +234,7 @@ program
     "Token estimator: openai | anthropic | heuristic",
     "heuristic"
   )
-  .action(async (options) => {
+  .action(async options => {
     try {
       let text = options.text as string | undefined;
       if (!text && options.file) {
@@ -248,9 +248,7 @@ program
           options.provider === "heuristic" ? undefined : options.provider,
       });
       if (isJsonMode()) {
-        console.log(
-          JSON.stringify({ tokens, provider: options.provider })
-        );
+        console.log(JSON.stringify({ tokens, provider: options.provider }));
       } else {
         console.log(
           `${fmt.cyan(String(tokens))} tokens ${fmt.dim(`(${options.provider})`)}`

@@ -121,7 +121,7 @@ describe("loadItemsFromFile", () => {
   it("loads JSONL", async () => {
     await fs.mkdir(tempDir, { recursive: true });
     const filePath = path.join(tempDir, "items.jsonl");
-    const content = items.map((i) => JSON.stringify(i)).join("\n");
+    const content = items.map(i => JSON.stringify(i)).join("\n");
     await fs.writeFile(filePath, content);
     const loaded = await loadItemsFromFile(filePath);
     expect(loaded.length).toBe(2);

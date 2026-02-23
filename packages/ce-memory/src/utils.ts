@@ -11,7 +11,7 @@ export function normalizeMemoryItem(item: Partial<MemoryItem>): MemoryItem {
     updatedAt: item.updatedAt ?? nowIso,
     salience: item.salience ?? 1,
     ttlSeconds: item.ttlSeconds,
-    metadata: item.metadata ?? {}
+    metadata: item.metadata ?? {},
   };
 }
 
@@ -44,22 +44,22 @@ export function applyQueryFilter(
   const halfLifeSeconds = query.halfLifeSeconds;
 
   let filtered = items
-    .map((item) => {
+    .map(item => {
       const salience =
         halfLifeSeconds !== undefined
           ? decaySalience(item, now, halfLifeSeconds)
-          : item.salience ?? 1;
+          : (item.salience ?? 1);
       return { item, salience };
     })
     .filter(({ item, salience }) => {
-    if (!includeExpired && isExpired(item, now)) return false;
-    if (salience < minSalience) return false;
-    if (query.text) {
-      const text = query.text.toLowerCase();
-      if (!item.content.toLowerCase().includes(text)) return false;
-    }
-    return true;
-  })
+      if (!includeExpired && isExpired(item, now)) return false;
+      if (salience < minSalience) return false;
+      if (query.text) {
+        const text = query.text.toLowerCase();
+        if (!item.content.toLowerCase().includes(text)) return false;
+      }
+      return true;
+    })
     .sort((a, b) => b.salience - a.salience)
     .map(({ item }) => item);
 

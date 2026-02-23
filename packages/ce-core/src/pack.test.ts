@@ -12,7 +12,7 @@ const items: ContextItem[] = [
 describe("pack", () => {
   it("selects highest scored items within budget", () => {
     const packResult = pack(items, { maxTokens: 90 });
-    const selectedIds = packResult.selected.map((item) => item.id);
+    const selectedIds = packResult.selected.map(item => item.id);
     expect(selectedIds).toContain("a");
     expect(selectedIds).toContain("c");
     expect(selectedIds).not.toContain("b");
@@ -57,9 +57,9 @@ describe("pack", () => {
   });
 
   it("throws BudgetExceededError when reserveTokens >= maxTokens", () => {
-    expect(() =>
-      pack(items, { maxTokens: 100, reserveTokens: 100 })
-    ).toThrow(BudgetExceededError);
+    expect(() => pack(items, { maxTokens: 100, reserveTokens: 100 })).toThrow(
+      BudgetExceededError
+    );
   });
 
   it("drops all items when none fit budget", () => {

@@ -3,11 +3,15 @@ import {
   ContextItem,
   ContextPack,
   PackOptions,
-  TraceStep
+  TraceStep,
 } from "./types";
 import { createScorer, defaultItemScorer } from "./score";
 import { estimateTokens } from "./estimate";
-import { ValidationError, BudgetExceededError, EstimationError } from "./errors";
+import {
+  ValidationError,
+  BudgetExceededError,
+  EstimationError,
+} from "./errors";
 import { ContextItemSchema, BudgetSchema } from "./schemas";
 import { z } from "zod";
 import { noopLogger } from "./logger";
@@ -28,11 +32,13 @@ function applyCompression(
   const summarizer = options.summarizer;
 
   const sorted = compressions
-    .map((compression) => ({
+    .map(compression => ({
       ...compression,
       tokens:
         compression.tokens ??
-        estimateTokens(compression.content, { estimator: options.tokenEstimator })
+        estimateTokens(compression.content, {
+          estimator: options.tokenEstimator,
+        }),
     }))
     .sort((a, b) => (a.tokens ?? 0) - (b.tokens ?? 0));
 
@@ -45,10 +51,10 @@ function applyCompression(
           tokens: compression.tokens,
           metadata: {
             ...item.metadata,
-            compressionNote: compression.note ?? "compression"
-          }
+            compressionNote: compression.note ?? "compression",
+          },
         },
-        usedCompression: true
+        usedCompression: true,
       };
     }
   }
@@ -62,7 +68,7 @@ function applyCompression(
       if (tokens <= remainingTokens) {
         return {
           item: { ...summary, tokens },
-          usedCompression: true
+          usedCompression: true,
         };
       }
     }
@@ -142,7 +148,9 @@ export function internalPack(
     );
   }
 
-  const scorer = options.scorer ?? (options.weights ? createScorer(options.weights) : defaultItemScorer);
+  const scorer =
+    options.scorer ??
+    (options.weights ? createScorer(options.weights) : defaultItemScorer);
   const tokenEstimator = options.tokenEstimator;
   const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
 
@@ -153,11 +161,12 @@ export function internalPack(
     reserveTokens: budget.reserveTokens,
   });
 
-  const scoredItems = items.map((item) => {
+  const scoredItems = items.map(item => {
     let tokens: number;
     try {
       tokens =
-        item.tokens ?? estimateTokens(item.content, { estimator: tokenEstimator });
+        item.tokens ??
+        estimateTokens(item.content, { estimator: tokenEstimator });
     } catch (err) {
       throw new EstimationError(
         `Failed to estimate tokens for item "${item.id}": ${err instanceof Error ? err.message : String(err)}`
@@ -189,7 +198,7 @@ export function internalPack(
           decision: "include",
           tokens: item.tokens,
           score: item.score,
-          reason: "fits_budget"
+          reason: "fits_budget",
         });
       }
       continue;
@@ -197,7 +206,7 @@ export function internalPack(
 
     const compressed = applyCompression(item, remaining, {
       ...options,
-      tokenEstimator
+      tokenEstimator,
     });
 
     if (compressed) {
@@ -211,7 +220,7 @@ export function internalPack(
           compressedTokens: compressed.item.tokens,
           score: item.score,
           usedCompression: true,
-          reason: "compressed_to_fit"
+          reason: "compressed_to_fit",
         });
       }
     } else {
@@ -222,7 +231,7 @@ export function internalPack(
           decision: "exclude",
           tokens: item.tokens,
           score: item.score,
-          reason: "over_budget"
+          reason: "over_budget",
         });
       }
     }
@@ -246,8 +255,8 @@ export function internalPack(
     stats: {
       remainingTokens: Math.max(0, maxTokens - totalTokens),
       selectedCount: selected.length,
-      droppedCount: dropped.length
-    }
+      droppedCount: dropped.length,
+    },
   };
 
   return trace ? { pack: packResult, steps } : { pack: packResult };

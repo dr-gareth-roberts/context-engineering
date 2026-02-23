@@ -34,8 +34,8 @@ export function diff(
   const beforeItems = normalize(before);
   const afterItems = normalize(after);
 
-  const beforeMap = new Map(beforeItems.map((item) => [item.id, item]));
-  const afterMap = new Map(afterItems.map((item) => [item.id, item]));
+  const beforeMap = new Map(beforeItems.map(item => [item.id, item]));
+  const afterMap = new Map(afterItems.map(item => [item.id, item]));
 
   const added: ContextItem[] = [];
   const removed: ContextItem[] = [];

@@ -27,7 +27,10 @@ export function estimateTokens(
   if (text == null) return 0;
   const estimator = options?.estimator ?? defaultTokenEstimator;
   try {
-    return estimator(text, { model: options?.model, provider: options?.provider });
+    return estimator(text, {
+      model: options?.model,
+      provider: options?.provider,
+    });
   } catch (err) {
     throw new EstimationError(
       `Token estimation failed: ${err instanceof Error ? err.message : String(err)}`

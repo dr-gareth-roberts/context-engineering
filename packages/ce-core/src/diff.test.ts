@@ -15,9 +15,9 @@ const after: ContextItem[] = [
 describe("diff", () => {
   it("detects added and removed items", () => {
     const result = diff(before, after);
-    expect(result.added.map((i) => i.id)).toEqual(["c"]);
-    expect(result.removed.map((i) => i.id)).toEqual(["b"]);
-    expect(result.kept.map((i) => i.id)).toEqual(["a"]);
+    expect(result.added.map(i => i.id)).toEqual(["c"]);
+    expect(result.removed.map(i => i.id)).toEqual(["b"]);
+    expect(result.kept.map(i => i.id)).toEqual(["a"]);
   });
 
   it("detects content changes", () => {
@@ -31,9 +31,7 @@ describe("diff", () => {
   });
 
   it("detects token changes", () => {
-    const changed: ContextItem[] = [
-      { id: "a", content: "Alpha", tokens: 999 },
-    ];
+    const changed: ContextItem[] = [{ id: "a", content: "Alpha", tokens: 999 }];
     const result = diff(before, changed);
     expect(result.changed.length).toBe(1);
   });
@@ -80,8 +78,8 @@ describe("diff", () => {
       totalTokens: 25,
     };
     const result = diff(beforePack, afterPack);
-    expect(result.added.map((i) => i.id)).toEqual(["c"]);
-    expect(result.removed.map((i) => i.id)).toEqual(["b"]);
+    expect(result.added.map(i => i.id)).toEqual(["c"]);
+    expect(result.removed.map(i => i.id)).toEqual(["b"]);
   });
 
   it("produces stable snapshot", () => {

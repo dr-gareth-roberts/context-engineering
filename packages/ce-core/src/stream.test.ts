@@ -22,10 +22,7 @@ describe("packStream", () => {
     for await (const item of packStream(items, { maxTokens: 55 })) {
       selected.push(item);
     }
-    const totalTokens = selected.reduce(
-      (sum, i) => sum + (i.tokens ?? 0),
-      0
-    );
+    const totalTokens = selected.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
     expect(totalTokens).toBeLessThanOrEqual(55);
   });
 

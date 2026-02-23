@@ -22,7 +22,10 @@ export interface LLMResult {
 }
 
 export interface LLMProvider {
-  generate(messages: LLMMessage[], options?: LLMGenerationOptions): Promise<LLMResult>;
+  generate(
+    messages: LLMMessage[],
+    options?: LLMGenerationOptions
+  ): Promise<LLMResult>;
 }
 
 export interface EmbeddingOptions {
@@ -35,5 +38,8 @@ export interface EmbeddingResult {
 }
 
 export interface EmbeddingProvider {
-  embed(inputs: string[] | string, options?: EmbeddingOptions): Promise<EmbeddingResult>;
+  embed(
+    inputs: string[] | string,
+    options?: EmbeddingOptions
+  ): Promise<EmbeddingResult>;
 }

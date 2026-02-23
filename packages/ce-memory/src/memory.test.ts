@@ -10,7 +10,10 @@ import path from "path";
 let tempDir: string;
 
 beforeEach(async () => {
-  tempDir = path.join(os.tmpdir(), `ce-memory-tests-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  tempDir = path.join(
+    os.tmpdir(),
+    `ce-memory-tests-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
   await fs.mkdir(tempDir, { recursive: true });
 });
 

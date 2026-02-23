@@ -63,7 +63,7 @@ client app → ce-core, ce-memory, ce-providers
 - **pack()**: Greedy score-based context packing within a token budget. Score = `priority * 1.0 + recency * 0.7 + salience * 0.5`. Supports compressions (pre-calculated alternative versions) and custom summarizers.
 - **tracePack()**: Same as pack but records every decision (include/compress/exclude) with reasons.
 - **diff()**: Compares two ContextPacks — returns added, removed, kept, changed items.
-- **estimateTokens()**: Pluggable token counting — default heuristic (words * 1.3), OpenAI (cl100k_base via tiktoken), Anthropic (words * 1.4).
+- **estimateTokens()**: Pluggable token counting — default heuristic (words _ 1.3), OpenAI (cl100k_base via tiktoken), Anthropic (words _ 1.4).
 
 ### Key Types
 
@@ -108,8 +108,10 @@ Vite builds client → `dist/public`. esbuild bundles `server/index.ts` → `dis
 ## Environment Variables
 
 Client-side (prefixed `VITE_`):
+
 - `VITE_OAUTH_PORTAL_URL`, `VITE_APP_ID` — OAuth configuration
 - `VITE_ANALYTICS_ENDPOINT`, `VITE_ANALYTICS_WEBSITE_ID` — Umami analytics
 
 Server-side:
+
 - `PORT` — Server port (defaults to 3000)

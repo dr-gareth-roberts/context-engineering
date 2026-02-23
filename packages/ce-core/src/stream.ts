@@ -61,7 +61,7 @@ export async function* packStream(
   const tokenEstimator = options.tokenEstimator;
   const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
 
-  const scoredItems = items.map((item) => {
+  const scoredItems = items.map(item => {
     const tokens =
       item.tokens ??
       estimateTokens(item.content, { estimator: tokenEstimator });

@@ -12,12 +12,12 @@ describe("tracePack", () => {
   it("records include decisions", () => {
     const trace = tracePack(items, { maxTokens: 200 });
     expect(trace.steps.length).toBe(3);
-    expect(trace.steps.every((s) => s.decision === "include")).toBe(true);
+    expect(trace.steps.every(s => s.decision === "include")).toBe(true);
   });
 
   it("records exclude decisions when over budget", () => {
     const trace = tracePack(items, { maxTokens: 55 });
-    const excluded = trace.steps.filter((s) => s.decision === "exclude");
+    const excluded = trace.steps.filter(s => s.decision === "exclude");
     expect(excluded.length).toBeGreaterThan(0);
   });
 
@@ -36,7 +36,7 @@ describe("tracePack", () => {
       { maxTokens: 30 },
       { allowCompression: true }
     );
-    const compressed = trace.steps.filter((s) => s.decision === "compress");
+    const compressed = trace.steps.filter(s => s.decision === "compress");
     expect(compressed.length).toBe(1);
     expect(compressed[0].usedCompression).toBe(true);
     expect(compressed[0].compressedTokens).toBe(20);
