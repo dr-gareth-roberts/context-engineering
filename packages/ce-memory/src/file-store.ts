@@ -35,8 +35,10 @@ export class FileStore implements MemoryStore {
   }
 
   private persist(): Promise<void> {
-    // Serialize writes through a queue to prevent concurrent .tmp file races
-    this.writeQueue = this.writeQueue.then(async () => {
+    // Serialize writes through a queue to prevent concurrent .tmp file races.
+    // The .catch(() => {}) on the assignment ensures a failed write does not
+    // permanently poison the queue — subsequent writes can still proceed.
+    const write = this.writeQueue.then(async () => {
       const lines = Array.from(this.items.values()).map(item =>
         JSON.stringify(item)
       );
@@ -46,7 +48,9 @@ export class FileStore implements MemoryStore {
       await fs.writeFile(tmpPath, content);
       await fs.rename(tmpPath, this.filePath);
     });
-    return this.writeQueue;
+    // Keep the queue alive even if this write fails
+    this.writeQueue = write.catch(() => {});
+    return write;
   }
 
   async put(

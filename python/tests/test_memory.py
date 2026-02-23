@@ -78,6 +78,88 @@ class TestFileStore:
             assert store2.get("f1").content == "Data"
 
 
+    def test_corrupted_json_recovery(self):
+        """FileStore skips corrupted JSON lines instead of crashing."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "corrupted.jsonl")
+            good_item = MemoryItem(id="good", content="Valid", createdAt=_now_iso())
+            with open(path, "w") as f:
+                f.write(good_item.model_dump_json(by_alias=True) + "\n")
+                f.write("{broken json\n")
+                f.write('{"also": "not a memory item"}\n')
+            store = FileStore(path)
+            results = store.query()
+            assert len(results) == 1
+            assert results[0].id == "good"
+
+    def test_whitespace_only_lines(self):
+        """FileStore handles files with whitespace-only lines."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "whitespace.jsonl")
+            with open(path, "w") as f:
+                f.write("\n  \n\n  \n")
+            store = FileStore(path)
+            assert store.query() == []
+
+    def test_bare_filename(self):
+        """FileStore handles bare filenames without directory component."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Use chdir to test bare filename behavior
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(temp_dir)
+                store = FileStore("bare.jsonl")
+                store.put(MemoryItem(id="b1", content="Bare", createdAt=_now_iso()))
+                assert store.get("b1").content == "Bare"
+            finally:
+                os.chdir(old_cwd)
+
+    def test_thread_safety(self):
+        """FileStore handles concurrent writes from multiple threads."""
+        import threading
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "threaded.jsonl")
+            store = FileStore(path)
+            errors = []
+
+            def writer(thread_id):
+                try:
+                    for i in range(5):
+                        store.put(MemoryItem(
+                            id=f"t{thread_id}-{i}",
+                            content=f"Thread {thread_id} item {i}",
+                            createdAt=_now_iso(),
+                        ))
+                except Exception as e:
+                    errors.append(e)
+
+            threads = [threading.Thread(target=writer, args=(t,)) for t in range(4)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+            assert not errors, f"Thread errors: {errors}"
+            results = store.query()
+            assert len(results) == 20  # 4 threads * 5 items
+
+    def test_forget_persists(self):
+        """Forget removes item and persists the change."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "forget.jsonl")
+            store = FileStore(path)
+            store.put([
+                MemoryItem(id="keep", content="Keep me", createdAt=_now_iso()),
+                MemoryItem(id="remove", content="Remove me", createdAt=_now_iso()),
+            ])
+            assert store.forget("remove") is True
+            # Verify persistence by reloading
+            store2 = FileStore(path)
+            assert store2.get("remove") is None
+            assert store2.get("keep") is not None
+
+
 class TestSqliteStore:
     def test_put_and_get(self):
         store = SqliteStore(":memory:")

@@ -38,8 +38,8 @@ export async function* packStream(
   const budgetResult = BudgetSchema.safeParse(budget);
   if (!budgetResult.success) {
     throw new ValidationError(
-      `Invalid budget: ${budgetResult.error.issues.map((i: any) => i.message).join(", ")}`,
-      budgetResult.error.issues.map((i: any) => ({
+      `Invalid budget: ${budgetResult.error.issues.map((i: z.ZodIssue) => i.message).join(", ")}`,
+      budgetResult.error.issues.map((i: z.ZodIssue) => ({
         path: i.path.join("."),
         message: i.message,
       }))
@@ -52,6 +52,17 @@ export async function* packStream(
   ) {
     throw new BudgetExceededError(
       `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
+    );
+  }
+
+  const itemsResult = z.array(ContextItemSchema).safeParse(items);
+  if (!itemsResult.success) {
+    throw new ValidationError(
+      `Invalid items: ${itemsResult.error.issues.map((i: z.ZodIssue) => i.message).join(", ")}`,
+      itemsResult.error.issues.map((i: z.ZodIssue) => ({
+        path: i.path.join("."),
+        message: i.message,
+      }))
     );
   }
 

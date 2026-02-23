@@ -499,7 +499,24 @@ def main() -> None:
     cost_parser.set_defaults(func=cmd_cost)
 
     args = parser.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except SystemExit:
+        raise
+    except FileNotFoundError as exc:
+        print(_fmt.error(f"File not found: {exc.filename or exc}"), file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as exc:
+        print(_fmt.error(f"Invalid JSON: {exc.msg} (line {exc.lineno})"), file=sys.stderr)
+        sys.exit(1)
+    except (ValueError, RuntimeError) as exc:
+        print(_fmt.error(str(exc)), file=sys.stderr)
+        sys.exit(1)
+    except Exception as exc:
+        print(_fmt.error(str(exc)), file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

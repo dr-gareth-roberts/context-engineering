@@ -118,8 +118,8 @@ export function internalPack(
   const budgetResult = BudgetSchema.safeParse(budget);
   if (!budgetResult.success) {
     throw new ValidationError(
-      `Invalid budget: ${budgetResult.error.issues.map((i: any) => i.message).join(", ")}`,
-      budgetResult.error.issues.map((i: any) => ({
+      `Invalid budget: ${budgetResult.error.issues.map((i: z.ZodIssue) => i.message).join(", ")}`,
+      budgetResult.error.issues.map((i: z.ZodIssue) => ({
         path: i.path.join("."),
         message: i.message,
       }))
@@ -140,8 +140,8 @@ export function internalPack(
   const itemsResult = z.array(ContextItemSchema).safeParse(items);
   if (!itemsResult.success) {
     throw new ValidationError(
-      `Invalid items: ${itemsResult.error.issues.map((i: any) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
-      itemsResult.error.issues.map((i: any) => ({
+      `Invalid items: ${itemsResult.error.issues.map((i: z.ZodIssue) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+      itemsResult.error.issues.map((i: z.ZodIssue) => ({
         path: i.path.join("."),
         message: i.message,
       }))

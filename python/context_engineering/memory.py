@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import sqlite3
 import statistics
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Callable, Awaitable, Union
+
+logger = logging.getLogger(__name__)
 
 from pydantic import BaseModel, ConfigDict, Field
 from .providers import EmbeddingProvider
@@ -175,50 +179,84 @@ class InMemoryStore(MemoryStore):
 
 class FileStore(MemoryStore):
     def __init__(self, file_path: str) -> None:
-        self.file_path = file_path; self._items = {}; self._loaded = False
+        self.file_path = file_path
+        self._items: Dict[str, MemoryItem] = {}
+        self._loaded = False
+        self._lock = threading.Lock()
 
     def _load(self):
-        if self._loaded: return
-        os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
+        if self._loaded:
+            return
+        dirname = os.path.dirname(self.file_path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         if os.path.exists(self.file_path):
             with open(self.file_path, "r") as f:
-                for line in f:
-                    if line.strip(): i = MemoryItem.model_validate(json.loads(line)); self._items[i.id] = i
+                for lineno, line in enumerate(f, 1):
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    try:
+                        i = MemoryItem.model_validate(json.loads(stripped))
+                        self._items[i.id] = i
+                    except (json.JSONDecodeError, Exception) as exc:
+                        logger.warning("Skipping corrupted line %d in %s: %s", lineno, self.file_path, exc)
         self._loaded = True
 
     def _persist(self):
         # Atomic write: write to temp file, then rename (atomic on POSIX).
         tmp_path = self.file_path + ".tmp"
         with open(tmp_path, "w") as f:
-            for i in self._items.values(): f.write(i.model_dump_json(by_alias=True) + "\n")
+            for i in self._items.values():
+                f.write(i.model_dump_json(by_alias=True) + "\n")
         os.replace(tmp_path, self.file_path)
 
     def put(self, item: MemoryItem | List[MemoryItem]):
-        self._load(); items = item if isinstance(item, list) else [item]
-        normalized = [_normalize(entry) for entry in items]
-        for entry in normalized: self._items[entry.id] = entry
-        self._persist(); return normalized
+        with self._lock:
+            self._load()
+            items = item if isinstance(item, list) else [item]
+            normalized = [_normalize(entry) for entry in items]
+            for entry in normalized:
+                self._items[entry.id] = entry
+            self._persist()
+            return normalized
 
     def get(self, item_id: str):
-        self._load(); item = self._items.get(item_id)
-        if item: item.last_accessed_at = _now_iso(); self._persist()
-        return item
+        with self._lock:
+            self._load()
+            item = self._items.get(item_id)
+            if item:
+                item.last_accessed_at = _now_iso()
+                self._persist()
+            return item
 
     def query(self, query: Optional[MemoryQuery] = None):
-        self._load(); return _apply_query(list(self._items.values()), query or MemoryQuery())
+        with self._lock:
+            self._load()
+            return _apply_query(list(self._items.values()), query or MemoryQuery())
 
     def forget(self, item_id: str):
-        self._load(); removed = self._items.pop(item_id, None) is not None
-        if removed: self._persist()
-        return removed
+        with self._lock:
+            self._load()
+            removed = self._items.pop(item_id, None) is not None
+            if removed:
+                self._persist()
+            return removed
 
     async def consolidate(self, summarizer, threshold=0.3):
-        self._load(); count = 0
-        for i in self._items.values():
-            if (i.salience or 1.0) < threshold and not i.is_summary:
-                i.content = f"[Flashcard] {await summarizer(i.content)}"; i.is_summary = True; i.salience = threshold + 0.1; i.updated_at = _now_iso(); count += 1
-        if count: self._persist()
-        return count
+        with self._lock:
+            self._load()
+            count = 0
+            for i in self._items.values():
+                if (i.salience or 1.0) < threshold and not i.is_summary:
+                    i.content = f"[Flashcard] {await summarizer(i.content)}"
+                    i.is_summary = True
+                    i.salience = threshold + 0.1
+                    i.updated_at = _now_iso()
+                    count += 1
+            if count:
+                self._persist()
+            return count
 
 
 class SqliteStore(MemoryStore):
