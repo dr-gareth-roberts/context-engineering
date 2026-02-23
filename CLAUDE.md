@@ -19,7 +19,7 @@ pnpm check        # TypeScript type checking (root: client + server + shared)
 pnpm check:all    # Type-check all workspace packages
 pnpm format       # Prettier (double quotes, semicolons, 2-space, 80 chars)
 
-# Testing (204 TS tests + 193 Python tests)
+# Testing (204 TS tests + 90 core Python tests)
 pnpm test:all                           # Run all package tests (Vitest)
 cd packages/ce-core && npx vitest run   # Single package tests
 npx vitest run src/pack.test.ts         # Single test file (from package dir)
@@ -110,11 +110,15 @@ presets.openai    // { estimator: openaiTokenEstimator }
 presets.anthropic // { estimator: anthropicTokenEstimator }
 ```
 
-### Python SDK Extras (beyond TS parity)
+### Python SDK (full TS parity + extras)
 
+Python has full feature parity with TypeScript: `pack`, `trace_pack`, `diff`, `estimate_tokens`, `to_context_item`, `memory_to_context`, `place_items`, `effective_budget`, `analyze_context`, `create_context_manager`, `create_cached_estimator`, `pack_stream`.
+
+**Python-only extras:**
 - **AgentContextManager** (`framework.py`): High-level orchestration — adaptive budgeting, segmentation, memory queries, handoff protocol for multi-agent coordination.
 - **Segmenters** (`segmentation.py`): StructuralSegmenter (markdown headers), SemanticSegmenter (embeddings), PerplexitySegmenter (LLM-based), HybridSegmenter. All include boundary protection (UUIDs, dates, identifiers).
-- Python SDK mirrors TS validation (Pydantic), error handling, CLI TTY-awareness, and Google-style docstrings on all public methods.
+- **Advanced pack algorithm**: Python pack supports negation/supersession, hierarchical inclusion, semantic redundancy detection, and relation boosts. TS pack is simpler (greedy only).
+- Python CLI adds `ce place`, `ce quality`, `ce effective-budget` commands beyond TS CLI.
 
 ### CLI (`ce`)
 
