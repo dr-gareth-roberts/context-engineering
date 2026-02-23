@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmt } from "./output";
+import { fmt } from "./output.js";
 
 describe("fmt", () => {
   it("returns string containing the text", () => {

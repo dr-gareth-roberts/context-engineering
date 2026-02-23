@@ -89,7 +89,7 @@ export interface PackOptions {
   summarizer?: Summarizer;
   allowCompression?: boolean;
   weights?: ScoringWeights;
-  logger?: import("./logger").Logger;
+  logger?: import("./logger.js").Logger;
 }
 
 export interface PackDiff {

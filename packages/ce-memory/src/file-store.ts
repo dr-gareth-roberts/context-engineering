@@ -1,8 +1,8 @@
 import type { MemoryItem } from "@ce/core";
 import { promises as fs } from "fs";
 import path from "path";
-import type { MemoryQuery, MemoryStore } from "./types";
-import { applyQueryFilter, normalizeMemoryItem } from "./utils";
+import type { MemoryQuery, MemoryStore } from "./types.js";
+import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";
 
 export class FileStore implements MemoryStore {
   private filePath: string;

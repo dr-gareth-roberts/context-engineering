@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateTokens, defaultTokenEstimator } from "./estimate";
+import { estimateTokens, defaultTokenEstimator } from "./estimate.js";
 
 describe("defaultTokenEstimator", () => {
   it("estimates tokens for normal text", () => {

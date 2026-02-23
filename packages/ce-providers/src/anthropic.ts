@@ -4,7 +4,7 @@ import type {
   LLMResult,
   LLMMessage,
   LLMGenerationOptions,
-} from "./types";
+} from "./types.js";
 
 const DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
 

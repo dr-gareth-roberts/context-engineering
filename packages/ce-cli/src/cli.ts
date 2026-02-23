@@ -8,7 +8,7 @@ import {
   runDiff,
   runBudget,
   lintFile,
-} from "./lib";
+} from "./lib.js";
 import {
   fmt,
   outputResult,
@@ -17,7 +17,7 @@ import {
   setForceJson,
   setNoColor,
   isJsonMode,
-} from "./output";
+} from "./output.js";
 
 const program = new Command();
 

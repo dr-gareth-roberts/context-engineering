@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { packStream } from "./stream";
-import type { ContextItem } from "./types";
+import { packStream } from "./stream.js";
+import type { ContextItem } from "./types.js";
 
 const items: ContextItem[] = [
   { id: "a", content: "High priority", priority: 10, tokens: 50 },

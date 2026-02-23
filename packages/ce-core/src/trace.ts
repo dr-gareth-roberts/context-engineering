@@ -1,5 +1,5 @@
-import { ContextItem, Budget, ContextTrace, PackOptions } from "./types";
-import { internalPack } from "./pack";
+import { ContextItem, Budget, ContextTrace, PackOptions } from "./types.js";
+import { internalPack } from "./pack.js";
 
 /**
  * Pack items with a decision trace for debugging and observability.

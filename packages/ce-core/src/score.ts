@@ -1,4 +1,4 @@
-import type { ContextItem, ItemScorer, ScoringWeights } from "./types";
+import type { ContextItem, ItemScorer, ScoringWeights } from "./types.js";
 
 const DEFAULT_WEIGHTS: Required<ScoringWeights> = {
   priority: 1.0,

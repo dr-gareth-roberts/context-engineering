@@ -1,6 +1,6 @@
 import type { MemoryItem } from "@ce/core";
 import { nanoid } from "nanoid";
-import type { MemoryQuery } from "./types";
+import type { MemoryQuery } from "./types.js";
 
 export function normalizeMemoryItem(item: Partial<MemoryItem>): MemoryItem {
   const nowIso = new Date().toISOString();

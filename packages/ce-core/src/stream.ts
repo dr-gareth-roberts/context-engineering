@@ -1,12 +1,12 @@
-import type { Budget, ContextItem, PackOptions } from "./types";
-import { BudgetSchema, ContextItemSchema } from "./schemas";
+import type { Budget, ContextItem, PackOptions } from "./types.js";
+import { BudgetSchema, ContextItemSchema } from "./schemas.js";
 import {
   ValidationError,
   BudgetExceededError,
   EstimationError,
-} from "./errors";
-import { createScorer, defaultItemScorer } from "./score";
-import { estimateTokens } from "./estimate";
+} from "./errors.js";
+import { createScorer, defaultItemScorer } from "./score.js";
+import { estimateTokens } from "./estimate.js";
 import { z } from "zod";
 
 /**
