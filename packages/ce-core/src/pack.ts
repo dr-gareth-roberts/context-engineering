@@ -10,6 +10,7 @@ import { estimateTokens } from "./estimate";
 import { ValidationError, BudgetExceededError, EstimationError } from "./errors";
 import { ContextItemSchema, BudgetSchema } from "./schemas";
 import { z } from "zod";
+import { noopLogger } from "./logger";
 
 interface PackResult {
   pack: ContextPack;
@@ -145,6 +146,13 @@ export function internalPack(
   const tokenEstimator = options.tokenEstimator;
   const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
 
+  const logger = options.logger ?? noopLogger;
+  logger.info("pack:start", {
+    itemCount: items.length,
+    maxTokens,
+    reserveTokens: budget.reserveTokens,
+  });
+
   const scoredItems = items.map((item) => {
     let tokens: number;
     try {
@@ -219,6 +227,11 @@ export function internalPack(
       }
     }
   }
+
+  logger.info("pack:complete", {
+    selectedCount: selected.length,
+    droppedCount: dropped.length,
+  });
 
   const totalTokens = selected.reduce(
     (sum, item) => sum + (item.tokens ?? 0),
