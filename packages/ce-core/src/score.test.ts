@@ -50,4 +50,16 @@ describe("createScorer", () => {
     const score = scorer(item);
     expect(score).toBeCloseTo(10 * 2.0 + 5 * 0.7 + 0.8 * 0.5);
   });
+
+  it("returns 0 when all weights are zero", () => {
+    const scorer = createScorer({ priority: 0, recency: 0, salience: 0 });
+    const score = scorer(item);
+    expect(score).toBe(0);
+  });
+
+  it("uses only the one weight that is set when others are zero", () => {
+    const scorer = createScorer({ priority: 1, recency: 0, salience: 0 });
+    const score = scorer(item);
+    expect(score).toBeCloseTo(10 * 1);
+  });
 });

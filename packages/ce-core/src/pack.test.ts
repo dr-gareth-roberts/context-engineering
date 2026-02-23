@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { pack } from "./pack.js";
-import { ValidationError, BudgetExceededError } from "./errors.js";
-import type { ContextItem } from "./types.js";
+import {
+  ValidationError,
+  BudgetExceededError,
+  EstimationError,
+} from "./errors.js";
+import type { ContextItem, Summarizer, TokenEstimator } from "./types.js";
+import type { Logger } from "./logger.js";
 
 const items: ContextItem[] = [
   { id: "a", content: "High priority", priority: 10, tokens: 50 },
@@ -80,5 +85,47 @@ describe("pack", () => {
   it("produces stable snapshot output", () => {
     const result = pack(items, { maxTokens: 90 });
     expect(result).toMatchSnapshot();
+  });
+
+  it("throws EstimationError when token estimator throws", () => {
+    const itemsNoTokens: ContextItem[] = [
+      { id: "x", content: "hello world" },
+    ];
+    const brokenEstimator: TokenEstimator = () => {
+      throw new Error("estimator broken");
+    };
+    expect(() =>
+      pack(itemsNoTokens, { maxTokens: 100 }, { tokenEstimator: brokenEstimator })
+    ).toThrow(EstimationError);
+  });
+
+  it("uses custom summarizer that returns compressed content", () => {
+    const bigItems: ContextItem[] = [
+      { id: "big", content: "Very long content here", priority: 10, tokens: 200 },
+    ];
+    const summarizer: Summarizer = (_item, _targetTokens) => ({
+      id: "big",
+      content: "compressed",
+      tokens: 20,
+    });
+    const result = pack(
+      bigItems,
+      { maxTokens: 50 },
+      { allowCompression: true, summarizer }
+    );
+    expect(result.selected.length).toBe(1);
+    expect(result.selected[0].content).toBe("compressed");
+    expect(result.selected[0].tokens).toBe(20);
+  });
+
+  it("calls logger.info during packing", () => {
+    const mockLogger: Logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+    pack(items, { maxTokens: 200 }, { logger: mockLogger });
+    expect(mockLogger.info).toHaveBeenCalled();
   });
 });

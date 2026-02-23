@@ -46,4 +46,22 @@ describe("packStream", () => {
     }
     expect(selected.length).toBe(0);
   });
+
+  it("drops items with compressions instead of compressing them", async () => {
+    const compressibleItems: ContextItem[] = [
+      {
+        id: "big",
+        content: "Large content",
+        priority: 10,
+        tokens: 200,
+        compressions: [{ content: "Small", tokens: 20, note: "summary" }],
+      },
+    ];
+    const selected: ContextItem[] = [];
+    for await (const item of packStream(compressibleItems, { maxTokens: 50 })) {
+      selected.push(item);
+    }
+    // packStream does not apply compressions — items that exceed budget are simply skipped
+    expect(selected.length).toBe(0);
+  });
 });
