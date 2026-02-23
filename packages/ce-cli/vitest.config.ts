@@ -1,0 +1,15 @@
+import { defineConfig } from "vitest/config";
+import path from "path";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+  },
+  resolve: {
+    alias: {
+      "@ce/core": path.resolve(__dirname, "../ce-core/src"),
+      "@ce/providers": path.resolve(__dirname, "../ce-providers/src"),
+    },
+  },
+});
