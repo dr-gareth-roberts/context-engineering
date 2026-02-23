@@ -537,4 +537,7 @@ function colorMetric(value: number): string {
   return fmt.red(text);
 }
 
-program.parseAsync(process.argv);
+program.parseAsync(process.argv).catch(err => {
+  const msg = err instanceof Error ? err.message : String(err);
+  outputError(msg);
+});
