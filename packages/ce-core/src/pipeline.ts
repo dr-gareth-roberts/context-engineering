@@ -285,11 +285,10 @@ export class ContextPipeline {
     // Stage 2: Placement
     if (this.placementConfig) {
       stages.push("place");
-      selected = placeItems(
-        selected,
-        this.placementConfig.strategy,
-        this.placementConfig.model,
-      );
+      selected = placeItems(selected, {
+        strategy: this.placementConfig.strategy,
+        model: this.placementConfig.model,
+      });
     }
 
     // Stage 3: Quality gate
