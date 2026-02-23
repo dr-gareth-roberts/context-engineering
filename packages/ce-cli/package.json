@@ -2,9 +2,22 @@
   "name": "@ce/cli",
   "version": "0.1.0",
   "type": "module",
-  "description": "CLI for context engineering",
+  "description": "CLI for context packing, tracing, diffing, linting, and budget analysis",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/context-engineering/toolkit",
+    "directory": "packages/ce-cli"
+  },
+  "keywords": ["context-engineering", "cli", "llm", "token-budget", "ai"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "bin": {
     "ce": "./dist/cli.js"
   },

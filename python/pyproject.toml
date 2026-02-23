@@ -1,9 +1,22 @@
 [project]
 name = "context-engineering"
 version = "0.1.0"
-description = "Context engineering toolkit"
+description = "Context engineering toolkit — pack, score, and manage LLM context within token budgets"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
+keywords = ["context-engineering", "llm", "token-budget", "ai", "context-packing"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
+]
 dependencies = [
   "pydantic>=2.7.0",
   "httpx>=0.27.0",

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Callable, Awaitable, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from .providers import EmbeddingProvider
 
 
@@ -19,6 +19,8 @@ def _now_iso() -> str:
 
 
 class MemoryItem(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str
     content: str
     created_at: str = Field(alias="createdAt")
@@ -30,9 +32,6 @@ class MemoryItem(BaseModel):
     is_summary: bool = Field(default=False, alias="isSummary")
     embedding: Optional[List[float]] = None
     links: List[str] = Field(default_factory=list) # IDs of related memories
-
-    class Config:
-        populate_by_name = True
 
 
 @dataclass
