@@ -9,3 +9,7 @@ export * from "./trace.js";
 export * from "./stream.js";
 export * from "./logger.js";
 export * from "./cache.js";
+export * from "./bridge.js";
+export * from "./quality.js";
+export * from "./placement.js";
+export * from "./compaction.js";
