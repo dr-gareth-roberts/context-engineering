@@ -13,3 +13,6 @@ export * from "./bridge.js";
 export * from "./quality.js";
 export * from "./placement.js";
 export * from "./compaction.js";
+export * from "./cache-topology.js";
+export * from "./allocation.js";
+export * from "./session.js";
