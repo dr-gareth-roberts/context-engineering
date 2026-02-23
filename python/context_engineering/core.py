@@ -129,11 +129,12 @@ def estimate_tokens(text: str, provider: Optional[str] = None, model: Optional[s
     """Estimate the token count for a text string.
 
     Args:
-        text: The text to estimate tokens for.
-        **kwargs: Optional model or provider.
+        text: The text to estimate. Returns 0 for empty/None.
+        provider: "openai" uses tiktoken (cl100k_base). None uses heuristic (words × 1.3).
+        model: Reserved for future model-specific tokenizers.
 
     Returns:
-        The estimated token count.
+        Estimated token count (always >= 0).
     """
     if not text:
         return 0
@@ -166,20 +167,41 @@ def _apply_compression(item: ContextItem, remaining_tokens: int, provider: Optio
             return item.model_copy(update={"content": c.content, "tokens": tokens, "metadata": {**item.metadata, "compressionNote": c.note or "compression"}})
     return None
 
-def pack(items: List[ContextItem], budget: Budget, **kwargs: Any) -> ContextPack:
+def pack(
+    items: List[ContextItem],
+    budget: Budget,
+    *,
+    allow_compression: bool = True,
+    provider: Optional[str] = None,
+    weights: Optional[ScoringWeights] = None,
+    redundancy_threshold: Optional[float] = None,
+) -> ContextPack:
     """Pack context items into a token budget using greedy score-based selection.
+
+    Items are scored (default: priority*1.0 + recency*0.7 + salience*0.5),
+    sorted by score, and greedily selected until the budget is exhausted.
 
     Args:
         items: Context items to pack.
         budget: Token budget with maxTokens and optional reserveTokens.
-        **kwargs: Optional scorer, token_estimator, weights.
+        allow_compression: If True, try item compressions when item is too large.
+        provider: Token estimator — None (heuristic), "openai", or "anthropic".
+        weights: Custom scoring weights for priority, recency, salience.
+        redundancy_threshold: Cosine similarity threshold for redundancy detection.
 
     Returns:
-        ContextPack with selected items, dropped items, and stats.
+        ContextPack with selected items, dropped items, and totalTokens.
 
     Raises:
         ValidationError: If budget.maxTokens <= 0.
         BudgetExceededError: If reserveTokens >= maxTokens.
+
+    Example::
+
+        from context_engineering import pack, Budget, create_context_item
+        items = [create_context_item("doc", "Hello world", priority=5)]
+        result = pack(items, Budget(maxTokens=1000))
+        print(f"Selected {len(result.selected)} items")
     """
     if budget.max_tokens <= 0:
         raise ValidationError(
@@ -191,7 +213,13 @@ def pack(items: List[ContextItem], budget: Budget, **kwargs: Any) -> ContextPack
             f"reserveTokens ({budget.reserve_tokens}) must be less than "
             f"maxTokens ({budget.max_tokens})"
         )
-    return internal_pack(items, budget, trace=False, **kwargs)
+    return internal_pack(
+        items, budget, trace=False,
+        allow_compression=allow_compression,
+        provider=provider,
+        weights=weights,
+        redundancy_threshold=redundancy_threshold,
+    )
 
 def internal_pack(
     items: List[ContextItem],
@@ -290,20 +318,38 @@ def internal_pack(
     return ContextTrace(pack=pack_result, steps=steps, createdAt=datetime.now(timezone.utc).isoformat()) if trace else pack_result
 
 
-def trace_pack(items: List[ContextItem], budget: Budget, **kwargs: Any) -> ContextTrace:
+def trace_pack(
+    items: List[ContextItem],
+    budget: Budget,
+    *,
+    allow_compression: bool = True,
+    provider: Optional[str] = None,
+    weights: Optional[ScoringWeights] = None,
+    redundancy_threshold: Optional[float] = None,
+) -> ContextTrace:
     """Pack items with a decision trace for debugging.
 
-    Same algorithm as pack() but records every selection decision.
+    Same algorithm as pack() but records every selection decision
+    (include/compress/exclude) with reasons.
 
     Args:
         items: Context items to pack.
         budget: Token budget.
-        **kwargs: Optional scorer, token_estimator, weights.
+        allow_compression: If True, try item compressions when item is too large.
+        provider: Token estimator — None (heuristic), "openai", or "anthropic".
+        weights: Custom scoring weights for priority, recency, salience.
+        redundancy_threshold: Cosine similarity threshold for redundancy detection.
 
     Returns:
-        ContextTrace with pack result and step-by-step decisions.
+        ContextTrace with pack result and per-item step decisions.
     """
-    return internal_pack(items, budget, trace=True, **kwargs)
+    return internal_pack(
+        items, budget, trace=True,
+        allow_compression=allow_compression,
+        provider=provider,
+        weights=weights,
+        redundancy_threshold=redundancy_threshold,
+    )
 
 def simulate_budgets(items: List[ContextItem], min_budget: int, max_budget: int, step: int = 100, **kwargs: Any) -> Dict[int, List[str]]:
     results = {}
@@ -312,15 +358,27 @@ def simulate_budgets(items: List[ContextItem], min_budget: int, max_budget: int,
         results[b] = [i.id for i in packed.selected]
     return results
 
-def diff(before: Union[List[ContextItem], ContextPack, Dict[str, Any]], after: Union[List[ContextItem], ContextPack, Dict[str, Any]]) -> Dict[str, Any]:
-    """Compare two context item lists to find differences.
+def diff(
+    before: Union[List[ContextItem], ContextPack, Dict[str, Any]],
+    after: Union[List[ContextItem], ContextPack, Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Compare two context states to find what changed.
+
+    Accepts item lists, ContextPacks, or raw dicts with a ``selected`` key.
+    Items are matched by ``id``. Content changes are detected.
 
     Args:
-        before: The original context items.
-        after: The updated context items.
+        before: The original context (items, pack, or dict).
+        after: The updated context (items, pack, or dict).
 
     Returns:
-        Object with added, removed, kept, and changed items.
+        Dict with keys: ``added``, ``removed``, ``kept``, ``changed``.
+        ``changed`` entries are ``{"before": item, "after": item}`` dicts.
+
+    Example::
+
+        result = diff(old_pack.selected, new_pack.selected)
+        print(f"{len(result['added'])} added, {len(result['removed'])} removed")
     """
     def norm(v):
         if isinstance(v, ContextPack): return v.selected
