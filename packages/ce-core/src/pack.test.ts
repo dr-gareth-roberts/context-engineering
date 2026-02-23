@@ -206,3 +206,30 @@ describe("createContextItem", () => {
     expect(item.kind).toBe("code");
   });
 });
+
+describe("NaN/Infinity validation", () => {
+  it("rejects Infinity in priority", () => {
+    const items: ContextItem[] = [
+      { id: "a", content: "test", priority: Infinity },
+    ];
+    expect(() => pack(items, { maxTokens: 100 })).toThrow(ValidationError);
+  });
+
+  it("rejects NaN in priority", () => {
+    const items: ContextItem[] = [
+      { id: "a", content: "test", priority: NaN },
+    ];
+    expect(() => pack(items, { maxTokens: 100 })).toThrow(ValidationError);
+  });
+
+  it("rejects Infinity in tokens", () => {
+    const items: ContextItem[] = [
+      { id: "a", content: "test", tokens: Infinity },
+    ];
+    expect(() => pack(items, { maxTokens: 100 })).toThrow(ValidationError);
+  });
+
+  it("rejects NaN in budget maxTokens", () => {
+    expect(() => pack([], { maxTokens: NaN })).toThrow(ValidationError);
+  });
+});

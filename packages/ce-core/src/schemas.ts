@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const CompressionSchema = z.object({
   content: z.string(),
-  tokens: z.number().nonnegative().optional(),
+  tokens: z.number().nonnegative().finite().optional(),
   note: z.string().optional(),
 });
 
@@ -10,17 +10,17 @@ export const ContextItemSchema = z.object({
   id: z.string().min(1, "id must be a non-empty string"),
   content: z.string(),
   kind: z.string().optional(),
-  priority: z.number().nonnegative().optional(),
-  recency: z.number().nonnegative().optional(),
-  tokens: z.number().nonnegative().optional(),
-  score: z.number().optional(),
+  priority: z.number().nonnegative().finite().optional(),
+  recency: z.number().nonnegative().finite().optional(),
+  tokens: z.number().nonnegative().finite().optional(),
+  score: z.number().finite().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   compressions: z.array(CompressionSchema).optional(),
 });
 
 export const BudgetSchema = z.object({
-  maxTokens: z.number().positive("maxTokens must be positive"),
-  reserveTokens: z.number().nonnegative().optional(),
+  maxTokens: z.number().positive("maxTokens must be positive").finite(),
+  reserveTokens: z.number().nonnegative().finite().optional(),
 });
 
 export const PackOptionsSchema = z

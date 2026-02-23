@@ -232,7 +232,19 @@ def internal_pack(
 ) -> Union[ContextPack, ContextTrace]:
     # 1. Scored Pre-pass
     scored = []
-    for item in items:
+    for idx, item in enumerate(items):
+        if not item.id:
+            raise ValidationError(
+                f"Item at index {idx} has empty id",
+                [{"path": f"items[{idx}].id", "message": "id must be a non-empty string"}],
+            )
+        for field_name in ("priority", "recency", "tokens"):
+            val = getattr(item, field_name, None)
+            if val is not None and (math.isnan(val) or math.isinf(val)):
+                raise ValidationError(
+                    f"Item '{item.id}' has non-finite {field_name} ({val})",
+                    [{"path": f"items[{item.id}].{field_name}", "message": "must be a finite number"}],
+                )
         tokens = item.tokens if item.tokens is not None else estimate_tokens(item.content, provider=provider)
         if tokens < 0:
             raise ValidationError(

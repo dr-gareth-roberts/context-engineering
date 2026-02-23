@@ -245,3 +245,41 @@ def test_create_context_item_empty_content():
     item = create_context_item("x", "")
     assert item.id == "x"
     assert item.content == ""
+
+
+# --- NaN/Infinity validation tests ---
+
+def test_pack_rejects_infinity_priority():
+    """pack() rejects items with Infinity priority."""
+    items = [ContextItem(id="a", content="test", priority=float("inf"), tokens=10)]
+    with pytest.raises(ValidationError, match="non-finite"):
+        pack(items, Budget(maxTokens=100))
+
+
+def test_pack_rejects_nan_priority():
+    """pack() rejects items with NaN priority."""
+    items = [ContextItem(id="a", content="test", priority=float("nan"), tokens=10)]
+    with pytest.raises(ValidationError, match="non-finite"):
+        pack(items, Budget(maxTokens=100))
+
+
+def test_pack_rejects_infinity_tokens():
+    """Infinity tokens rejected (Pydantic rejects at model creation for int field)."""
+    with pytest.raises(Exception):
+        ContextItem(id="a", content="test", tokens=float("inf"))
+
+
+def test_pack_rejects_nan_recency():
+    """pack() rejects items with NaN recency."""
+    items = [ContextItem(id="a", content="test", recency=float("nan"), tokens=10)]
+    with pytest.raises(ValidationError, match="non-finite"):
+        pack(items, Budget(maxTokens=100))
+
+
+# --- Empty ID validation tests ---
+
+def test_pack_rejects_empty_id():
+    """pack() rejects items with empty string id."""
+    items = [ContextItem(id="", content="test", tokens=10)]
+    with pytest.raises(ValidationError, match="empty id"):
+        pack(items, Budget(maxTokens=100))
