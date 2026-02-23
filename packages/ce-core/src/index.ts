@@ -3,7 +3,7 @@ export * from "./types.js";
 export * from "./schemas.js";
 export * from "./estimate.js";
 export * from "./score.js";
-export * from "./pack.js";
+export { pack } from "./pack.js";
 export * from "./diff.js";
 export * from "./trace.js";
 export * from "./stream.js";
