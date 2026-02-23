@@ -43,7 +43,11 @@ export type SchemaName =
   | "context-plan"
   | "context-pack"
   | "context-trace"
-  | "memory-item";
+  | "memory-item"
+  | "cache-aware-pack"
+  | "cost-estimate"
+  | "beads-issue"
+  | "pipeline-result";
 
 const schemaFileMap: Record<SchemaName, string> = {
   "context-item": "context-item.schema.json",
@@ -51,6 +55,10 @@ const schemaFileMap: Record<SchemaName, string> = {
   "context-pack": "context-pack.schema.json",
   "context-trace": "context-trace.schema.json",
   "memory-item": "memory-item.schema.json",
+  "cache-aware-pack": "cache-aware-pack.schema.json",
+  "cost-estimate": "cost-estimate.schema.json",
+  "beads-issue": "beads-issue.schema.json",
+  "pipeline-result": "pipeline-result.schema.json",
 };
 
 export async function loadItemsFromFile(
