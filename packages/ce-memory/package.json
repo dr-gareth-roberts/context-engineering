@@ -1,0 +1,31 @@
+{
+  "name": "@ce/memory",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Memory stores for context engineering",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ce/core": "workspace:*",
+    "better-sqlite3": "^11.5.0",
+    "nanoid": "^5.1.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.10",
+    "@types/node": "^24.7.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

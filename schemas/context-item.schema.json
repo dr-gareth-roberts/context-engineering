@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ContextItem",
+  "title": "ContextItem",
+  "type": "object",
+  "required": ["id", "content"],
+  "properties": {
+    "id": { "type": "string" },
+    "content": { "type": "string" },
+    "kind": { "type": "string" },
+    "priority": { "type": "number" },
+    "recency": { "type": "number" },
+    "tokens": { "type": "number" },
+    "score": { "type": "number" },
+    "metadata": { "type": "object", "additionalProperties": true },
+    "compressions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": { "type": "string" },
+          "tokens": { "type": "number" },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

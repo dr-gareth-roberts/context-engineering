@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ContextPlan",
+  "title": "ContextPlan",
+  "type": "object",
+  "required": ["budget", "items"],
+  "properties": {
+    "budget": {
+      "type": "object",
+      "required": ["maxTokens"],
+      "properties": {
+        "maxTokens": { "type": "number" },
+        "reserveTokens": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "ContextItem" }
+    },
+    "strategy": { "type": "string" },
+    "options": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

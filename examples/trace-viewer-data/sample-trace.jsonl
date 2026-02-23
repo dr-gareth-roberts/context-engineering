@@ -1,0 +1,4 @@
+{"type":"pack","pack":{"budget":{"maxTokens":120},"selected":[{"id":"system","content":"You are a helpful assistant.","tokens":12},{"id":"policy","content":"Always cite sources.","tokens":10}],"dropped":[{"id":"notes","content":"User prefers concise answers.","tokens":8}],"totalTokens":22}}
+{"type":"step","id":"system","decision":"include","tokens":12,"score":10,"reason":"fits_budget"}
+{"type":"step","id":"policy","decision":"include","tokens":10,"score":6,"reason":"fits_budget"}
+{"type":"step","id":"notes","decision":"exclude","tokens":8,"score":4,"reason":"over_budget"}

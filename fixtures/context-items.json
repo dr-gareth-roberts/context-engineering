@@ -1,0 +1,26 @@
+[
+  {
+    "id": "system",
+    "content": "You are a concise and rigorous assistant.",
+    "priority": 10,
+    "recency": 3,
+    "tokens": 12
+  },
+  {
+    "id": "project",
+    "content": "Project goal: build a context engineering toolkit.",
+    "priority": 8,
+    "recency": 5,
+    "tokens": 16
+  },
+  {
+    "id": "long-note",
+    "content": "A very long note that can be compressed if needed.",
+    "priority": 4,
+    "recency": 1,
+    "tokens": 60,
+    "compressions": [
+      { "content": "Long note (summary).", "tokens": 18, "note": "summary" }
+    ]
+  }
+]

@@ -1,0 +1,31 @@
+{
+  "name": "@ce/providers",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Provider adapters for context engineering",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ce/core": "workspace:*",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "openai": "^4.78.0",
+    "js-tiktoken": "^1.0.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

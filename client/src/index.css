@@ -1,0 +1,427 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Custom whiteboard colours */
+  --marker-blue: #0066CC;
+  --marker-red: #E74C3C;
+  --marker-green: #27AE60;
+  --marker-black: #2D3436;
+  --highlight-yellow: #FFF3CD;
+  --whiteboard: #FFFEF5;
+
+  --color-marker-blue: var(--marker-blue);
+  --color-marker-red: var(--marker-red);
+  --color-marker-green: var(--marker-green);
+  --color-marker-black: var(--marker-black);
+  --color-highlight-yellow: var(--highlight-yellow);
+  --color-whiteboard: var(--background);
+  
+  /* Custom fonts */
+  --font-display: 'Caveat', cursive;
+  --font-body: 'Work Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+:root {
+  --primary: #0066CC;
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #0066CC;
+  --sidebar-primary-foreground: #FFFFFF;
+  --chart-1: #0066CC;
+  --chart-2: #27AE60;
+  --chart-3: #E74C3C;
+  --chart-4: #F39C12;
+  --chart-5: #9B59B6;
+  --radius: 0.5rem;
+  --background: #FFFEF5;
+  --foreground: #2D3436;
+  --card: #FFFFFF;
+  --card-foreground: #2D3436;
+  --popover: #FFFFFF;
+  --popover-foreground: #2D3436;
+  --secondary: #F8F9FA;
+  --secondary-foreground: #2D3436;
+  --muted: #F1F3F4;
+  --muted-foreground: #636E72;
+  --accent: #E8F4FD;
+  --accent-foreground: #0066CC;
+  --destructive: #E74C3C;
+  --destructive-foreground: #FFFFFF;
+  --border: #DFE6E9;
+  --input: #DFE6E9;
+  --ring: #0066CC;
+  
+  /* Marker Overrides for Light Mode */
+  --marker-blue: #0066CC;
+  --marker-red: #E74C3C;
+  --marker-green: #27AE60;
+  --marker-black: #2D3436;
+  --highlight-yellow: #FFF3CD;
+}
+
+.dark {
+  --primary: #3B82F6;
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #3B82F6;
+  --sidebar-primary-foreground: #FFFFFF;
+  --chart-1: #3B82F6;
+  --chart-2: #10B981;
+  --chart-3: #EF4444;
+  --chart-4: #F59E0B;
+  --chart-5: #A855F7;
+  --background: #1A1A1A;
+  --foreground: #E5E7EB;
+  --card: #262626;
+  --card-foreground: #E5E7EB;
+  --popover: #262626;
+  --popover-foreground: #E5E7EB;
+  --secondary: #3F3F46;
+  --secondary-foreground: #E5E7EB;
+  --muted: #3F3F46;
+  --muted-foreground: #A1A1AA;
+  --accent: #1E3A8A;
+  --accent-foreground: #93C5FD;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #3F3F46;
+  --input: #3F3F46;
+  --ring: #3B82F6;
+
+  /* Marker Overrides for Dark Mode */
+  --marker-blue: #60A5FA;
+  --marker-red: #F87171;
+  --marker-green: #4ADE80;
+  --marker-black: #F3F4F6;
+  --highlight-yellow: #454138;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Work Sans', sans-serif;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+  
+  h1, h2, h3 {
+    font-family: 'Caveat', cursive;
+  }
+  
+  code, pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 1280px;
+    }
+  }
+  
+  /* Whiteboard-inspired styles */
+  .font-display {
+    font-family: 'Caveat', cursive;
+  }
+  
+  .font-body {
+    font-family: 'Work Sans', sans-serif;
+  }
+  
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
+  .marker-blue {
+    color: var(--marker-blue);
+  }
+  
+  .marker-red {
+    color: var(--marker-red);
+  }
+  
+  .marker-green {
+    color: var(--marker-green);
+  }
+  
+  .marker-black {
+    color: var(--marker-black);
+  }
+  
+  .highlight-yellow {
+    background: linear-gradient(180deg, transparent 60%, var(--highlight-yellow) 60%);
+    padding: 0 4px;
+  }
+  
+  .whiteboard-card {
+    @apply bg-card text-card-foreground;
+    border: 2px solid var(--marker-black);
+    border-radius: 2px;
+    box-shadow: 4px 4px 0 var(--marker-black);
+    position: relative;
+  }
+  
+  .whiteboard-card::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    width: 40px;
+    height: 16px;
+    background: #F39C12;
+    border-radius: 2px;
+  }
+  
+  .section-divider {
+    height: 3px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--marker-black) 0px,
+      var(--marker-black) 8px,
+      transparent 8px,
+      transparent 12px
+    );
+    margin: 3rem 0;
+  }
+  
+  .hand-underline {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .hand-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: currentColor;
+    transform: skewX(-12deg);
+    opacity: 0.7;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F3F4;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #B2BEC3;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #636E72;
+}
+
+
+/* Print styles for PDF generation */
+@media print {
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+  
+  body {
+    background: white !important;
+    font-size: 11pt;
+    line-height: 1.4;
+  }
+  
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  /* Hide non-essential elements */
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  /* Show print-only elements */
+  .print\\:block {
+    display: block !important;
+  }
+  
+  /* Ensure proper page breaks */
+  .print\\:break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .print\\:break-before-page {
+    break-before: page;
+    page-break-before: always;
+  }
+  
+  /* Adjust spacing for print */
+  section {
+    margin-bottom: 1.5rem !important;
+  }
+  
+  h1 {
+    font-size: 28pt !important;
+  }
+  
+  h2 {
+    font-size: 20pt !important;
+    margin-bottom: 0.75rem !important;
+  }
+  
+  h3 {
+    font-size: 14pt !important;
+  }
+  
+  /* Expand all sections for print */
+  .whiteboard-card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+  
+  .whiteboard-card::before {
+    display: none !important;
+  }
+  
+  /* Ensure links are visible */
+  a[href]::after {
+    content: none;
+  }
+  
+  /* Code blocks */
+  pre {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    font-size: 9pt !important;
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    padding: 0.5rem !important;
+  }
+  
+  /* Concept cards */
+  .border-l-4 {
+    border-left-width: 3px !important;
+  }
+  
+  /* Grid layouts */
+  .grid {
+    display: block !important;
+  }
+  
+  .grid > * {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  /* Images */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Footer */
+  footer {
+    margin-top: 2rem !important;
+    padding-top: 1rem !important;
+    border-top: 1px solid #ccc !important;
+  }
+}
+
+/* Animation for copy feedback */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}

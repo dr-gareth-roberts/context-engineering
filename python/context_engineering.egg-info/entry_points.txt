@@ -1,0 +1,2 @@
+[console_scripts]
+ce = context_engineering.cli:main

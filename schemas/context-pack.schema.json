@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ContextPack",
+  "title": "ContextPack",
+  "type": "object",
+  "required": ["budget", "selected", "dropped", "totalTokens"],
+  "properties": {
+    "budget": {
+      "type": "object",
+      "required": ["maxTokens"],
+      "properties": {
+        "maxTokens": { "type": "number" },
+        "reserveTokens": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "selected": {
+      "type": "array",
+      "items": { "$ref": "ContextItem" }
+    },
+    "dropped": {
+      "type": "array",
+      "items": { "$ref": "ContextItem" }
+    },
+    "totalTokens": { "type": "number" },
+    "stats": { "type": "object", "additionalProperties": true },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

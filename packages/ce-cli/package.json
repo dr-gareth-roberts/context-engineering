@@ -1,0 +1,28 @@
+{
+  "name": "@ce/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "CLI for context engineering",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "ce": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ce/core": "workspace:*",
+    "@ce/providers": "workspace:*",
+    "ajv": "^8.17.1",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
