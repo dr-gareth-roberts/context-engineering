@@ -8,6 +8,8 @@ from typing import Any, List
 from jsonschema import Draft202012Validator, RefResolver
 
 from .core import Budget, ContextItem, pack, trace_pack, diff, estimate_tokens
+from .placement import place_items, effective_budget, ATTENTION_PROFILES
+from .quality import analyze_context
 
 
 def _is_tty():
@@ -52,8 +54,12 @@ def _load_items(path: str) -> List[ContextItem]:
         return [ContextItem.model_validate(item) for item in data]
     if isinstance(data, dict) and isinstance(data.get("items"), list):
         return [ContextItem.model_validate(item) for item in data["items"]]
+    if isinstance(data, dict) and isinstance(data.get("selected"), list):
+        items = [ContextItem.model_validate(item) for item in data["selected"]]
+        items.extend(ContextItem.model_validate(item) for item in data.get("dropped", []))
+        return items
 
-    raise ValueError("Invalid items file")
+    raise ValueError("Invalid items file: expected array, { items: [] }, or { selected: [] }")
 
 
 def _find_schema_dir(start: str) -> str:
@@ -105,8 +111,26 @@ def _lint(schema_name: str, data: Any) -> List[str]:
     store = _load_all_schemas()
     resolver = RefResolver.from_schema(schema, store=store)
     validator = Draft202012Validator(schema, resolver=resolver)
+
+    # If data is an array and schema expects an object, validate each element
+    if isinstance(data, list):
+        schema_type = schema.get("type")
+        if schema_type == "object" or schema_type is None:
+            all_errors = []
+            for idx, item in enumerate(data):
+                errors = [f"[{idx}] {e.message}" for e in validator.iter_errors(item)]
+                all_errors.extend(errors)
+            return all_errors
+
     errors = [error.message for error in validator.iter_errors(data)]
     return errors
+
+
+def _model_dump_json(obj: Any) -> str:
+    """Dump a Pydantic model to JSON, excluding None values."""
+    if hasattr(obj, "model_dump_json"):
+        return obj.model_dump_json(by_alias=True, indent=2, exclude_none=True)
+    return json.dumps(obj, indent=2, default=lambda o: o.model_dump(by_alias=True, exclude_none=True) if hasattr(o, "model_dump") else o)
 
 
 def cmd_pack(args: argparse.Namespace) -> None:
@@ -122,7 +146,7 @@ def cmd_pack(args: argparse.Namespace) -> None:
     budget = Budget(maxTokens=args.budget)
     result = pack(items, budget, allow_compression=True, provider=args.provider)
     if not _is_tty():
-        print(result.model_dump_json(by_alias=True, indent=2))
+        print(_model_dump_json(result))
     else:
         print(f"{_fmt.bold(f'Selected {len(result.selected)} items')}"
               f" {_fmt.dim(f'(dropped {len(result.dropped)})')}")
@@ -142,7 +166,7 @@ def cmd_trace(args: argparse.Namespace) -> None:
     budget = Budget(maxTokens=args.budget)
     result = trace_pack(items, budget, allow_compression=True, provider=args.provider)
     if not _is_tty():
-        print(result.model_dump_json(by_alias=True, indent=2))
+        print(_model_dump_json(result))
     else:
         print(_fmt.bold(f"Trace: {len(result.steps)} steps"))
         for step in result.steps:
@@ -157,7 +181,7 @@ def cmd_diff(args: argparse.Namespace) -> None:
         after = json.load(handle)
     result = diff(before, after)
     if not _is_tty():
-        print(json.dumps(result, default=lambda o: o.model_dump(by_alias=True) if hasattr(o, "model_dump") else o, indent=2))
+        print(json.dumps(result, default=lambda o: o.model_dump(by_alias=True, exclude_none=True) if hasattr(o, "model_dump") else o, indent=2))
     else:
         print(_fmt.green(f"  + {len(result['added'])} added"))
         print(_fmt.red(f"  - {len(result['removed'])} removed"))
@@ -204,6 +228,60 @@ def cmd_lint(args: argparse.Namespace) -> None:
     print("Valid")
 
 
+def cmd_place(args: argparse.Namespace) -> None:
+    items = _load_items(args.input)
+    placed = place_items(
+        items,
+        strategy=args.strategy,
+        model=args.model,
+    )
+    if not _is_tty():
+        print(json.dumps(
+            [i.model_dump(by_alias=True, exclude_none=True) for i in placed],
+            indent=2,
+        ))
+    else:
+        print(_fmt.bold(f"Placed {len(placed)} items ({args.strategy})"))
+        for i, item in enumerate(placed):
+            print(f"  Position {i}: {item.id} (score={item.score or 0})")
+
+
+def cmd_quality(args: argparse.Namespace) -> None:
+    items = _load_items(args.input)
+    quality = analyze_context(items)
+    if not _is_tty():
+        print(json.dumps({
+            "itemCount": quality.item_count,
+            "totalTokens": quality.total_tokens,
+            "density": quality.density,
+            "diversity": quality.diversity,
+            "freshness": quality.freshness,
+            "redundancy": quality.redundancy,
+            "overall": quality.overall,
+        }, indent=2))
+    else:
+        print(_fmt.bold("Context Quality"))
+        print(f"  Items:      {quality.item_count}")
+        print(f"  Tokens:     {quality.total_tokens}")
+        print(f"  Density:    {_fmt.cyan(str(quality.density))}")
+        print(f"  Diversity:  {_fmt.cyan(str(quality.diversity))}")
+        print(f"  Freshness:  {_fmt.cyan(str(quality.freshness))}")
+        print(f"  Redundancy: {_fmt.cyan(str(quality.redundancy))}")
+        print(f"  Overall:    {_fmt.bold(str(quality.overall))}")
+
+
+def cmd_effective_budget(args: argparse.Namespace) -> None:
+    budget = effective_budget(args.tokens, model=args.model)
+    if not _is_tty():
+        print(budget)
+    else:
+        model = args.model or "default"
+        profile = ATTENTION_PROFILES.get(model, ATTENTION_PROFILES["default"])
+        print(f"Model:    {_fmt.cyan(model)}")
+        print(f"Capacity: {_fmt.cyan(f'{profile.effective_capacity:.0%}')}")
+        print(f"Effective: {_fmt.bold(str(budget))} / {args.tokens} tokens")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="ce", description="Context engineering CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -235,6 +313,22 @@ def main() -> None:
     lint_parser.add_argument("-s", "--schema", required=True)
     lint_parser.add_argument("-i", "--input", required=True)
     lint_parser.set_defaults(func=cmd_lint)
+
+    place_parser = subparsers.add_parser("place", help="Attention-optimized item placement")
+    place_parser.add_argument("-i", "--input", required=True)
+    place_parser.add_argument("-s", "--strategy", default="attention-optimized",
+                              choices=["score-order", "attention-optimized"])
+    place_parser.add_argument("-m", "--model", default="default")
+    place_parser.set_defaults(func=cmd_place)
+
+    quality_parser = subparsers.add_parser("quality", help="Analyze context quality")
+    quality_parser.add_argument("-i", "--input", required=True)
+    quality_parser.set_defaults(func=cmd_quality)
+
+    eb_parser = subparsers.add_parser("effective-budget", help="Compute effective token budget")
+    eb_parser.add_argument("-t", "--tokens", type=int, required=True)
+    eb_parser.add_argument("-m", "--model", default=None)
+    eb_parser.set_defaults(func=cmd_effective_budget)
 
     args = parser.parse_args()
     args.func(args)
