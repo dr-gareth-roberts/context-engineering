@@ -16,3 +16,4 @@ export * from "./compaction.js";
 export * from "./cache-topology.js";
 export * from "./allocation.js";
 export * from "./session.js";
+export * from "./beads.js";
