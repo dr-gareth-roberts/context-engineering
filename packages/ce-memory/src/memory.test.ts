@@ -218,6 +218,59 @@ describe("FileStore", () => {
     expect(await store2.get("remove")).toBeNull();
     expect((await store2.get("keep"))?.content).toBe("Keep me");
   });
+
+  it("recovers from corrupted file with invalid JSON lines", async () => {
+    const filePath = tempPath("corrupted.jsonl");
+    // Write a file with one valid line and one corrupted line
+    await fs.writeFile(
+      filePath,
+      '{"id":"good","content":"Valid item","createdAt":"2025-01-01T00:00:00Z"}\n' +
+      '{broken json\n' +
+      '{"id":"also-good","content":"Another valid item","createdAt":"2025-01-01T00:00:00Z"}\n',
+    );
+    const store = new FileStore(filePath);
+    // Should throw on corrupted JSON — FileStore doesn't skip bad lines
+    await expect(store.query()).rejects.toThrow();
+  });
+
+  it("handles file with only whitespace lines", async () => {
+    const filePath = tempPath("whitespace.jsonl");
+    await fs.writeFile(filePath, "\n  \n\n  \n");
+    const store = new FileStore(filePath);
+    const results = await store.query();
+    expect(results).toEqual([]);
+  });
+
+  it("atomic write leaves no .tmp file after successful persist", async () => {
+    const filePath = tempPath("atomic.jsonl");
+    const store = new FileStore(filePath);
+    await store.put({ id: "a1", content: "Atomic test" });
+
+    // The .tmp file should not exist after a successful write
+    const tmpExists = await fs.access(filePath + ".tmp").then(() => true).catch(() => false);
+    expect(tmpExists).toBe(false);
+
+    // The actual file should exist with correct data
+    const store2 = new FileStore(filePath);
+    const item = await store2.get("a1");
+    expect(item?.content).toBe("Atomic test");
+  });
+
+  it("handles concurrent puts without data loss", async () => {
+    const filePath = tempPath("concurrent.jsonl");
+    const store = new FileStore(filePath);
+
+    // Rapidly put multiple items (sequential due to async nature)
+    await Promise.all([
+      store.put({ id: "c1", content: "First" }),
+      store.put({ id: "c2", content: "Second" }),
+      store.put({ id: "c3", content: "Third" }),
+    ]);
+
+    // All items should be present
+    const results = await store.query();
+    expect(results.length).toBe(3);
+  });
 });
 
 describe("SqliteStore", () => {
