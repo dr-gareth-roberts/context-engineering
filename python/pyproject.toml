@@ -1,11 +1,11 @@
 [project]
 name = "context-engineering"
 version = "0.1.0"
-description = "Context engineering toolkit — pack, score, and manage LLM context within token budgets"
+description = "Context engineering toolkit — pack, place, cache-topology, allocation, sessions, pipelines, cost estimation, BEADS handoff, and quality analysis for LLM context"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-keywords = ["context-engineering", "llm", "token-budget", "ai", "context-packing"]
+keywords = ["context-engineering", "llm", "token-budget", "ai", "context-packing", "prefix-cache", "agent-handoff", "beads", "cost-estimation"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
