@@ -7,9 +7,19 @@ import sys
 from typing import Any, List
 from jsonschema import Draft202012Validator, RefResolver
 
-from .core import Budget, ContextItem, pack, trace_pack, diff, estimate_tokens
+from .core import Budget, ContextItem, ContextPack, pack, trace_pack, diff, estimate_tokens
 from .placement import place_items, effective_budget, ATTENTION_PROFILES
 from .quality import analyze_context
+from .beads import (
+    create_handoff,
+    pickup_handoff,
+    write_beads_jsonl,
+    read_beads_jsonl,
+    get_ready_issues,
+    HandoffOptions,
+)
+from .cache_topology import pack_with_cache_topology, CacheConfig
+from .cost import estimate_cost, project_costs
 
 
 def _is_tty():
@@ -282,6 +292,126 @@ def cmd_effective_budget(args: argparse.Namespace) -> None:
         print(f"Effective: {_fmt.bold(str(budget))} / {args.tokens} tokens")
 
 
+def cmd_handoff(args: argparse.Namespace) -> None:
+    items = _load_items(args.input)
+    budget = Budget(maxTokens=args.budget)
+
+    # Pack items first, optionally with cache topology
+    if args.cache_topology:
+        result = pack_with_cache_topology(items, budget, cache_config=CacheConfig(provider=args.provider))
+        pack_result = ContextPack(
+            budget=budget,
+            selected=result.selected,
+            dropped=result.dropped,
+            total_tokens=result.total_tokens,
+        )
+    else:
+        pack_result = pack(items, budget, provider=args.provider)
+
+    opts = HandoffOptions(
+        agent=args.agent,
+        session_id=args.session_id,
+        include_dropped=args.include_dropped,
+        handoff_notes=args.notes,
+    )
+    handoff = create_handoff(pack_result, opts)
+
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as f:
+            f.write(handoff.jsonl)
+        if _is_tty():
+            print(f"{_fmt.green('Handoff written')} to {_fmt.bold(args.output)}")
+            print(f"  Active:   {handoff.stats['activeItems']} items")
+            print(f"  Deferred: {handoff.stats['deferredItems']} items")
+            print(f"  Total:    {handoff.stats['totalIssues']} BEADS issues")
+    else:
+        print(handoff.jsonl)
+
+
+def cmd_pickup(args: argparse.Namespace) -> None:
+    if args.input == "-":
+        jsonl = sys.stdin.read()
+    else:
+        with open(args.input, "r", encoding="utf-8") as f:
+            jsonl = f.read()
+
+    pickup = pickup_handoff(jsonl)
+
+    if args.ready:
+        all_issues = read_beads_jsonl(jsonl)
+        ready = get_ready_issues(all_issues)
+        if not _is_tty():
+            print(json.dumps([i.to_dict() for i in ready], indent=2))
+        else:
+            print(_fmt.bold(f"{len(ready)} ready issues:"))
+            for issue in ready:
+                print(f"  {_fmt.cyan(issue.id)}: {issue.title} (P{issue.priority})")
+        return
+
+    if not _is_tty():
+        print(json.dumps({
+            "items": [i.model_dump(by_alias=True, exclude_none=True) for i in pickup.items],
+            "deferred": [i.model_dump(by_alias=True, exclude_none=True) for i in pickup.deferred],
+            "workItems": [i.to_dict() for i in pickup.work_items],
+            "stats": pickup.stats,
+        }, indent=2))
+    else:
+        print(_fmt.bold("Pickup Summary"))
+        print(f"  Context items:  {_fmt.green(str(len(pickup.items)))}")
+        print(f"  Deferred:       {_fmt.dim(str(len(pickup.deferred)))}")
+        print(f"  Work items:     {_fmt.cyan(str(len(pickup.work_items)))}")
+        if pickup.manifest:
+            meta = (pickup.manifest.metadata or {}).get("_ce_handoff", {})
+            print(f"  Session:        {_fmt.dim(meta.get('sessionId', 'unknown'))}")
+            print(f"  Budget:         {meta.get('budget', {}).get('maxTokens', '?')} tokens")
+        if pickup.items:
+            print(f"\n  {_fmt.bold('Items:')}")
+            for item in pickup.items[:10]:
+                print(f"    {item.id}: {item.kind or 'unknown'} ({item.tokens or '?'} tokens)")
+            if len(pickup.items) > 10:
+                print(f"    ... and {len(pickup.items) - 10} more")
+
+
+def cmd_cost(args: argparse.Namespace) -> None:
+    items = _load_items(args.input)
+    budget = Budget(maxTokens=args.budget)
+    result = pack_with_cache_topology(items, budget, cache_config=CacheConfig())
+    cost = estimate_cost(result, args.model, output_tokens=args.output_tokens)
+
+    if not _is_tty():
+        print(json.dumps({
+            "model": cost.model,
+            "inputTokens": cost.input_tokens,
+            "cachedTokens": cost.cached_tokens,
+            "uncachedTokens": cost.uncached_tokens,
+            "costWithoutCache": cost.cost_without_cache,
+            "costWithCache": cost.cost_with_cache,
+            "savings": cost.savings,
+            "savingsPercent": cost.savings_percent,
+            "cacheEfficiency": cost.cache_efficiency,
+        }, indent=2))
+    else:
+        print(_fmt.bold(f"Cost Estimate ({cost.model})"))
+        print(f"  Input tokens:    {cost.input_tokens}")
+        print(f"  Cached:          {_fmt.green(str(cost.cached_tokens))} ({cost.cache_efficiency:.0%} efficient)")
+        print(f"  Uncached:        {cost.uncached_tokens}")
+        print(f"  Without cache:   ${cost.cost_without_cache:.6f}")
+        print(f"  With cache:      ${cost.cost_with_cache:.6f}")
+        print(f"  {_fmt.bold(f'Savings:          ${cost.savings:.6f} ({cost.savings_percent:.1f}%)')}")
+
+        if args.requests_per_day:
+            proj = project_costs(
+                result, args.model, args.requests_per_day * 30,
+                output_tokens=args.output_tokens,
+                requests_per_day=args.requests_per_day,
+            )
+            m = proj.monthly_estimate
+            print(f"\n  {_fmt.bold('Monthly Projection')} ({args.requests_per_day} req/day)")
+            print(f"  Without cache:   ${m.monthly_cost_without_cache:.2f}")
+            print(f"  With cache:      ${m.monthly_cost_with_cache:.2f}")
+            print(f"  {_fmt.bold(f'Monthly savings:   ${m.monthly_savings:.2f}')}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="ce", description="Context engineering CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -329,6 +459,31 @@ def main() -> None:
     eb_parser.add_argument("-t", "--tokens", type=int, required=True)
     eb_parser.add_argument("-m", "--model", default=None)
     eb_parser.set_defaults(func=cmd_effective_budget)
+
+    handoff_parser = subparsers.add_parser("handoff", help="Create BEADS JSONL handoff for agent context")
+    handoff_parser.add_argument("-i", "--input", required=True)
+    handoff_parser.add_argument("-o", "--output", default=None, help="Output file (default: stdout)")
+    handoff_parser.add_argument("-b", "--budget", type=int, default=4096)
+    handoff_parser.add_argument("-p", "--provider", default=None)
+    handoff_parser.add_argument("--agent", default=None, help="Agent identity")
+    handoff_parser.add_argument("--session-id", default=None, help="Session ID")
+    handoff_parser.add_argument("--notes", default=None, help="Handoff notes")
+    handoff_parser.add_argument("--include-dropped", action="store_true", help="Include dropped items as deferred")
+    handoff_parser.add_argument("--cache-topology", action="store_true", help="Use cache-topology-aware packing")
+    handoff_parser.set_defaults(func=cmd_handoff)
+
+    pickup_parser = subparsers.add_parser("pickup", help="Pick up context from BEADS JSONL handoff")
+    pickup_parser.add_argument("-i", "--input", required=True, help="BEADS JSONL file (or - for stdin)")
+    pickup_parser.add_argument("--ready", action="store_true", help="Show only ready (unblocked) issues")
+    pickup_parser.set_defaults(func=cmd_pickup)
+
+    cost_parser = subparsers.add_parser("cost", help="Estimate API cost with cache savings")
+    cost_parser.add_argument("-i", "--input", required=True)
+    cost_parser.add_argument("-b", "--budget", type=int, default=4096)
+    cost_parser.add_argument("-m", "--model", default="claude-sonnet-4-6")
+    cost_parser.add_argument("--output-tokens", type=int, default=500)
+    cost_parser.add_argument("--requests-per-day", type=int, default=None)
+    cost_parser.set_defaults(func=cmd_cost)
 
     args = parser.parse_args()
     args.func(args)
