@@ -115,6 +115,17 @@ def calculate_weighted_score(item: ContextItem, weights: ScoringWeights = None) 
 
 
 def estimate_tokens(text: str, provider: Optional[str] = None, model: Optional[str] = None) -> int:
+    """Estimate the token count for a text string.
+
+    Args:
+        text: The text to estimate tokens for.
+        **kwargs: Optional model or provider.
+
+    Returns:
+        The estimated token count.
+    """
+    if not text:
+        return 0
     if provider == "openai":
         try:
             encoding = tiktoken.get_encoding("cl100k_base")
@@ -145,6 +156,26 @@ def _apply_compression(item: ContextItem, remaining_tokens: int, provider: Optio
     return None
 
 def pack(items: List[ContextItem], budget: Budget, **kwargs: Any) -> ContextPack:
+    """Pack context items into a token budget using greedy score-based selection.
+
+    Args:
+        items: Context items to pack.
+        budget: Token budget with maxTokens and optional reserveTokens.
+        **kwargs: Optional scorer, token_estimator, weights.
+
+    Returns:
+        ContextPack with selected items, dropped items, and stats.
+
+    Raises:
+        ValueError: If budget.maxTokens <= 0 or reserveTokens >= maxTokens.
+    """
+    if budget.max_tokens <= 0:
+        raise ValueError(f"maxTokens must be positive, got {budget.max_tokens}")
+    if budget.reserve_tokens is not None and budget.reserve_tokens >= budget.max_tokens:
+        raise ValueError(
+            f"reserveTokens ({budget.reserve_tokens}) must be less than "
+            f"maxTokens ({budget.max_tokens})"
+        )
     return internal_pack(items, budget, trace=False, **kwargs)
 
 def internal_pack(
@@ -245,6 +276,18 @@ def internal_pack(
 
 
 def trace_pack(items: List[ContextItem], budget: Budget, **kwargs: Any) -> ContextTrace:
+    """Pack items with a decision trace for debugging.
+
+    Same algorithm as pack() but records every selection decision.
+
+    Args:
+        items: Context items to pack.
+        budget: Token budget.
+        **kwargs: Optional scorer, token_estimator, weights.
+
+    Returns:
+        ContextTrace with pack result and step-by-step decisions.
+    """
     return internal_pack(items, budget, trace=True, **kwargs)
 
 def simulate_budgets(items: List[ContextItem], min_budget: int, max_budget: int, step: int = 100, **kwargs: Any) -> Dict[int, List[str]]:
@@ -255,6 +298,15 @@ def simulate_budgets(items: List[ContextItem], min_budget: int, max_budget: int,
     return results
 
 def diff(before: Union[List[ContextItem], ContextPack, Dict[str, Any]], after: Union[List[ContextItem], ContextPack, Dict[str, Any]]) -> Dict[str, Any]:
+    """Compare two context item lists to find differences.
+
+    Args:
+        before: The original context items.
+        after: The updated context items.
+
+    Returns:
+        Object with added, removed, kept, and changed items.
+    """
     def norm(v):
         if isinstance(v, ContextPack): return v.selected
         if isinstance(v, list): return [ContextItem.model_validate(i) if isinstance(i, dict) else i for i in v]

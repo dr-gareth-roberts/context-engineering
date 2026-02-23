@@ -193,7 +193,7 @@ class FileStore(MemoryStore):
 
     def put(self, item: MemoryItem | List[MemoryItem]):
         self._load(); items = item if isinstance(item, list) else [item]
-        normalized = [_normalize(e) for entry in items]; 
+        normalized = [_normalize(entry) for entry in items]
         for entry in normalized: self._items[entry.id] = entry
         self._persist(); return normalized
 
