@@ -13,6 +13,7 @@
  */
 
 import type { CacheAwarePack } from "./cache-topology.js";
+import { ValidationError } from "./errors.js";
 
 /**
  * Pricing per million tokens for a model.
@@ -147,8 +148,10 @@ export function estimateCost(
 ): CostEstimate {
   const price = pricing ?? MODEL_PRICING[model];
   if (!price) {
-    throw new Error(
-      `Unknown model "${model}". Pass custom pricing or use one of: ${Object.keys(MODEL_PRICING).join(", ")}`
+    const known = Object.keys(MODEL_PRICING).join(", ");
+    throw new ValidationError(
+      `Unknown model "${model}". Known models: ${known}. Pass custom pricing for unlisted models.`,
+      [{ path: "model", message: `Expected one of: ${known}` }],
     );
   }
 
