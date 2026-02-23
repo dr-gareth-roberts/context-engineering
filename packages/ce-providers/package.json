@@ -2,7 +2,14 @@
   "name": "@ce/providers",
   "version": "0.1.0",
   "type": "module",
-  "description": "Provider adapters for context engineering",
+  "description": "OpenAI and Anthropic provider adapters with token estimators for context engineering",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/context-engineering/toolkit",
+    "directory": "packages/ce-providers"
+  },
+  "keywords": ["context-engineering", "openai", "anthropic", "token-estimation", "llm", "ai"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -21,9 +28,15 @@
   },
   "dependencies": {
     "@ce/core": "workspace:*",
-    "@anthropic-ai/sdk": "^0.39.0",
-    "openai": "^4.78.0",
     "js-tiktoken": "^1.0.13"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.39.0",
+    "openai": ">=4.78.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": { "optional": true },
+    "openai": { "optional": true }
   },
   "devDependencies": {
     "@types/node": "^24.7.0",

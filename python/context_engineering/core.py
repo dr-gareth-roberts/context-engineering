@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Union
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import math
 import tiktoken
 
@@ -33,11 +33,10 @@ class ContextItem(BaseModel):
 
 
 class Budget(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     max_tokens: int = Field(alias="maxTokens")
     reserve_tokens: Optional[int] = Field(default=None, alias="reserveTokens")
-
-    class Config:
-        populate_by_name = True
 
 
 class ContextPlan(BaseModel):
@@ -48,6 +47,8 @@ class ContextPlan(BaseModel):
 
 
 class ContextPack(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     budget: Budget
     selected: List[ContextItem]
     dropped: List[ContextItem]
@@ -55,11 +56,10 @@ class ContextPack(BaseModel):
     stats: Dict[str, Any] = Field(default_factory=dict)
     notes: List[str] = Field(default_factory=list)
 
-    class Config:
-        populate_by_name = True
-
 
 class TraceStep(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str
     decision: str
     tokens: Optional[int] = None
@@ -68,29 +68,24 @@ class TraceStep(BaseModel):
     used_compression: Optional[bool] = Field(default=None, alias="usedCompression")
     compressed_tokens: Optional[int] = Field(default=None, alias="compressedTokens")
 
-    class Config:
-        populate_by_name = True
-
 
 class ContextTrace(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     pack: ContextPack
     steps: List[TraceStep]
     created_at: str = Field(alias="createdAt")
 
-    class Config:
-        populate_by_name = True
-
 
 class ContextHandoff(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     source_agent_id: str = Field(alias="sourceAgentId")
     target_agent_id: Optional[str] = Field(default=None, alias="targetAgentId")
     items: List[ContextItem]
     budget: Budget
     metadata: Dict[str, Any] = Field(default_factory=dict)
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-    class Config:
-        populate_by_name = True
 
 
 @dataclass

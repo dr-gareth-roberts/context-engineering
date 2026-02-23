@@ -2,7 +2,14 @@
   "name": "@ce/memory",
   "version": "0.1.0",
   "type": "module",
-  "description": "Memory stores for context engineering",
+  "description": "Pluggable memory stores (in-memory, JSONL file, SQLite) for context engineering",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/context-engineering/toolkit",
+    "directory": "packages/ce-memory"
+  },
+  "keywords": ["context-engineering", "memory-store", "sqlite", "llm", "ai"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

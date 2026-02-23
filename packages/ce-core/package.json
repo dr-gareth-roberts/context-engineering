@@ -2,7 +2,14 @@
   "name": "@ce/core",
   "version": "0.1.0",
   "type": "module",
-  "description": "Core context engineering algorithms and types",
+  "description": "Core context engineering algorithms — pack, diff, trace, score, and token estimation",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/context-engineering/toolkit",
+    "directory": "packages/ce-core"
+  },
+  "keywords": ["context-engineering", "llm", "token-budget", "context-packing", "ai"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
