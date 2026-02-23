@@ -14,8 +14,15 @@ export class SqliteStore implements MemoryStore {
   private tableName: string;
 
   constructor(databasePath: string, options: SqliteStoreOptions = {}) {
+    const tableName = options.tableName ?? "memory_items";
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+      throw new Error(
+        `Invalid table name "${tableName}": must contain only letters, numbers, and underscores`
+      );
+    }
+    this.tableName = tableName;
     this.db = new Database(databasePath);
-    this.tableName = options.tableName ?? "memory_items";
+    this.db.pragma("journal_mode = WAL");
     this.init();
   }
 
@@ -125,5 +132,9 @@ export class SqliteStore implements MemoryStore {
     const stmt = this.db.prepare(`DELETE FROM ${this.tableName} WHERE id = ?`);
     const result = stmt.run(id);
     return result.changes > 0;
+  }
+
+  close(): void {
+    this.db.close();
   }
 }
