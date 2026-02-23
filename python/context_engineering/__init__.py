@@ -41,6 +41,16 @@ from .session import (
     ContextSession,
     create_session,
 )
+from .pipeline import ContextPipeline, PipelineResult, create_pipeline
+from .cost import (
+    ModelPricing,
+    CostEstimate,
+    CostProjection,
+    MonthlyEstimate,
+    MODEL_PRICING,
+    estimate_cost,
+    project_costs,
+)
 from .beads import (
     BeadsIssue,
     BeadsDependency,
@@ -135,6 +145,18 @@ __all__ = [
     "SessionPack",
     "ContextSession",
     "create_session",
+    # Pipeline
+    "ContextPipeline",
+    "PipelineResult",
+    "create_pipeline",
+    # Cost
+    "ModelPricing",
+    "CostEstimate",
+    "CostProjection",
+    "MonthlyEstimate",
+    "MODEL_PRICING",
+    "estimate_cost",
+    "project_costs",
     # BEADS
     "BeadsIssue",
     "BeadsDependency",

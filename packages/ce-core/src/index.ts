@@ -17,3 +17,6 @@ export * from "./cache-topology.js";
 export * from "./allocation.js";
 export * from "./session.js";
 export * from "./beads.js";
+export { pipeline, ContextPipeline } from "./pipeline.js";
+export type { PipelineResult } from "./pipeline.js";
+export * from "./cost.js";
