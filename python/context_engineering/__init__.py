@@ -23,6 +23,41 @@ from .quality import ContextQuality, analyze_context, analyze_context_pack
 from .compaction import Turn, CompileResult, ContextManager, create_context_manager
 from .cache import create_cached_estimator
 from .stream import pack_stream
+from .cache_topology import (
+    CacheConfig,
+    CacheAwarePack,
+    classify_volatility,
+    pack_with_cache_topology,
+)
+from .allocation import (
+    KindAllocation,
+    KindResult,
+    AllocatedPack,
+    pack_with_allocation,
+)
+from .session import (
+    SessionDelta,
+    SessionPack,
+    ContextSession,
+    create_session,
+)
+from .beads import (
+    BeadsIssue,
+    BeadsDependency,
+    BeadsComment,
+    BeadsBridgeOptions,
+    HandoffOptions,
+    HandoffResult,
+    PickupResult,
+    read_beads_jsonl,
+    write_beads_jsonl,
+    context_item_to_beads,
+    beads_to_context_item,
+    create_handoff,
+    pickup_handoff,
+    merge_beads_jsonl,
+    get_ready_issues,
+)
 
 __all__ = [
     # Core types
@@ -85,4 +120,35 @@ __all__ = [
     "create_cached_estimator",
     # Stream
     "pack_stream",
+    # Cache Topology
+    "CacheConfig",
+    "CacheAwarePack",
+    "classify_volatility",
+    "pack_with_cache_topology",
+    # Allocation
+    "KindAllocation",
+    "KindResult",
+    "AllocatedPack",
+    "pack_with_allocation",
+    # Session
+    "SessionDelta",
+    "SessionPack",
+    "ContextSession",
+    "create_session",
+    # BEADS
+    "BeadsIssue",
+    "BeadsDependency",
+    "BeadsComment",
+    "BeadsBridgeOptions",
+    "HandoffOptions",
+    "HandoffResult",
+    "PickupResult",
+    "read_beads_jsonl",
+    "write_beads_jsonl",
+    "context_item_to_beads",
+    "beads_to_context_item",
+    "create_handoff",
+    "pickup_handoff",
+    "merge_beads_jsonl",
+    "get_ready_issues",
 ]
