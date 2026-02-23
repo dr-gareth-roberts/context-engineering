@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`diff > produces stable snapshot 1`] = `
+{
+  "added": [
+    {
+      "content": "Gamma",
+      "id": "c",
+      "tokens": 15,
+    },
+  ],
+  "changed": [],
+  "kept": [
+    {
+      "content": "Alpha",
+      "id": "a",
+      "tokens": 10,
+    },
+  ],
+  "removed": [
+    {
+      "content": "Beta",
+      "id": "b",
+      "tokens": 20,
+    },
+  ],
+}
+`;
