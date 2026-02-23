@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCachedEstimator } from "./cache";
+import { createCachedEstimator } from "./cache.js";
 
 describe("createCachedEstimator", () => {
   it("caches repeated calls", () => {

@@ -1,7 +1,7 @@
 import {
   openaiTokenEstimator,
   anthropicTokenEstimator,
-} from "./token-estimators";
+} from "./token-estimators.js";
 import type { TokenEstimator } from "@ce/core";
 
 interface ProviderPreset {

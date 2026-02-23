@@ -1,7 +1,11 @@
 import { promises as fs, existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import Ajv from "ajv";
+import _Ajv from "ajv";
+// Ajv is a CJS package that assigns the class to module.exports directly.
+// Under Node16 module resolution, the default import is the namespace object,
+// so we extract the constructor from .default to satisfy both runtime and types.
+const Ajv = _Ajv as unknown as typeof _Ajv.default;
 import { pack, tracePack, diff, estimateTokens } from "@ce/core";
 import type {
   ContextItem,

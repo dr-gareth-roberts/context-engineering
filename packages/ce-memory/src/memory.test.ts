@@ -1,8 +1,8 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { InMemoryStore } from "./in-memory-store";
-import { FileStore } from "./file-store";
-import { SqliteStore } from "./sqlite-store";
-import { createMemoryStore } from "./factory";
+import { InMemoryStore } from "./in-memory-store.js";
+import { FileStore } from "./file-store.js";
+import { SqliteStore } from "./sqlite-store.js";
+import { createMemoryStore } from "./factory.js";
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";

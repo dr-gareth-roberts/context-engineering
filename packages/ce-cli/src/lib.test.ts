@@ -6,7 +6,7 @@ import {
   lintFile,
   runTrace,
   loadItemsFromFile,
-} from "./lib";
+} from "./lib.js";
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";

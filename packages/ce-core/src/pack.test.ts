@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { pack } from "./pack";
-import { ValidationError, BudgetExceededError } from "./errors";
-import type { ContextItem } from "./types";
+import { pack } from "./pack.js";
+import { ValidationError, BudgetExceededError } from "./errors.js";
+import type { ContextItem } from "./types.js";
 
 const items: ContextItem[] = [
   { id: "a", content: "High priority", priority: 10, tokens: 50 },

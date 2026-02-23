@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { diff } from "./diff";
-import type { ContextItem, ContextPack } from "./types";
+import { diff } from "./diff.js";
+import type { ContextItem, ContextPack } from "./types.js";
 
 const before: ContextItem[] = [
   { id: "a", content: "Alpha", tokens: 10 },

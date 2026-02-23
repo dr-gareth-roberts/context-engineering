@@ -1,4 +1,4 @@
-import type { TokenEstimator } from "./types";
+import type { TokenEstimator } from "./types.js";
 
 interface CacheOptions {
   maxSize?: number;

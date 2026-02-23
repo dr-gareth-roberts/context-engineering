@@ -1,7 +1,7 @@
 import type { MemoryItem } from "@ce/core";
 import Database from "better-sqlite3";
-import type { MemoryQuery, MemoryStore } from "./types";
-import { applyQueryFilter, normalizeMemoryItem } from "./utils";
+import type { MemoryQuery, MemoryStore } from "./types.js";
+import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";
 
 interface SqliteStoreOptions {
   tableName?: string;

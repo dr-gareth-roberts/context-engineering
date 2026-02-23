@@ -1,7 +1,7 @@
-import type { MemoryStore } from "./types";
-import { InMemoryStore } from "./in-memory-store";
-import { FileStore } from "./file-store";
-import { SqliteStore } from "./sqlite-store";
+import type { MemoryStore } from "./types.js";
+import { InMemoryStore } from "./in-memory-store.js";
+import { FileStore } from "./file-store.js";
+import { SqliteStore } from "./sqlite-store.js";
 
 interface MemoryStoreOptions {
   path?: string;

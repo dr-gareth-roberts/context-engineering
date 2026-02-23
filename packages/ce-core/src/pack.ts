@@ -4,17 +4,17 @@ import {
   ContextPack,
   PackOptions,
   TraceStep,
-} from "./types";
-import { createScorer, defaultItemScorer } from "./score";
-import { estimateTokens } from "./estimate";
+} from "./types.js";
+import { createScorer, defaultItemScorer } from "./score.js";
+import { estimateTokens } from "./estimate.js";
 import {
   ValidationError,
   BudgetExceededError,
   EstimationError,
-} from "./errors";
-import { ContextItemSchema, BudgetSchema } from "./schemas";
+} from "./errors.js";
+import { ContextItemSchema, BudgetSchema } from "./schemas.js";
 import { z } from "zod";
-import { noopLogger } from "./logger";
+import { noopLogger } from "./logger.js";
 
 interface PackResult {
   pack: ContextPack;

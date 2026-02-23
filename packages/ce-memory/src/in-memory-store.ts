@@ -1,6 +1,6 @@
 import type { MemoryItem } from "@ce/core";
-import type { MemoryQuery, MemoryStore } from "./types";
-import { applyQueryFilter, normalizeMemoryItem } from "./utils";
+import type { MemoryQuery, MemoryStore } from "./types.js";
+import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";
 
 export class InMemoryStore implements MemoryStore {
   private items = new Map<string, MemoryItem>();

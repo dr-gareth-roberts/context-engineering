@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { defaultItemScorer, createScorer } from "./score";
-import type { ContextItem } from "./types";
+import { defaultItemScorer, createScorer } from "./score.js";
+import type { ContextItem } from "./types.js";
 
 const item: ContextItem = {
   id: "test",

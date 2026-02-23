@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   openaiTokenEstimator,
   anthropicTokenEstimator,
-} from "./token-estimators";
+} from "./token-estimators.js";
 
 describe("openaiTokenEstimator", () => {
   it("estimates tokens for normal text", () => {

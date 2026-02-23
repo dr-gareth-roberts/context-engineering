@@ -6,7 +6,7 @@ import type {
   LLMResult,
   LLMMessage,
   LLMGenerationOptions,
-} from "./types";
+} from "./types.js";
 
 const DEFAULT_CHAT_MODEL = "gpt-4o-mini";
 const DEFAULT_EMBED_MODEL = "text-embedding-3-small";

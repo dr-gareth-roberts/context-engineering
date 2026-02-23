@@ -1,5 +1,5 @@
-import type { TokenEstimator } from "./types";
-import { EstimationError } from "./errors";
+import type { TokenEstimator } from "./types.js";
+import { EstimationError } from "./errors.js";
 
 /** Default token estimator using word count heuristic (words * 1.3). */
 export const defaultTokenEstimator: TokenEstimator = (text: string) => {

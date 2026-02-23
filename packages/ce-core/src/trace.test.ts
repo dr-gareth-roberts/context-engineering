@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { tracePack } from "./trace";
-import type { ContextItem } from "./types";
+import { tracePack } from "./trace.js";
+import type { ContextItem } from "./types.js";
 
 const items: ContextItem[] = [
   { id: "a", content: "High", priority: 10, tokens: 50 },
