@@ -39,6 +39,14 @@ program
     if (opts.color === false) setNoColor(true);
   });
 
+function parsePositiveInt(value: string, name: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0 || Math.floor(n) !== n) {
+    outputError(`${name} must be a positive integer, got: ${value}`);
+  }
+  return n;
+}
+
 async function loadItems(input: string) {
   try {
     if (input === "-") {
@@ -77,7 +85,7 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const result = runPack(items, Number(options.budget), {
+      const result = runPack(items, parsePositiveInt(options.budget, "budget"), {
         provider:
           options.provider === "heuristic" ? undefined : options.provider,
       });
@@ -119,7 +127,7 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const trace = runTrace(items, Number(options.budget), {
+      const trace = runTrace(items, parsePositiveInt(options.budget, "budget"), {
         provider:
           options.provider === "heuristic" ? undefined : options.provider,
       });
@@ -289,7 +297,7 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const result = runPlace(items, Number(options.budget), {
+      const result = runPlace(items, parsePositiveInt(options.budget, "budget"), {
         strategy: options.strategy,
         model: options.model,
         provider: options.provider === "heuristic" ? undefined : options.provider,
@@ -329,7 +337,7 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const quality = runQuality(items, Number(options.budget), {
+      const quality = runQuality(items, parsePositiveInt(options.budget, "budget"), {
         provider: options.provider === "heuristic" ? undefined : options.provider,
       });
       outputResult(quality, () => {
@@ -355,7 +363,7 @@ program
   .option("--json", "Force JSON output")
   .action(options => {
     if (options.json) setForceJson(true);
-    const result = runEffectiveBudget(Number(options.tokens), options.model);
+    const result = runEffectiveBudget(parsePositiveInt(options.tokens, "tokens"), options.model);
     outputResult(result, () => {
       console.log(
         `${fmt.bold("Advertised:")} ${fmt.cyan(String(result.advertised))} tokens`
@@ -391,7 +399,7 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const result = runHandoff(items, Number(options.budget), {
+      const result = runHandoff(items, parsePositiveInt(options.budget, "budget"), {
         provider: options.provider === "heuristic" ? undefined : options.provider,
         cacheTopology: options.cacheTopology,
         includeDropped: options.includeDropped,
@@ -484,14 +492,14 @@ program
       const items = await loadItems(options.input);
       const { estimate, projection } = runCost(
         items,
-        Number(options.budget),
+        parsePositiveInt(options.budget, "budget"),
         options.model,
         {
           provider: options.provider === "heuristic" ? undefined : options.provider,
-          outputTokens: Number(options.outputTokens),
-          requestCount: options.requests ? Number(options.requests) : undefined,
+          outputTokens: parsePositiveInt(options.outputTokens, "output-tokens"),
+          requestCount: options.requests ? parsePositiveInt(options.requests, "requests") : undefined,
           requestsPerDay: options.requestsPerDay
-            ? Number(options.requestsPerDay)
+            ? parsePositiveInt(options.requestsPerDay, "requests-per-day")
             : undefined,
         },
       );

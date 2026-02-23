@@ -2,7 +2,7 @@
   "name": "@ce/core",
   "version": "0.1.0",
   "type": "module",
-  "description": "Core context engineering algorithms — pack, diff, trace, score, and token estimation",
+  "description": "Core context engineering algorithms — pack, diff, trace, placement, quality, cache-topology, allocation, sessions, pipelines, cost estimation, and BEADS agent handoff",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,6 +14,9 @@
     "llm",
     "token-budget",
     "context-packing",
+    "prefix-cache",
+    "agent-handoff",
+    "beads",
     "ai"
   ],
   "main": "./dist/index.js",

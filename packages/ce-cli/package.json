@@ -2,7 +2,7 @@
   "name": "@ce/cli",
   "version": "0.1.0",
   "type": "module",
-  "description": "CLI for context packing, tracing, diffing, linting, and budget analysis",
+  "description": "CLI for context packing, placement, quality analysis, cost estimation, agent handoff, linting, and budgets",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,6 +14,10 @@
     "cli",
     "llm",
     "token-budget",
+    "prefix-cache",
+    "agent-handoff",
+    "beads",
+    "cost-estimation",
     "ai"
   ],
   "main": "./dist/index.js",
