@@ -8,6 +8,7 @@ export class FileStore implements MemoryStore {
   private filePath: string;
   private loaded = false;
   private items = new Map<string, MemoryItem>();
+  private writeQueue: Promise<void> = Promise.resolve();
 
   constructor(filePath: string) {
     this.filePath = filePath;
@@ -19,7 +20,7 @@ export class FileStore implements MemoryStore {
 
     try {
       const content = await fs.readFile(this.filePath, "utf-8");
-      const lines = content.split(/\r?\n/).filter(Boolean);
+      const lines = content.split(/\r?\n/).filter(l => l.trim());
       for (const line of lines) {
         const item = JSON.parse(line) as MemoryItem;
         this.items.set(item.id, item);
@@ -33,16 +34,19 @@ export class FileStore implements MemoryStore {
     this.loaded = true;
   }
 
-  private async persist() {
-    const lines = Array.from(this.items.values()).map(item =>
-      JSON.stringify(item)
-    );
-    const content = lines.join("\n") + (lines.length ? "\n" : "");
-    // Atomic write: write to temp file, then rename.
-    // rename() is atomic on POSIX and near-atomic on Windows.
-    const tmpPath = this.filePath + ".tmp";
-    await fs.writeFile(tmpPath, content);
-    await fs.rename(tmpPath, this.filePath);
+  private persist(): Promise<void> {
+    // Serialize writes through a queue to prevent concurrent .tmp file races
+    this.writeQueue = this.writeQueue.then(async () => {
+      const lines = Array.from(this.items.values()).map(item =>
+        JSON.stringify(item)
+      );
+      const content = lines.join("\n") + (lines.length ? "\n" : "");
+      // Atomic write: write to temp file, then rename.
+      const tmpPath = this.filePath + ".tmp";
+      await fs.writeFile(tmpPath, content);
+      await fs.rename(tmpPath, this.filePath);
+    });
+    return this.writeQueue;
   }
 
   async put(
