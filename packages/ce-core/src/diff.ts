@@ -1,4 +1,5 @@
 import { ContextItem, ContextPack, PackDiff } from "./types";
+import { ValidationError } from "./errors";
 
 function normalize(input: ContextPack | ContextItem[]): ContextItem[] {
   if (Array.isArray(input)) return input;
@@ -9,6 +10,13 @@ export function diff(
   before: ContextPack | ContextItem[],
   after: ContextPack | ContextItem[]
 ): PackDiff {
+  if (!before) {
+    throw new ValidationError("diff() 'before' argument is required");
+  }
+  if (!after) {
+    throw new ValidationError("diff() 'after' argument is required");
+  }
+
   const beforeItems = normalize(before);
   const afterItems = normalize(after);
 

@@ -5,8 +5,11 @@ import {
   PackOptions,
   TraceStep
 } from "./types";
-import { defaultItemScorer } from "./score";
+import { createScorer, defaultItemScorer } from "./score";
 import { estimateTokens } from "./estimate";
+import { ValidationError, BudgetExceededError, EstimationError } from "./errors";
+import { ContextItemSchema, BudgetSchema } from "./schemas";
+import { z } from "zod";
 
 interface PackResult {
   pack: ContextPack;
@@ -81,13 +84,54 @@ export function internalPack(
   options: PackOptions = {},
   trace = false
 ): PackResult {
-  const scorer = options.scorer ?? defaultItemScorer;
+  // Validate budget
+  const budgetResult = BudgetSchema.safeParse(budget);
+  if (!budgetResult.success) {
+    throw new ValidationError(
+      `Invalid budget: ${budgetResult.error.issues.map((i: any) => i.message).join(", ")}`,
+      budgetResult.error.issues.map((i: any) => ({
+        path: i.path.join("."),
+        message: i.message,
+      }))
+    );
+  }
+
+  // Validate reserve < max
+  if (
+    budget.reserveTokens !== undefined &&
+    budget.reserveTokens >= budget.maxTokens
+  ) {
+    throw new BudgetExceededError(
+      `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
+    );
+  }
+
+  // Validate items
+  const itemsResult = z.array(ContextItemSchema).safeParse(items);
+  if (!itemsResult.success) {
+    throw new ValidationError(
+      `Invalid items: ${itemsResult.error.issues.map((i: any) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+      itemsResult.error.issues.map((i: any) => ({
+        path: i.path.join("."),
+        message: i.message,
+      }))
+    );
+  }
+
+  const scorer = options.scorer ?? (options.weights ? createScorer(options.weights) : defaultItemScorer);
   const tokenEstimator = options.tokenEstimator;
   const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
 
   const scoredItems = items.map((item) => {
-    const tokens =
-      item.tokens ?? estimateTokens(item.content, { estimator: tokenEstimator });
+    let tokens: number;
+    try {
+      tokens =
+        item.tokens ?? estimateTokens(item.content, { estimator: tokenEstimator });
+    } catch (err) {
+      throw new EstimationError(
+        `Failed to estimate tokens for item "${item.id}": ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
     const score = scorer({ ...item, tokens });
     return { ...item, tokens, score };
   });

@@ -1,4 +1,5 @@
 import type { TokenEstimator } from "./types";
+import { EstimationError } from "./errors";
 
 export const defaultTokenEstimator: TokenEstimator = (text: string) => {
   const trimmed = text.trim();
@@ -11,6 +12,13 @@ export function estimateTokens(
   text: string,
   options?: { model?: string; provider?: string; estimator?: TokenEstimator }
 ): number {
+  if (text == null) return 0;
   const estimator = options?.estimator ?? defaultTokenEstimator;
-  return estimator(text, { model: options?.model, provider: options?.provider });
+  try {
+    return estimator(text, { model: options?.model, provider: options?.provider });
+  } catch (err) {
+    throw new EstimationError(
+      `Token estimation failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 }

@@ -77,11 +77,18 @@ export interface Summarizer {
   (item: ContextItem, targetTokens: number): ContextItem | null;
 }
 
+export interface ScoringWeights {
+  priority?: number;
+  recency?: number;
+  salience?: number;
+}
+
 export interface PackOptions {
   tokenEstimator?: TokenEstimator;
   scorer?: ItemScorer;
   summarizer?: Summarizer;
   allowCompression?: boolean;
+  weights?: ScoringWeights;
 }
 
 export interface PackDiff {
