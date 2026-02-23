@@ -115,7 +115,7 @@ export async function loadSchemas(): Promise<Record<string, unknown>> {
 
 export async function lintFile(schemaName: SchemaName, data: unknown) {
   const schemas = await loadSchemas();
-  const ajv = new Ajv({ allErrors: true, strict: false });
+  const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
 
   Object.values(schemas).forEach((schema) => {
     ajv.addSchema(schema as any);

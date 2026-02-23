@@ -7,147 +7,258 @@ import {
   runTrace,
   runDiff,
   runBudget,
-  lintFile
+  lintFile,
 } from "./lib";
+import {
+  fmt,
+  outputResult,
+  outputError,
+  readStdin,
+  setForceJson,
+  setNoColor,
+  isJsonMode,
+} from "./output";
 
 const program = new Command();
 
 program
   .name("ce")
-  .description("Context engineering CLI")
-  .version("0.1.0");
+  .description(
+    "Context engineering CLI — pack, trace, diff, lint, and estimate tokens"
+  )
+  .version("0.1.0")
+  .option("--no-color", "Disable colored output")
+  .hook("preAction", (thisCommand) => {
+    const opts = thisCommand.opts();
+    if (opts.color === false) setNoColor(true);
+  });
+
+async function loadItems(input: string) {
+  try {
+    if (input === "-") {
+      const raw = await readStdin();
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : (parsed.items ?? []);
+    }
+    return await loadItemsFromFile(input);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("ENOENT")) {
+      outputError(
+        `File not found: ${input}`,
+        "Check the file path and try again"
+      );
+    }
+    outputError(`Failed to load items: ${msg}`);
+  }
+}
 
 program
   .command("pack")
-  .description("Pack context items into a budget")
-  .requiredOption("-i, --input <file>", "Path to items JSON/JSONL")
+  .description("Pack context items into a token budget")
+  .requiredOption(
+    "-i, --input <file>",
+    "Path to items JSON/JSONL (use - for stdin)"
+  )
   .option("-b, --budget <number>", "Token budget", "4096")
-  .option("-p, --provider <provider>", "openai | anthropic | heuristic", "heuristic")
-  .option("--json", "Output JSON only", false)
+  .option(
+    "-p, --provider <provider>",
+    "Token estimator: openai | anthropic | heuristic",
+    "heuristic"
+  )
+  .option("--json", "Force JSON output")
   .action(async (options) => {
-    const items = await loadItemsFromFile(options.input);
-    const packResult = runPack(items, Number(options.budget), {
-      provider: options.provider === "heuristic" ? undefined : options.provider
-    });
-
-    if (options.json) {
-      console.log(JSON.stringify(packResult, null, 2));
-      return;
+    if (options.json) setForceJson(true);
+    try {
+      const items = await loadItems(options.input);
+      const result = runPack(items, Number(options.budget), {
+        provider:
+          options.provider === "heuristic" ? undefined : options.provider,
+      });
+      outputResult(result, () => {
+        console.log(
+          fmt.bold(`Selected ${result.selected.length} items`) +
+            fmt.dim(` (dropped ${result.dropped.length})`)
+        );
+        console.log(`Total tokens: ${fmt.cyan(String(result.totalTokens))}`);
+        if (result.selected.length > 0) {
+          console.log(fmt.dim("\nSelected:"));
+          result.selected.forEach((item) =>
+            console.log(
+              `  ${fmt.green("•")} ${item.id} ${fmt.dim(`(${item.tokens ?? "?"} tokens)`)}`
+            )
+          );
+        }
+      });
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
     }
-
-    console.log(`Selected ${packResult.selected.length} items`);
-    console.log(`Dropped ${packResult.dropped.length} items`);
-    console.log(`Total tokens: ${packResult.totalTokens}`);
-    console.log("Selected IDs:");
-    packResult.selected.forEach((item) => console.log(`- ${item.id}`));
   });
 
 program
   .command("trace")
-  .description("Pack with trace output")
-  .requiredOption("-i, --input <file>", "Path to items JSON/JSONL")
+  .description("Pack with step-by-step decision trace")
+  .requiredOption(
+    "-i, --input <file>",
+    "Path to items JSON/JSONL (use - for stdin)"
+  )
   .option("-b, --budget <number>", "Token budget", "4096")
-  .option("-p, --provider <provider>", "openai | anthropic | heuristic", "heuristic")
-  .option("--json", "Output JSON only", false)
+  .option(
+    "-p, --provider <provider>",
+    "Token estimator: openai | anthropic | heuristic",
+    "heuristic"
+  )
+  .option("--json", "Force JSON output")
   .action(async (options) => {
-    const items = await loadItemsFromFile(options.input);
-    const trace = runTrace(items, Number(options.budget), {
-      provider: options.provider === "heuristic" ? undefined : options.provider
-    });
-
-    if (options.json) {
-      console.log(JSON.stringify(trace, null, 2));
-      return;
+    if (options.json) setForceJson(true);
+    try {
+      const items = await loadItems(options.input);
+      const trace = runTrace(items, Number(options.budget), {
+        provider:
+          options.provider === "heuristic" ? undefined : options.provider,
+      });
+      outputResult(trace, () => {
+        console.log(fmt.bold(`Pack tokens: ${trace.pack.totalTokens}`));
+        console.log(fmt.dim("\nDecisions:"));
+        trace.steps.forEach((step) => {
+          const icon =
+            step.decision === "include"
+              ? fmt.green("✓")
+              : step.decision === "compress"
+                ? fmt.yellow("~")
+                : fmt.red("✗");
+          console.log(
+            `  ${icon} ${step.id}: ${step.decision} ${fmt.dim(`(${step.reason ?? ""})`)}`
+          );
+        });
+      });
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
     }
-
-    console.log(`Pack tokens: ${trace.pack.totalTokens}`);
-    console.log("Decisions:");
-    trace.steps.forEach((step) =>
-      console.log(`- ${step.id}: ${step.decision}`)
-    );
   });
 
 program
   .command("diff")
-  .description("Diff two packs or item lists")
+  .description("Compare two context packs or item lists")
   .requiredOption("--before <file>", "Before JSON file")
   .requiredOption("--after <file>", "After JSON file")
-  .option("--json", "Output JSON only", false)
+  .option("--json", "Force JSON output")
   .action(async (options) => {
-    const beforeRaw = await fs.readFile(options.before, "utf-8");
-    const afterRaw = await fs.readFile(options.after, "utf-8");
-    const before = JSON.parse(beforeRaw);
-    const after = JSON.parse(afterRaw);
-    const diffResult = runDiff(before, after);
-
-    if (options.json) {
-      console.log(JSON.stringify(diffResult, null, 2));
-      return;
+    if (options.json) setForceJson(true);
+    try {
+      const beforeRaw = await fs.readFile(options.before, "utf-8");
+      const afterRaw = await fs.readFile(options.after, "utf-8");
+      const before = JSON.parse(beforeRaw);
+      const after = JSON.parse(afterRaw);
+      const result = runDiff(before, after);
+      outputResult(result, () => {
+        console.log(fmt.green(`+ Added: ${result.added.length}`));
+        console.log(fmt.red(`- Removed: ${result.removed.length}`));
+        console.log(fmt.yellow(`~ Changed: ${result.changed.length}`));
+        console.log(fmt.dim(`= Kept: ${result.kept.length}`));
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("ENOENT")) {
+        outputError("File not found", "Check --before and --after paths");
+      }
+      outputError(msg);
     }
-
-    console.log(`Added: ${diffResult.added.length}`);
-    console.log(`Removed: ${diffResult.removed.length}`);
-    console.log(`Changed: ${diffResult.changed.length}`);
   });
 
 program
   .command("lint")
-  .description("Validate data against a schema")
-  .requiredOption("-s, --schema <name>", "Schema name")
+  .description("Validate data against a JSON schema")
+  .requiredOption(
+    "-s, --schema <name>",
+    "Schema: context-item | context-pack | context-plan | context-trace | memory-item"
+  )
   .requiredOption("-i, --input <file>", "Path to JSON/JSONL")
   .action(async (options) => {
-    const raw = await fs.readFile(options.input, "utf-8");
-    const trimmed = raw.trim();
-    const schemaName = options.schema as any;
+    try {
+      const raw = await fs.readFile(options.input, "utf-8");
+      const trimmed = raw.trim();
 
-    if (!trimmed) {
-      console.error("Input file is empty");
-      process.exit(1);
-    }
-
-    if (options.input.endsWith(".jsonl")) {
-      const lines = trimmed.split(/\r?\n/).filter(Boolean);
-      for (const [index, line] of lines.entries()) {
-        const data = JSON.parse(line);
-        const result = await lintFile(schemaName, data);
-        if (!result.valid) {
-          console.error(`Line ${index + 1} failed validation`);
-          console.error(result.errors);
-          process.exit(1);
-        }
+      if (!trimmed) {
+        outputError("Input file is empty");
       }
-      console.log("All lines valid");
-      return;
-    }
 
-    const data = JSON.parse(trimmed);
-    const result = await lintFile(schemaName, data);
-    if (!result.valid) {
-      console.error(result.errors);
-      process.exit(1);
+      if (options.input.endsWith(".jsonl")) {
+        const lines = trimmed.split(/\r?\n/).filter(Boolean);
+        for (const [index, line] of lines.entries()) {
+          const data = JSON.parse(line);
+          const result = await lintFile(options.schema, data);
+          if (!result.valid) {
+            outputError(
+              `Line ${index + 1} failed validation`,
+              JSON.stringify(result.errors, null, 2)
+            );
+          }
+        }
+        if (isJsonMode()) {
+          console.log(JSON.stringify({ valid: true, lines: lines.length }));
+        } else {
+          console.log(fmt.success(`All ${lines.length} lines valid`));
+        }
+        return;
+      }
+
+      const data = JSON.parse(trimmed);
+      const result = await lintFile(options.schema, data);
+      if (!result.valid) {
+        outputError(
+          "Validation failed",
+          JSON.stringify(result.errors, null, 2)
+        );
+      }
+      if (isJsonMode()) {
+        console.log(JSON.stringify({ valid: true }));
+      } else {
+        console.log(fmt.success("Valid"));
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("ENOENT")) {
+        outputError(`File not found: ${options.input}`);
+      }
+      outputError(err instanceof Error ? err.message : String(err));
     }
-    console.log("Valid");
   });
 
 program
   .command("budget")
-  .description("Estimate token usage for text")
+  .description("Estimate token count for text or a file")
   .option("-t, --text <text>", "Text to measure")
   .option("-f, --file <file>", "File to measure")
-  .option("-p, --provider <provider>", "openai | anthropic | heuristic", "heuristic")
+  .option(
+    "-p, --provider <provider>",
+    "Token estimator: openai | anthropic | heuristic",
+    "heuristic"
+  )
   .action(async (options) => {
-    let text = options.text as string | undefined;
-    if (!text && options.file) {
-      text = await fs.readFile(options.file, "utf-8");
+    try {
+      let text = options.text as string | undefined;
+      if (!text && options.file) {
+        text = await fs.readFile(options.file, "utf-8");
+      }
+      if (!text) {
+        outputError("Provide --text or --file");
+      }
+      const tokens = runBudget(text, {
+        provider:
+          options.provider === "heuristic" ? undefined : options.provider,
+      });
+      if (isJsonMode()) {
+        console.log(
+          JSON.stringify({ tokens, provider: options.provider })
+        );
+      } else {
+        console.log(
+          `${fmt.cyan(String(tokens))} tokens ${fmt.dim(`(${options.provider})`)}`
+        );
+      }
+    } catch (err) {
+      outputError(err instanceof Error ? err.message : String(err));
     }
-    if (!text) {
-      console.error("Provide --text or --file");
-      process.exit(1);
-    }
-    const tokens = runBudget(text, {
-      provider: options.provider === "heuristic" ? undefined : options.provider
-    });
-    console.log(tokens);
   });
 
 program.parseAsync(process.argv);
