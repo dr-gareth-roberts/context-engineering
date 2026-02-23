@@ -8,33 +8,117 @@ This directory contains two Python surfaces:
 ## Setup
 
 ```bash
-cd /Users/k/Code/context-engineering/python
+cd python
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
-python -m pip install tiktoken
+pip install -e .
 ```
 
 ## Core SDK (`context_engineering`)
 
-Exports include:
-- `pack`, `trace_pack`, `diff`, `estimate_tokens`
-- `Budget`, `ContextItem`, `ContextPack`, `ContextTrace`
-- `InMemoryStore`, `FileStore`, `SqliteStore`
+### Core Functions
+
+| Export | Description |
+|---|---|
+| `pack(items, budget, **kwargs)` | Greedy score-based context packing into a token budget |
+| `trace_pack(items, budget, **kwargs)` | Pack with step-by-step decision trace for debugging |
+| `diff(before, after)` | Compare two packs or item arrays (added/removed/kept/changed) |
+| `estimate_tokens(text, provider?, model?)` | Token count estimation (heuristic or tiktoken) |
+| `simulate_budgets(items, min, max, step)` | Run pack across a budget range |
+| `to_context_item(memory, options?)` | Convert a `MemoryItem` to a scored `ContextItem` |
+| `memory_to_context(memories, options?)` | Batch convert `MemoryItem[]` to `ContextItem[]` |
+| `place_items(items, strategy?, model?)` | Reorder items for optimal model attention placement |
+| `effective_budget(tokens, model?)` | De-rate token budget based on model attention degradation |
+| `analyze_context(items)` | Quality metrics: density, diversity, freshness, redundancy |
+| `analyze_context_pack(pack)` | Quality metrics for a `ContextPack` |
+| `create_context_manager(budget, ...)` | Automatic context compaction manager for multi-turn agents |
+| `create_cached_estimator(estimator, max_size?)` | LRU-cached wrapper around any token estimator |
+| `pack_stream(items, budget, ...)` | Async generator variant of `pack` -- yields items as selected |
+
+### Types
+
+| Export | Description |
+|---|---|
+| `ContextItem` | Input item with `id`, `content`, `priority`, `recency`, `compressions` |
+| `Budget` | `max_tokens`, optional `reserve_tokens` |
+| `ContextPack` | Pack result with `selected`, `dropped`, `total_tokens`, `stats` |
+| `ContextTrace` | Trace result with `pack`, `steps[]`, `created_at` |
+| `ScoringWeights` | `priority`, `recency`, `salience` weights for scoring |
+| `MemoryItem` | Memory store item with `id`, `content`, `salience`, `created_at` |
+| `BridgeOptions` | Memory-to-item options: `priority`, `recency_half_life`, `now`, `kind` |
+| `AttentionProfile` | Model attention curve: `name`, `effective_capacity`, `position_weights` |
+| `ContextQuality` | Quality metrics: `density`, `diversity`, `freshness`, `redundancy`, `overall` |
+| `Turn` | Conversation turn: `role`, `content`, `tokens`, `is_summary` |
+| `ContextManager` | Compaction manager: `add_turn()`, `add_items()`, `compile()`, `get_token_usage()` |
+
+### Memory Stores
+
+| Export | Description |
+|---|---|
+| `InMemoryStore` | Dict-based, no persistence |
+| `FileStore` | JSONL file-backed store |
+| `SqliteStore` | SQLite-backed store with embeddings |
+
+### Quick Start
+
+```python
+from context_engineering import (
+    pack, Budget, ContextItem,
+    to_context_item, memory_to_context,
+    place_items, effective_budget,
+    analyze_context, create_context_manager,
+    InMemoryStore, MemoryItem,
+)
+
+# 1. Store and retrieve memories
+store = InMemoryStore()
+store.put([
+    MemoryItem(id="arch", content="System uses event sourcing", createdAt="2024-01-15T10:00:00Z", salience=0.95),
+    MemoryItem(id="perf", content="P99 must stay under 200ms", createdAt="2024-01-15T10:00:00Z", salience=0.80),
+])
+memories = store.query()
+
+# 2. Bridge memories to context items
+items = memory_to_context(memories)
+
+# 3. Pack within token budget
+budget = effective_budget(128000, "claude")  # 89600 effective
+packed = pack(items, Budget(maxTokens=budget))
+
+# 4. Position-aware placement
+placed = place_items(packed.selected, strategy="attention-optimized", model="claude")
+
+# 5. Quality metrics
+quality = analyze_context(packed.selected)
+print(f"Overall quality: {quality.overall}")
+
+# 6. Multi-turn compaction
+mgr = create_context_manager(Budget(maxTokens=8000), system_prompt="You are a code reviewer.")
+mgr.add_turn("user", "Review this pull request")
+mgr.add_turn("assistant", "I see several issues...")
+compiled = mgr.compile()
+```
 
 ### CLI
 
 ```bash
-ce budget --text "hello world" --provider openai
-ce pack --input /path/to/items.json --budget 4096
-ce trace --input /path/to/items.json --budget 4096
-ce diff --before /tmp/pack_before.json --after /tmp/pack_after.json
-ce lint --schema context-item --input /path/to/items.jsonl
+# Core commands
+ce pack -i items.json -b 4096
+ce trace -i items.json -b 4096
+ce diff --before before.json --after after.json
+ce budget -t "hello world" -p openai
+ce lint -s context-item -i items.jsonl
+
+# Placement & quality (new)
+ce place -i items.json -s attention-optimized -m claude
+ce quality -i items.json
+ce effective-budget -t 128000 -m claude
 ```
 
 ## Tri-Provider Framework (`context_framework`)
 
 `context_framework` includes:
+
 - Provider adapters and SDK bridges for OpenAI, Anthropic, and Cerebras.
 - Ollama adapters/bridges for both native local API and OpenAI-compatible cloud mode.
 - Framework bridges for LangGraph, Deep Agents, and PydanticAI.
@@ -52,7 +136,7 @@ ce lint --schema context-item --input /path/to/items.jsonl
 
 ## Production Runtime Scripts
 
-From `/Users/k/Code/context-engineering/python`:
+From `python/`:
 
 ### 1. SOC Incident Commander
 
@@ -153,6 +237,7 @@ python examples/use_cases/14_text_governance_orchestrator.py --mode live --json
 ```
 
 The runtime scripts share common options:
+
 - `--mode dry|live`
 - `--scenario "..."`
 - `--evidence-file <path>` (repeatable)
@@ -185,6 +270,7 @@ python examples/weird_provider_sdk_features.py
 ```
 
 For live runs, configure:
+
 - `CEREBRAS_API_KEY`
 - optionally `OPENAI_API_KEY`
 - optionally `ANTHROPIC_API_KEY`
@@ -202,6 +288,7 @@ python examples/live_integration_harness.py --json
 ```
 
 For live runs:
+
 - Ollama local: configure `OLLAMA_BASE_URL` and optionally `OLLAMA_MODEL`
 - Ollama cloud/OpenAI-compatible endpoint: configure `OLLAMA_BASE_URL`, optionally `OLLAMA_API_KEY`, and use `--mode cloud`
 - Anthropic agentic SDK: install either `claude-agent-sdk` (current) or `claude-code-sdk` (legacy)
@@ -216,18 +303,6 @@ The live harness auto-discovers available Ollama models via `/api/tags` and `/v1
 
 ## Testing
 
-From `/Users/k/Code/context-engineering/python`:
-
 ```bash
 pytest -q tests
-pytest -q tests/test_manufacturing_runtime.py
-pytest -q tests/test_regulatory_change_runtime.py
-pytest -q tests/test_contract_negotiation_runtime.py
-pytest -q tests/test_legacy_modern_migration_runtime.py
-pytest -q tests/test_contact_center_autopilot_runtime.py
-pytest -q tests/test_clinical_operations_runtime.py
-pytest -q tests/test_framework_bridges.py
-pytest -q tests/test_anthropic_agentic_text_system.py
-pytest -q tests/test_live_integration_harness.py
-python -m compileall -q context_framework examples tests
 ```
