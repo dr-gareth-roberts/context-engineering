@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ContextTrace",
+  "title": "ContextTrace",
+  "type": "object",
+  "required": ["pack", "steps"],
+  "properties": {
+    "pack": { "$ref": "ContextPack" },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "decision"],
+        "properties": {
+          "id": { "type": "string" },
+          "decision": {
+            "type": "string",
+            "enum": ["include", "exclude", "compress"]
+          },
+          "tokens": { "type": "number" },
+          "score": { "type": "number" },
+          "reason": { "type": "string" },
+          "usedCompression": { "type": "boolean" },
+          "compressedTokens": { "type": "number" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "createdAt": { "type": "string" }
+  },
+  "additionalProperties": true
+}

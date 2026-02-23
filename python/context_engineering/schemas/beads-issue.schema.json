@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "BeadsIssue",
+  "title": "BeadsIssue",
+  "description": "A BEADS issue — the core record type in the JSONL format for agent handoff",
+  "type": "object",
+  "required": ["id", "title", "status", "priority", "issue_type", "created_at", "updated_at"],
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "design": { "type": "string" },
+    "acceptance_criteria": { "type": "string" },
+    "notes": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["open", "in_progress", "blocked", "deferred", "closed", "pinned", "hooked"]
+    },
+    "priority": { "type": "number", "minimum": 0, "maximum": 4 },
+    "issue_type": {
+      "type": "string",
+      "enum": ["bug", "feature", "task", "epic", "chore", "decision", "message", "molecule", "context"]
+    },
+    "assignee": { "type": "string" },
+    "owner": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "closed_at": { "type": "string", "format": "date-time" },
+    "close_reason": { "type": "string" },
+    "due_at": { "type": "string", "format": "date-time" },
+    "defer_until": { "type": "string", "format": "date-time" },
+    "external_ref": { "type": "string" },
+    "source_system": { "type": "string" },
+    "metadata": { "type": "object", "additionalProperties": true },
+    "compaction_level": { "type": "number" },
+    "labels": { "type": "array", "items": { "type": "string" } },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue_id", "depends_on_id", "type"],
+        "properties": {
+          "issue_id": { "type": "string" },
+          "depends_on_id": { "type": "string" },
+          "type": { "type": "string" },
+          "created_at": { "type": "string" },
+          "created_by": { "type": "string" }
+        }
+      }
+    },
+    "comments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue_id", "author", "text", "created_at"],
+        "properties": {
+          "id": { "type": "number" },
+          "issue_id": { "type": "string" },
+          "author": { "type": "string" },
+          "text": { "type": "string" },
+          "created_at": { "type": "string" }
+        }
+      }
+    },
+    "pinned": { "type": "boolean" },
+    "ephemeral": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

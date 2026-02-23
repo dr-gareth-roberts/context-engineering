@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CostEstimate",
+  "title": "CostEstimate",
+  "description": "Per-request cost estimate with prefix cache savings",
+  "type": "object",
+  "required": ["model", "inputTokens", "cachedTokens", "uncachedTokens", "outputTokens", "costWithoutCache", "costWithCache", "savings", "savingsPercent", "cacheEfficiency"],
+  "properties": {
+    "model": { "type": "string" },
+    "inputTokens": { "type": "number" },
+    "cachedTokens": { "type": "number" },
+    "uncachedTokens": { "type": "number" },
+    "outputTokens": { "type": "number" },
+    "costWithoutCache": { "type": "number", "description": "Cost in USD without caching" },
+    "costWithCache": { "type": "number", "description": "Cost in USD with prefix caching" },
+    "savings": { "type": "number", "description": "Dollar savings from caching" },
+    "savingsPercent": { "type": "number", "description": "Savings as percentage" },
+    "cacheEfficiency": { "type": "number", "minimum": 0, "maximum": 1 }
+  },
+  "additionalProperties": false
+}

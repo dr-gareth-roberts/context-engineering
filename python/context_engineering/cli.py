@@ -73,6 +73,7 @@ def _load_items(path: str) -> List[ContextItem]:
 
 
 def _find_schema_dir(start: str) -> str:
+    # Walk up from start directory
     current = start
     for _ in range(8):
         candidate = os.path.join(current, "schemas")
@@ -82,6 +83,10 @@ def _find_schema_dir(start: str) -> str:
         if parent == current:
             break
         current = parent
+    # Fallback: schemas bundled alongside this package
+    pkg_schemas = os.path.join(os.path.dirname(__file__), "schemas")
+    if os.path.exists(pkg_schemas):
+        return pkg_schemas
     raise RuntimeError("Could not locate schemas directory")
 
 
