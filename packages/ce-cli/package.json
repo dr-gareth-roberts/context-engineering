@@ -9,7 +9,13 @@
     "url": "https://github.com/context-engineering/toolkit",
     "directory": "packages/ce-cli"
   },
-  "keywords": ["context-engineering", "cli", "llm", "token-budget", "ai"],
+  "keywords": [
+    "context-engineering",
+    "cli",
+    "llm",
+    "token-budget",
+    "ai"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -37,6 +43,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.7.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
   }

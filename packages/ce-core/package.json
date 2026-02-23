@@ -9,7 +9,13 @@
     "url": "https://github.com/context-engineering/toolkit",
     "directory": "packages/ce-core"
   },
-  "keywords": ["context-engineering", "llm", "token-budget", "context-packing", "ai"],
+  "keywords": [
+    "context-engineering",
+    "llm",
+    "token-budget",
+    "context-packing",
+    "ai"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -27,6 +33,7 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
   },

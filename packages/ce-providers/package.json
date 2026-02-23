@@ -9,7 +9,14 @@
     "url": "https://github.com/context-engineering/toolkit",
     "directory": "packages/ce-providers"
   },
-  "keywords": ["context-engineering", "openai", "anthropic", "token-estimation", "llm", "ai"],
+  "keywords": [
+    "context-engineering",
+    "openai",
+    "anthropic",
+    "token-estimation",
+    "llm",
+    "ai"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -35,11 +42,16 @@
     "openai": ">=4.78.0"
   },
   "peerDependenciesMeta": {
-    "@anthropic-ai/sdk": { "optional": true },
-    "openai": { "optional": true }
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^24.7.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
   }
