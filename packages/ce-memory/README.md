@@ -13,21 +13,21 @@ Requires `@ce/core` as a peer. The SQLite store uses `better-sqlite3` (included)
 ## Quick Start
 
 ```ts
-import { createMemoryStore } from '@ce/memory';
+import { createMemoryStore } from "@ce/memory";
 
-const store = createMemoryStore('sqlite', { path: './memory.db' });
+const store = createMemoryStore("sqlite", { path: "./memory.db" });
 
-await store.put({ content: 'The user prefers dark mode' });
+await store.put({ content: "The user prefers dark mode" });
 const items = await store.query({ minSalience: 0.5, limit: 10 });
 ```
 
 ## Store Types
 
-| Type | Class | Persistence | Notes |
-|---|---|---|---|
-| `'memory'` | `InMemoryStore` | None | Fast, ephemeral |
-| `'file'` | `FileStore` | JSONL file | Requires `path` option |
-| `'sqlite'` | `SqliteStore` | SQLite database | Requires `path` option, supports `tableName` |
+| Type       | Class           | Persistence     | Notes                                        |
+| ---------- | --------------- | --------------- | -------------------------------------------- |
+| `'memory'` | `InMemoryStore` | None            | Fast, ephemeral                              |
+| `'file'`   | `FileStore`     | JSONL file      | Requires `path` option                       |
+| `'sqlite'` | `SqliteStore`   | SQLite database | Requires `path` option, supports `tableName` |
 
 Use `createMemoryStore(type, options?)` or instantiate classes directly.
 
@@ -46,24 +46,24 @@ Items are auto-normalized on `put`: missing `id` gets a nanoid, `createdAt`/`upd
 
 ## Query Options
 
-| Field | Type | Description |
-|---|---|---|
-| `text` | `string` | Substring match on content (case-insensitive) |
-| `limit` | `number` | Max items to return |
-| `minSalience` | `number` | Filter by minimum salience score |
-| `includeExpired` | `boolean` | Include items past their TTL |
-| `halfLifeSeconds` | `number` | Apply exponential salience decay (default: 30 days) |
+| Field             | Type      | Description                                         |
+| ----------------- | --------- | --------------------------------------------------- |
+| `text`            | `string`  | Substring match on content (case-insensitive)       |
+| `limit`           | `number`  | Max items to return                                 |
+| `minSalience`     | `number`  | Filter by minimum salience score                    |
+| `includeExpired`  | `boolean` | Include items past their TTL                        |
+| `halfLifeSeconds` | `number`  | Apply exponential salience decay (default: 30 days) |
 
 Results are sorted by salience (descending).
 
 ## Utilities
 
-| Export | Description |
-|---|---|
-| `normalizeMemoryItem(partial)` | Fill defaults for a partial `MemoryItem` |
-| `isExpired(item, now)` | Check if an item has exceeded its TTL |
-| `decaySalience(item, now, halfLife?)` | Compute decayed salience score |
-| `applyQueryFilter(items, query)` | Apply query filters to an item array |
+| Export                                | Description                              |
+| ------------------------------------- | ---------------------------------------- |
+| `normalizeMemoryItem(partial)`        | Fill defaults for a partial `MemoryItem` |
+| `isExpired(item, now)`                | Check if an item has exceeded its TTL    |
+| `decaySalience(item, now, halfLife?)` | Compute decayed salience score           |
+| `applyQueryFilter(items, query)`      | Apply query filters to an item array     |
 
 ## License
 

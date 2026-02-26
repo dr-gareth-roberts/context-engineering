@@ -63,7 +63,9 @@ describe("toContextItem", () => {
   });
 
   it("merges existing metadata from the memory item", () => {
-    const memory = makeMemory({ metadata: { source: "slack", channel: "#eng" } });
+    const memory = makeMemory({
+      metadata: { source: "slack", channel: "#eng" },
+    });
     const item = toContextItem(memory, { now: NOW });
 
     expect(item.metadata?.source).toBe("slack");
@@ -212,7 +214,7 @@ describe("integration with defaultItemScorer", () => {
     const oldItem = toContextItem(old, { now: NOW });
 
     expect(defaultItemScorer(recentItem)).toBeGreaterThan(
-      defaultItemScorer(oldItem),
+      defaultItemScorer(oldItem)
     );
   });
 
@@ -232,7 +234,7 @@ describe("integration with defaultItemScorer", () => {
     const lowItem = toContextItem(lowSalience, { now: NOW });
 
     expect(defaultItemScorer(highItem)).toBeGreaterThan(
-      defaultItemScorer(lowItem),
+      defaultItemScorer(lowItem)
     );
   });
 });

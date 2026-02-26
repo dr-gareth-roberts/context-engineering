@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ContextItemSchema, BudgetSchema, CompressionSchema } from "./schemas.js";
+import {
+  ContextItemSchema,
+  BudgetSchema,
+  CompressionSchema,
+} from "./schemas.js";
 
 describe("ContextItemSchema", () => {
   it("accepts a valid item", () => {

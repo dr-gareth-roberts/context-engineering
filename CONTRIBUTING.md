@@ -82,12 +82,14 @@ Changes to `ce-core` may affect all downstream packages. Changes to `ce-memory` 
 ### Code Style
 
 **TypeScript:**
+
 - Strict mode, no `any`
 - ESM with `.js` import extensions
 - Prettier formatting (double quotes, semicolons, 2-space indent, 80 chars)
 - Zod for validation
 
 **Python:**
+
 - Type hints throughout
 - Pydantic models for data structures
 - ruff for linting (`ruff check`)

@@ -90,10 +90,14 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const result = runPack(items, parsePositiveInt(options.budget, "budget"), {
-        provider:
-          options.provider === "heuristic" ? undefined : options.provider,
-      });
+      const result = runPack(
+        items,
+        parsePositiveInt(options.budget, "budget"),
+        {
+          provider:
+            options.provider === "heuristic" ? undefined : options.provider,
+        }
+      );
       outputResult(result, () => {
         console.log(
           fmt.bold(`Selected ${result.selected.length} items`) +
@@ -132,10 +136,14 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const trace = runTrace(items, parsePositiveInt(options.budget, "budget"), {
-        provider:
-          options.provider === "heuristic" ? undefined : options.provider,
-      });
+      const trace = runTrace(
+        items,
+        parsePositiveInt(options.budget, "budget"),
+        {
+          provider:
+            options.provider === "heuristic" ? undefined : options.provider,
+        }
+      );
       outputResult(trace, () => {
         console.log(fmt.bold(`Pack tokens: ${trace.pack.totalTokens}`));
         console.log(fmt.dim("\nDecisions:"));
@@ -291,7 +299,11 @@ program
     "Placement strategy: score-order | attention-optimized",
     "attention-optimized"
   )
-  .option("-m, --model <model>", "Model family: claude | gpt4 | default", "default")
+  .option(
+    "-m, --model <model>",
+    "Model family: claude | gpt4 | default",
+    "default"
+  )
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
@@ -302,11 +314,16 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const result = runPlace(items, parsePositiveInt(options.budget, "budget"), {
-        strategy: options.strategy,
-        model: options.model,
-        provider: options.provider === "heuristic" ? undefined : options.provider,
-      });
+      const result = runPlace(
+        items,
+        parsePositiveInt(options.budget, "budget"),
+        {
+          strategy: options.strategy,
+          model: options.model,
+          provider:
+            options.provider === "heuristic" ? undefined : options.provider,
+        }
+      );
       outputResult(result, () => {
         console.log(
           fmt.bold(`Placed ${result.selected.length} items`) +
@@ -326,7 +343,9 @@ program
 
 program
   .command("quality")
-  .description("Analyze context quality metrics (density, diversity, redundancy)")
+  .description(
+    "Analyze context quality metrics (density, diversity, redundancy)"
+  )
   .requiredOption(
     "-i, --input <file>",
     "Path to items JSON/JSONL (use - for stdin)"
@@ -342,9 +361,14 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const quality = runQuality(items, parsePositiveInt(options.budget, "budget"), {
-        provider: options.provider === "heuristic" ? undefined : options.provider,
-      });
+      const quality = runQuality(
+        items,
+        parsePositiveInt(options.budget, "budget"),
+        {
+          provider:
+            options.provider === "heuristic" ? undefined : options.provider,
+        }
+      );
       outputResult(quality, () => {
         console.log(fmt.bold("Context Quality Analysis"));
         console.log(`  Items:      ${fmt.cyan(String(quality.itemCount))}`);
@@ -352,8 +376,12 @@ program
         console.log(`  Density:    ${colorMetric(quality.density)}`);
         console.log(`  Diversity:  ${colorMetric(quality.diversity)}`);
         console.log(`  Freshness:  ${colorMetric(quality.freshness)}`);
-        console.log(`  Redundancy: ${colorMetric(1 - quality.redundancy)} ${fmt.dim(`(${quality.redundancy} raw)`)}`);
-        console.log(`  ${fmt.bold("Overall:")}    ${colorMetric(quality.overall)}`);
+        console.log(
+          `  Redundancy: ${colorMetric(1 - quality.redundancy)} ${fmt.dim(`(${quality.redundancy} raw)`)}`
+        );
+        console.log(
+          `  ${fmt.bold("Overall:")}    ${colorMetric(quality.overall)}`
+        );
       });
     } catch (err) {
       outputError(err instanceof Error ? err.message : String(err));
@@ -362,13 +390,22 @@ program
 
 program
   .command("effective-budget")
-  .description("Calculate effective token budget for a model (accounts for context degradation)")
+  .description(
+    "Calculate effective token budget for a model (accounts for context degradation)"
+  )
   .requiredOption("-t, --tokens <number>", "Advertised context window size")
-  .option("-m, --model <model>", "Model family: claude | gpt4 | default", "default")
+  .option(
+    "-m, --model <model>",
+    "Model family: claude | gpt4 | default",
+    "default"
+  )
   .option("--json", "Force JSON output")
   .action(options => {
     if (options.json) setForceJson(true);
-    const result = runEffectiveBudget(parsePositiveInt(options.tokens, "tokens"), options.model);
+    const result = runEffectiveBudget(
+      parsePositiveInt(options.tokens, "tokens"),
+      options.model
+    );
     outputResult(result, () => {
       console.log(
         `${fmt.bold("Advertised:")} ${fmt.cyan(String(result.advertised))} tokens`
@@ -404,25 +441,46 @@ program
     if (options.json) setForceJson(true);
     try {
       const items = await loadItems(options.input);
-      const result = runHandoff(items, parsePositiveInt(options.budget, "budget"), {
-        provider: options.provider === "heuristic" ? undefined : options.provider,
-        cacheTopology: options.cacheTopology,
-        includeDropped: options.includeDropped,
-        agent: options.agent,
-        sessionId: options.sessionId,
-        notes: options.notes,
-      });
+      const result = runHandoff(
+        items,
+        parsePositiveInt(options.budget, "budget"),
+        {
+          provider:
+            options.provider === "heuristic" ? undefined : options.provider,
+          cacheTopology: options.cacheTopology,
+          includeDropped: options.includeDropped,
+          agent: options.agent,
+          sessionId: options.sessionId,
+          notes: options.notes,
+        }
+      );
 
       if (options.output) {
         await fs.writeFile(options.output, result.jsonl + "\n");
       }
 
       if (isJsonMode()) {
-        console.log(JSON.stringify(options.output ? result.stats : { jsonl: result.jsonl, stats: result.stats }, null, 2));
+        console.log(
+          JSON.stringify(
+            options.output
+              ? result.stats
+              : { jsonl: result.jsonl, stats: result.stats },
+            null,
+            2
+          )
+        );
       } else if (options.output) {
-        console.log(fmt.success(`Wrote ${result.stats.totalIssues} issues to ${options.output}`));
-        console.log(`  Active:   ${fmt.green(String(result.stats.activeItems))}`);
-        console.log(`  Deferred: ${fmt.dim(String(result.stats.deferredItems))}`);
+        console.log(
+          fmt.success(
+            `Wrote ${result.stats.totalIssues} issues to ${options.output}`
+          )
+        );
+        console.log(
+          `  Active:   ${fmt.green(String(result.stats.activeItems))}`
+        );
+        console.log(
+          `  Deferred: ${fmt.dim(String(result.stats.deferredItems))}`
+        );
       } else {
         // Write JSONL to stdout
         console.log(result.jsonl);
@@ -435,8 +493,14 @@ program
 program
   .command("pickup")
   .description("Pick up context from a BEADS JSONL handoff")
-  .requiredOption("-i, --input <file>", "Path to BEADS JSONL file (use - for stdin)")
-  .option("--ready", "Only include ready items (open, non-blocked, non-deferred)")
+  .requiredOption(
+    "-i, --input <file>",
+    "Path to BEADS JSONL file (use - for stdin)"
+  )
+  .option(
+    "--ready",
+    "Only include ready items (open, non-blocked, non-deferred)"
+  )
   .option("--json", "Force JSON output")
   .action(async options => {
     if (options.json) setForceJson(true);
@@ -450,11 +514,19 @@ program
       const result = runPickup(jsonl, { ready: options.ready });
       outputResult(result, () => {
         console.log(fmt.bold("Pickup Summary"));
-        console.log(`  Context items: ${fmt.green(String(result.stats.contextItems))}`);
-        console.log(`  Deferred:      ${fmt.dim(String(result.stats.deferredItems))}`);
-        console.log(`  Work items:    ${fmt.cyan(String(result.stats.workItems))}`);
+        console.log(
+          `  Context items: ${fmt.green(String(result.stats.contextItems))}`
+        );
+        console.log(
+          `  Deferred:      ${fmt.dim(String(result.stats.deferredItems))}`
+        );
+        console.log(
+          `  Work items:    ${fmt.cyan(String(result.stats.workItems))}`
+        );
         if (result.stats.handoffSessionId) {
-          console.log(`  Session:       ${fmt.dim(result.stats.handoffSessionId)}`);
+          console.log(
+            `  Session:       ${fmt.dim(result.stats.handoffSessionId)}`
+          );
         }
         if (result.items.length > 0) {
           console.log(fmt.dim("\nRecovered items:"));
@@ -484,7 +556,10 @@ program
   .option("-b, --budget <number>", "Token budget", ENV_BUDGET)
   .option("--output-tokens <number>", "Estimated output tokens", "500")
   .option("--requests <number>", "Number of requests to project")
-  .option("--requests-per-day <number>", "Requests per day (for monthly estimate)")
+  .option(
+    "--requests-per-day <number>",
+    "Requests per day (for monthly estimate)"
+  )
   .option(
     "-p, --provider <provider>",
     "Token estimator: openai | anthropic | heuristic",
@@ -500,40 +575,71 @@ program
         parsePositiveInt(options.budget, "budget"),
         options.model,
         {
-          provider: options.provider === "heuristic" ? undefined : options.provider,
+          provider:
+            options.provider === "heuristic" ? undefined : options.provider,
           outputTokens: parsePositiveInt(options.outputTokens, "output-tokens"),
-          requestCount: options.requests ? parsePositiveInt(options.requests, "requests") : undefined,
+          requestCount: options.requests
+            ? parsePositiveInt(options.requests, "requests")
+            : undefined,
           requestsPerDay: options.requestsPerDay
             ? parsePositiveInt(options.requestsPerDay, "requests-per-day")
             : undefined,
-        },
+        }
       );
 
       outputResult(projection ?? estimate, () => {
         console.log(fmt.bold(`Cost Estimate — ${estimate.model}`));
-        console.log(`  Input tokens:  ${fmt.cyan(String(estimate.inputTokens))}`);
-        console.log(`  Cached:        ${fmt.green(String(estimate.cachedTokens))} ${fmt.dim(`(${Math.round(estimate.cacheEfficiency * 100)}% cache hit)`)}`);
-        console.log(`  Uncached:      ${fmt.dim(String(estimate.uncachedTokens))}`);
-        console.log(`  Output tokens: ${fmt.dim(String(estimate.outputTokens))}`);
+        console.log(
+          `  Input tokens:  ${fmt.cyan(String(estimate.inputTokens))}`
+        );
+        console.log(
+          `  Cached:        ${fmt.green(String(estimate.cachedTokens))} ${fmt.dim(`(${Math.round(estimate.cacheEfficiency * 100)}% cache hit)`)}`
+        );
+        console.log(
+          `  Uncached:      ${fmt.dim(String(estimate.uncachedTokens))}`
+        );
+        console.log(
+          `  Output tokens: ${fmt.dim(String(estimate.outputTokens))}`
+        );
         console.log();
-        console.log(`  Without cache: ${fmt.dim("$" + estimate.costWithoutCache.toFixed(6))}`);
-        console.log(`  With cache:    ${fmt.green("$" + estimate.costWithCache.toFixed(6))}`);
-        console.log(`  ${fmt.bold("Savings:")}      ${fmt.green("$" + estimate.savings.toFixed(6))} ${fmt.dim(`(${estimate.savingsPercent}%)`)}`);
+        console.log(
+          `  Without cache: ${fmt.dim("$" + estimate.costWithoutCache.toFixed(6))}`
+        );
+        console.log(
+          `  With cache:    ${fmt.green("$" + estimate.costWithCache.toFixed(6))}`
+        );
+        console.log(
+          `  ${fmt.bold("Savings:")}      ${fmt.green("$" + estimate.savings.toFixed(6))} ${fmt.dim(`(${estimate.savingsPercent}%)`)}`
+        );
 
         if (projection) {
           console.log();
-          console.log(fmt.bold(`Projection — ${projection.requestCount} requests`));
-          console.log(`  Without cache: $${projection.totalWithoutCache.toFixed(2)}`);
-          console.log(`  With cache:    ${fmt.green("$" + projection.totalWithCache.toFixed(2))}`);
-          console.log(`  ${fmt.bold("Total savings:")} ${fmt.green("$" + projection.totalSavings.toFixed(2))}`);
+          console.log(
+            fmt.bold(`Projection — ${projection.requestCount} requests`)
+          );
+          console.log(
+            `  Without cache: $${projection.totalWithoutCache.toFixed(2)}`
+          );
+          console.log(
+            `  With cache:    ${fmt.green("$" + projection.totalWithCache.toFixed(2))}`
+          );
+          console.log(
+            `  ${fmt.bold("Total savings:")} ${fmt.green("$" + projection.totalSavings.toFixed(2))}`
+          );
 
           if (projection.monthlyEstimate) {
             const m = projection.monthlyEstimate;
             console.log();
             console.log(fmt.bold(`Monthly — ${m.requestsPerDay} req/day`));
-            console.log(`  Without cache: $${m.monthlyCostWithoutCache.toFixed(2)}/mo`);
-            console.log(`  With cache:    ${fmt.green("$" + m.monthlyCostWithCache.toFixed(2) + "/mo")}`);
-            console.log(`  ${fmt.bold("Monthly savings:")} ${fmt.green("$" + m.monthlySavings.toFixed(2) + "/mo")}`);
+            console.log(
+              `  Without cache: $${m.monthlyCostWithoutCache.toFixed(2)}/mo`
+            );
+            console.log(
+              `  With cache:    ${fmt.green("$" + m.monthlyCostWithCache.toFixed(2) + "/mo")}`
+            );
+            console.log(
+              `  ${fmt.bold("Monthly savings:")} ${fmt.green("$" + m.monthlySavings.toFixed(2) + "/mo")}`
+            );
           }
         }
       });

@@ -38,7 +38,5 @@ try {
   const provider = new OpenAIProvider();
   console.log("Provider ready", provider ? "yes" : "no");
 } catch {
-  console.log(
-    "Skipping LLM generation (set OPENAI_API_KEY to enable)"
-  );
+  console.log("Skipping LLM generation (set OPENAI_API_KEY to enable)");
 }

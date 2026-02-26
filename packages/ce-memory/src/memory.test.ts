@@ -225,8 +225,8 @@ describe("FileStore", () => {
     await fs.writeFile(
       filePath,
       '{"id":"good","content":"Valid item","createdAt":"2025-01-01T00:00:00Z"}\n' +
-      '{broken json\n' +
-      '{"id":"also-good","content":"Another valid item","createdAt":"2025-01-01T00:00:00Z"}\n',
+        "{broken json\n" +
+        '{"id":"also-good","content":"Another valid item","createdAt":"2025-01-01T00:00:00Z"}\n'
     );
     const store = new FileStore(filePath);
     // Should throw on corrupted JSON — FileStore doesn't skip bad lines
@@ -247,7 +247,10 @@ describe("FileStore", () => {
     await store.put({ id: "a1", content: "Atomic test" });
 
     // The .tmp file should not exist after a successful write
-    const tmpExists = await fs.access(filePath + ".tmp").then(() => true).catch(() => false);
+    const tmpExists = await fs
+      .access(filePath + ".tmp")
+      .then(() => true)
+      .catch(() => false);
     expect(tmpExists).toBe(false);
 
     // The actual file should exist with correct data

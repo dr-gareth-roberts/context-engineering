@@ -10,24 +10,19 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 
-const CLI = path.resolve(
-  import.meta.dirname,
-  "..",
-  "dist",
-  "cli.js",
-);
+const CLI = path.resolve(import.meta.dirname, "..", "dist", "cli.js");
 const FIXTURES = path.resolve(
   import.meta.dirname,
   "..",
   "..",
   "..",
-  "fixtures",
+  "fixtures"
 );
 const ITEMS_FILE = path.join(FIXTURES, "context-items.json");
 
 function run(
   args: string[],
-  options: { input?: string; env?: Record<string, string> } = {},
+  options: { input?: string; env?: Record<string, string> } = {}
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise(resolve => {
     const child = execFile(
@@ -42,9 +37,9 @@ function run(
         resolve({
           stdout: stdout?.toString() ?? "",
           stderr: stderr?.toString() ?? "",
-          code: error ? (error as any).code ?? 1 : 0,
+          code: error ? ((error as any).code ?? 1) : 0,
         });
-      },
+      }
     );
     if (options.input && child.stdin) {
       child.stdin.write(options.input);
@@ -59,8 +54,10 @@ describe("ce pack", () => {
   it("packs items from a file", async () => {
     const { stdout, code } = await run([
       "pack",
-      "-i", ITEMS_FILE,
-      "-b", "100",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -76,7 +73,7 @@ describe("ce pack", () => {
     ]);
     const { stdout, code } = await run(
       ["pack", "-i", "-", "-b", "50", "--json"],
-      { input: items },
+      { input: items }
     );
     expect(code).toBe(0);
     const data = JSON.parse(stdout);
@@ -84,7 +81,13 @@ describe("ce pack", () => {
   });
 
   it("fails with missing input file", async () => {
-    const { code } = await run(["pack", "-i", "/nonexistent.json", "-b", "100"]);
+    const { code } = await run([
+      "pack",
+      "-i",
+      "/nonexistent.json",
+      "-b",
+      "100",
+    ]);
     expect(code).not.toBe(0);
   });
 });
@@ -95,8 +98,10 @@ describe("ce trace", () => {
   it("traces packing decisions", async () => {
     const { stdout, code } = await run([
       "trace",
-      "-i", ITEMS_FILE,
-      "-b", "50",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "50",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -114,18 +119,20 @@ describe("ce diff", () => {
     const tmpAfter = path.join(os.tmpdir(), "ce-test-after.json");
     await fs.writeFile(
       tmpBefore,
-      JSON.stringify([{ id: "a", content: "old", tokens: 10 }]),
+      JSON.stringify([{ id: "a", content: "old", tokens: 10 }])
     );
     await fs.writeFile(
       tmpAfter,
-      JSON.stringify([{ id: "b", content: "new", tokens: 10 }]),
+      JSON.stringify([{ id: "b", content: "new", tokens: 10 }])
     );
 
     try {
       const { stdout, code } = await run([
         "diff",
-        "--before", tmpBefore,
-        "--after", tmpAfter,
+        "--before",
+        tmpBefore,
+        "--after",
+        tmpAfter,
         "--json",
       ]);
       expect(code).toBe(0);
@@ -160,8 +167,10 @@ describe("ce lint", () => {
   it("validates items against context-item schema", async () => {
     const { stdout, code } = await run([
       "lint",
-      "-s", "context-item",
-      "-i", ITEMS_FILE,
+      "-s",
+      "context-item",
+      "-i",
+      ITEMS_FILE,
     ]);
     expect(code).toBe(0);
     expect(stdout.toLowerCase()).toContain("valid");
@@ -190,10 +199,16 @@ describe("ce lint", () => {
         issue_type: "task",
         created_at: "2025-01-01T00:00:00Z",
         updated_at: "2025-01-01T00:00:00Z",
-      }),
+      })
     );
     try {
-      const { stdout, code } = await run(["lint", "-s", "beads-issue", "-i", tmp]);
+      const { stdout, code } = await run([
+        "lint",
+        "-s",
+        "beads-issue",
+        "-i",
+        tmp,
+      ]);
       expect(code).toBe(0);
       expect(stdout.toLowerCase()).toContain("valid");
     } finally {
@@ -216,10 +231,16 @@ describe("ce lint", () => {
         savings: 0.005,
         savingsPercent: 50,
         cacheEfficiency: 0.5,
-      }),
+      })
     );
     try {
-      const { stdout, code } = await run(["lint", "-s", "cost-estimate", "-i", tmp]);
+      const { stdout, code } = await run([
+        "lint",
+        "-s",
+        "cost-estimate",
+        "-i",
+        tmp,
+      ]);
       expect(code).toBe(0);
       expect(stdout.toLowerCase()).toContain("valid");
     } finally {
@@ -238,10 +259,16 @@ describe("ce lint", () => {
         budget: { maxTokens: 4096 },
         inputCount: 0,
         stages: ["pack"],
-      }),
+      })
     );
     try {
-      const { stdout, code } = await run(["lint", "-s", "pipeline-result", "-i", tmp]);
+      const { stdout, code } = await run([
+        "lint",
+        "-s",
+        "pipeline-result",
+        "-i",
+        tmp,
+      ]);
       expect(code).toBe(0);
       expect(stdout.toLowerCase()).toContain("valid");
     } finally {
@@ -256,8 +283,10 @@ describe("ce place", () => {
   it("places items with attention-optimized strategy", async () => {
     const { stdout, code } = await run([
       "place",
-      "-i", ITEMS_FILE,
-      "-b", "100",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -269,9 +298,12 @@ describe("ce place", () => {
   it("places items with score-order strategy", async () => {
     const { stdout, code } = await run([
       "place",
-      "-i", ITEMS_FILE,
-      "-b", "100",
-      "-s", "score-order",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
+      "-s",
+      "score-order",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -286,8 +318,10 @@ describe("ce quality", () => {
   it("analyzes context quality", async () => {
     const { stdout, code } = await run([
       "quality",
-      "-i", ITEMS_FILE,
-      "-b", "100",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -305,7 +339,8 @@ describe("ce effective-budget", () => {
   it("computes effective budget", async () => {
     const { stdout, code } = await run([
       "effective-budget",
-      "-t", "8000",
+      "-t",
+      "8000",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -318,8 +353,10 @@ describe("ce effective-budget", () => {
   it("computes for specific model", async () => {
     const { stdout, code } = await run([
       "effective-budget",
-      "-t", "8000",
-      "-m", "claude",
+      "-t",
+      "8000",
+      "-m",
+      "claude",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -341,8 +378,10 @@ describe("ce handoff", () => {
     // When piped (non-TTY), handoff outputs JSON { jsonl, stats }
     const { stdout, code } = await run([
       "handoff",
-      "-i", ITEMS_FILE,
-      "-b", "100",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
     ]);
     expect(code).toBe(0);
     const data = JSON.parse(stdout);
@@ -359,11 +398,16 @@ describe("ce handoff", () => {
   it("creates handoff with agent metadata", async () => {
     const { stdout, code } = await run([
       "handoff",
-      "-i", ITEMS_FILE,
-      "-b", "100",
-      "--agent", "test-agent",
-      "--session-id", "test-session",
-      "--notes", "Test handoff",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
+      "--agent",
+      "test-agent",
+      "--session-id",
+      "test-session",
+      "--notes",
+      "Test handoff",
     ]);
     expect(code).toBe(0);
     const data = JSON.parse(stdout);
@@ -377,9 +421,12 @@ describe("ce handoff", () => {
     try {
       const { stdout, code } = await run([
         "handoff",
-        "-i", ITEMS_FILE,
-        "-b", "100",
-        "-o", tmp,
+        "-i",
+        ITEMS_FILE,
+        "-b",
+        "100",
+        "-o",
+        tmp,
         "--json",
       ]);
       expect(code).toBe(0);
@@ -399,8 +446,10 @@ describe("ce pickup", () => {
     // First create a handoff (piped output is JSON { jsonl, stats })
     const { stdout: handoffOut } = await run([
       "handoff",
-      "-i", ITEMS_FILE,
-      "-b", "100",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
     ]);
     const handoffData = JSON.parse(handoffOut);
 
@@ -409,11 +458,7 @@ describe("ce pickup", () => {
     await fs.writeFile(tmp, handoffData.jsonl);
 
     try {
-      const { stdout, code } = await run([
-        "pickup",
-        "-i", tmp,
-        "--json",
-      ]);
+      const { stdout, code } = await run(["pickup", "-i", tmp, "--json"]);
       expect(code).toBe(0);
       const data = JSON.parse(stdout);
       expect(data.items).toBeDefined();
@@ -431,9 +476,12 @@ describe("ce cost", () => {
   it("estimates cost for claude-sonnet-4-6", async () => {
     const { stdout, code } = await run([
       "cost",
-      "-i", ITEMS_FILE,
-      "-b", "100",
-      "-m", "claude-sonnet-4-6",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
+      "-m",
+      "claude-sonnet-4-6",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -446,10 +494,14 @@ describe("ce cost", () => {
   it("estimates with projection", async () => {
     const { stdout, code } = await run([
       "cost",
-      "-i", ITEMS_FILE,
-      "-b", "100",
-      "-m", "claude-sonnet-4-6",
-      "--requests", "1000",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
+      "-m",
+      "claude-sonnet-4-6",
+      "--requests",
+      "1000",
       "--json",
     ]);
     expect(code).toBe(0);
@@ -461,9 +513,12 @@ describe("ce cost", () => {
   it("fails with unknown model", async () => {
     const { code } = await run([
       "cost",
-      "-i", ITEMS_FILE,
-      "-b", "100",
-      "-m", "unknown-model-xyz",
+      "-i",
+      ITEMS_FILE,
+      "-b",
+      "100",
+      "-m",
+      "unknown-model-xyz",
     ]);
     expect(code).not.toBe(0);
   });

@@ -155,7 +155,7 @@ export function packWithCacheTopology(
   items: ContextItem[],
   budget: Budget,
   options: PackOptions = {},
-  cacheConfig: CacheConfig = {},
+  cacheConfig: CacheConfig = {}
 ): CacheAwarePack {
   const estimator = options.tokenEstimator;
 
@@ -201,15 +201,17 @@ export function packWithCacheTopology(
   }
 
   // Session items: include by score within remaining budget
-  const sessionPack = remaining > 0
-    ? pack(sessionItems, { maxTokens: remaining }, options)
-    : { selected: [], dropped: sessionItems, totalTokens: 0 };
+  const sessionPack =
+    remaining > 0
+      ? pack(sessionItems, { maxTokens: remaining }, options)
+      : { selected: [], dropped: sessionItems, totalTokens: 0 };
   remaining -= sessionPack.totalTokens;
 
   // Request items: pack by score into whatever's left
-  const requestPack = remaining > 0
-    ? pack(requestItems, { maxTokens: remaining }, options)
-    : { selected: [], dropped: requestItems, totalTokens: 0 };
+  const requestPack =
+    remaining > 0
+      ? pack(requestItems, { maxTokens: remaining }, options)
+      : { selected: [], dropped: requestItems, totalTokens: 0 };
 
   // 5. Compose final ordered list: static → session → request
   const selected = [
@@ -256,11 +258,10 @@ export function packWithCacheTopology(
   const cacheKey = hashString(staticContent);
 
   const staticTokens = selectedStatic.reduce(
-    (sum, i) => sum + (i.tokens ?? 0), 0
+    (sum, i) => sum + (i.tokens ?? 0),
+    0
   );
-  const totalTokens = selected.reduce(
-    (sum, i) => sum + (i.tokens ?? 0), 0
-  );
+  const totalTokens = selected.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
 
   return {
     budget,
@@ -276,9 +277,10 @@ export function packWithCacheTopology(
     cacheKey,
     cacheableTokens: staticTokens,
     volatileTokens: totalTokens - staticTokens,
-    cacheEfficiency: totalTokens > 0
-      ? Math.round((staticTokens / totalTokens) * 1000) / 1000
-      : 0,
+    cacheEfficiency:
+      totalTokens > 0
+        ? Math.round((staticTokens / totalTokens) * 1000) / 1000
+        : 0,
     partitionBoundaries: [
       selectedStatic.length,
       selectedStatic.length + sessionPack.selected.length,

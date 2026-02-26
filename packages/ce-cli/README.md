@@ -125,14 +125,14 @@ ce budget -f document.txt -p openai
 
 ## Common Options
 
-| Flag | Description | Default |
-|---|---|---|
-| `-i, --input <file>` | Input file path (use `-` for stdin) | -- |
-| `-b, --budget <n>` | Token budget | `4096` |
+| Flag                    | Description                                   | Default     |
+| ----------------------- | --------------------------------------------- | ----------- |
+| `-i, --input <file>`    | Input file path (use `-` for stdin)           | --          |
+| `-b, --budget <n>`      | Token budget                                  | `4096`      |
 | `-p, --provider <name>` | Estimator: `openai`, `anthropic`, `heuristic` | `heuristic` |
-| `-m, --model <name>` | Model for placement/cost/budget | varies |
-| `--json` | Force JSON output | off |
-| `--no-color` | Disable colored output | off |
+| `-m, --model <name>`    | Model for placement/cost/budget               | varies      |
+| `--json`                | Force JSON output                             | off         |
+| `--no-color`            | Disable colored output                        | off         |
 
 ## Input Format
 
@@ -141,7 +141,12 @@ Items JSON (array or `{ items: [...] }`):
 ```json
 [
   { "id": "ctx-1", "content": "Some context", "kind": "system", "priority": 8 },
-  { "id": "ctx-2", "content": "More context", "kind": "retrieval", "priority": 3 }
+  {
+    "id": "ctx-2",
+    "content": "More context",
+    "kind": "retrieval",
+    "priority": 3
+  }
 ]
 ```
 
