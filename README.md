@@ -1,9 +1,12 @@
 # Context Engineering Toolkit
 
 [![CI](https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@ce/core)](https://www.npmjs.com/package/@ce/core)
+[![PyPI](https://img.shields.io/pypi/v/context-engineering)](https://pypi.org/project/context-engineering/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](https://www.typescriptlang.org/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![Node 18+](https://img.shields.io/badge/Node-18%2B-green)](https://nodejs.org/)
 
 Dual TypeScript/Python SDKs + CLI for LLM context packing, token budgeting, and cache optimization.
 
@@ -29,7 +32,7 @@ const result = pack(
   { maxTokens: 4096 }
 );
 
-console.log(result.selected);   // items that fit the budget
+console.log(result.selected); // items that fit the budget
 console.log(result.totalTokens); // tokens used
 ```
 
@@ -69,14 +72,14 @@ ce pack -i items.json -b 4096
 
 Six functions form the tight center. Everything else builds on these.
 
-| Function | What it does |
-|----------|-------------|
-| `pack(items, budget)` | Select items that fit a token budget (greedy, score-based) |
-| `tracePack(items, budget)` | Pack with per-item decision log |
-| `diff(before, after)` | Compare two context states (added/removed/kept/changed) |
-| `estimateTokens(content)` | Count tokens (heuristic, OpenAI, or Anthropic) |
-| `createContextItem(id, content)` | Convenience factory for items |
-| `createScorer(weights?)` | Custom scoring with priority/recency/salience weights |
+| Function                         | What it does                                               |
+| -------------------------------- | ---------------------------------------------------------- |
+| `pack(items, budget)`            | Select items that fit a token budget (greedy, score-based) |
+| `tracePack(items, budget)`       | Pack with per-item decision log                            |
+| `diff(before, after)`            | Compare two context states (added/removed/kept/changed)    |
+| `estimateTokens(content)`        | Count tokens (heuristic, OpenAI, or Anthropic)             |
+| `createContextItem(id, content)` | Convenience factory for items                              |
+| `createScorer(weights?)`         | Custom scoring with priority/recency/salience weights      |
 
 Scoring formula: `priority × 1.0 + recency × 0.7 + salience × 0.5`
 
@@ -84,18 +87,18 @@ Scoring formula: `priority × 1.0 + recency × 0.7 + salience × 0.5`
 
 Each extends the core pack/item model. Use when needed, ignore when not.
 
-| Feature | Entry point | Purpose |
-|---------|-------------|---------|
-| **Cache topology** | `packWithCacheTopology()` | Partition items by volatility for prefix cache reuse |
-| **Allocation** | `packWithAllocation()` | Kind-aware budget splits with min/max/target constraints |
-| **Sessions** | `createSession()` | Track what changed between context compiles |
-| **Pipeline** | `pipeline(budget)` | Fluent builder: `.add().allocate().cacheTopology().build()` |
-| **Placement** | `placeItems()` | Reorder items by model attention profile (start/end bias) |
-| **Quality** | `analyzeContext()` | Density, diversity, freshness, redundancy scores |
-| **Cost** | `estimateCost()` | Dollar cost with prefix cache savings |
-| **BEADS handoff** | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context for agent-to-agent transfer |
-| **Compaction** | `createContextManager()` | Auto-summarize old turns in conversation |
-| **Stream** | `packStream()` | Async generator variant of pack |
+| Feature            | Entry point                           | Purpose                                                     |
+| ------------------ | ------------------------------------- | ----------------------------------------------------------- |
+| **Cache topology** | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse        |
+| **Allocation**     | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints    |
+| **Sessions**       | `createSession()`                     | Track what changed between context compiles                 |
+| **Pipeline**       | `pipeline(budget)`                    | Fluent builder: `.add().allocate().cacheTopology().build()` |
+| **Placement**      | `placeItems()`                        | Reorder items by model attention profile (start/end bias)   |
+| **Quality**        | `analyzeContext()`                    | Density, diversity, freshness, redundancy scores            |
+| **Cost**           | `estimateCost()`                      | Dollar cost with prefix cache savings                       |
+| **BEADS handoff**  | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context for agent-to-agent transfer   |
+| **Compaction**     | `createContextManager()`              | Auto-summarize old turns in conversation                    |
+| **Stream**         | `packStream()`                        | Async generator variant of pack                             |
 
 ### Pipeline Example
 
@@ -122,7 +125,9 @@ import { packWithCacheTopology, estimateCost } from "@ce/core";
 
 const packed = packWithCacheTopology(items, { maxTokens: 8000 });
 const cost = estimateCost(packed, "claude-sonnet-4-6");
-console.log(`Saving $${cost.savings.toFixed(4)} per request (${cost.savingsPercent}%)`);
+console.log(
+  `Saving $${cost.savings.toFixed(4)} per request (${cost.savingsPercent}%)`
+);
 ```
 
 ## Architecture
@@ -150,26 +155,26 @@ ce-memory → ce-core
 ```ts
 import { createMemoryStore } from "@ce/memory";
 
-const mem = createMemoryStore("memory");                          // In-memory
-const file = createMemoryStore("file", { path: "mem.jsonl" });    // JSONL with atomic writes
-const db = createMemoryStore("sqlite", { path: "db.sqlite" });    // SQLite
+const mem = createMemoryStore("memory"); // In-memory
+const file = createMemoryStore("file", { path: "mem.jsonl" }); // JSONL with atomic writes
+const db = createMemoryStore("sqlite", { path: "db.sqlite" }); // SQLite
 ```
 
 ### CLI Commands
 
-| Command | Purpose |
-|---------|---------|
-| `ce pack` | Pack items into a budget |
-| `ce trace` | Pack with decision trace |
-| `ce diff` | Compare two context states |
-| `ce budget` | Estimate token count |
-| `ce lint` | Validate against JSON Schema |
-| `ce place` | Attention-optimized placement |
-| `ce quality` | Context quality analysis |
+| Command               | Purpose                        |
+| --------------------- | ------------------------------ |
+| `ce pack`             | Pack items into a budget       |
+| `ce trace`            | Pack with decision trace       |
+| `ce diff`             | Compare two context states     |
+| `ce budget`           | Estimate token count           |
+| `ce lint`             | Validate against JSON Schema   |
+| `ce place`            | Attention-optimized placement  |
+| `ce quality`          | Context quality analysis       |
 | `ce effective-budget` | Budget de-rating for attention |
-| `ce handoff` | Create BEADS agent handoff |
-| `ce pickup` | Resume from BEADS handoff |
-| `ce cost` | API cost estimation |
+| `ce handoff`          | Create BEADS agent handoff     |
+| `ce pickup`           | Resume from BEADS handoff      |
+| `ce cost`             | API cost estimation            |
 
 ### Python-Only Features
 
@@ -237,11 +242,11 @@ See the [`examples/`](./examples) directory:
 
 All errors inherit from `ContextEngineeringError` with a `code` field:
 
-| Error | Code | When |
-|-------|------|------|
-| `ValidationError` | `VALIDATION_ERROR` | Bad inputs — includes structured `details[].path` and `details[].message` |
-| `BudgetExceededError` | `BUDGET_EXCEEDED` | `reserveTokens >= maxTokens` |
-| `EstimationError` | `ESTIMATION_ERROR` | Unknown model or bad pricing data |
+| Error                 | Code               | When                                                                      |
+| --------------------- | ------------------ | ------------------------------------------------------------------------- |
+| `ValidationError`     | `VALIDATION_ERROR` | Bad inputs — includes structured `details[].path` and `details[].message` |
+| `BudgetExceededError` | `BUDGET_EXCEEDED`  | `reserveTokens >= maxTokens`                                              |
+| `EstimationError`     | `ESTIMATION_ERROR` | Unknown model or bad pricing data                                         |
 
 ## Contributing
 

@@ -1,4 +1,9 @@
-import { ContextItem, Budget, ContextTrace, PackOptions } from "./types.js";
+import type {
+  ContextItem,
+  Budget,
+  ContextTrace,
+  PackOptions,
+} from "./types.js";
 import { internalPack } from "./pack.js";
 
 /**

@@ -18,7 +18,6 @@ import {
   createHandoff,
   pickupHandoff,
   getReadyIssues,
-  writeBeadsJSONL,
   readBeadsJSONL,
   estimateCost,
   projectCosts,
@@ -183,12 +182,12 @@ export async function lintFile(schemaName: SchemaName, data: unknown) {
   });
 
   Object.values(schemas).forEach(schema => {
-    ajv.addSchema(schema as any);
+    ajv.addSchema(schema as Record<string, unknown>);
   });
 
   const schema = schemas[schemaName];
   if (!schema) throw new Error(`Unknown schema: ${schemaName}`);
-  const validate = ajv.compile(schema as any);
+  const validate = ajv.compile(schema as Record<string, unknown>);
 
   // If data is an array and schema expects an object, validate each element
   if (Array.isArray(data)) {
@@ -231,11 +230,15 @@ export function runPlace(
     strategy?: PlacementStrategy;
     model?: string;
     provider?: string;
-  } = {},
+  } = {}
 ): { selected: ContextItem[]; totalTokens: number; strategy: string } {
-  const packed = pack(items, { maxTokens: budget }, {
-    tokenEstimator: resolveTokenEstimator(options.provider),
-  });
+  const packed = pack(
+    items,
+    { maxTokens: budget },
+    {
+      tokenEstimator: resolveTokenEstimator(options.provider),
+    }
+  );
   const placed = placeItems(packed.selected, {
     strategy: options.strategy ?? "attention-optimized",
     model: options.model,
@@ -252,11 +255,15 @@ export function runPlace(
 export function runQuality(
   items: ContextItem[],
   budget: number,
-  options: { provider?: string } = {},
+  options: { provider?: string } = {}
 ): ContextQuality {
-  const packed = pack(items, { maxTokens: budget }, {
-    tokenEstimator: resolveTokenEstimator(options.provider),
-  });
+  const packed = pack(
+    items,
+    { maxTokens: budget },
+    {
+      tokenEstimator: resolveTokenEstimator(options.provider),
+    }
+  );
   return analyzeContext(packed.selected);
 }
 
@@ -264,7 +271,7 @@ export function runQuality(
 
 export function runEffectiveBudget(
   advertisedTokens: number,
-  model?: string,
+  model?: string
 ): { advertised: number; effective: number; model: string; ratio: number } {
   const effective = effectiveBudget(advertisedTokens, model);
   const m = model ?? "default";
@@ -288,18 +295,26 @@ export function runHandoff(
     agent?: string;
     sessionId?: string;
     notes?: string;
-  } = {},
+  } = {}
 ): HandoffResult {
   let packed: ContextPack;
 
   if (options.cacheTopology) {
-    packed = packWithCacheTopology(items, { maxTokens: budget }, {
-      tokenEstimator: resolveTokenEstimator(options.provider),
-    });
+    packed = packWithCacheTopology(
+      items,
+      { maxTokens: budget },
+      {
+        tokenEstimator: resolveTokenEstimator(options.provider),
+      }
+    );
   } else {
-    packed = pack(items, { maxTokens: budget }, {
-      tokenEstimator: resolveTokenEstimator(options.provider),
-    });
+    packed = pack(
+      items,
+      { maxTokens: budget },
+      {
+        tokenEstimator: resolveTokenEstimator(options.provider),
+      }
+    );
   }
 
   return createHandoff(packed, {
@@ -314,7 +329,7 @@ export function runHandoff(
 
 export function runPickup(
   jsonl: string,
-  options: { ready?: boolean } = {},
+  options: { ready?: boolean } = {}
 ): PickupResult {
   const result = pickupHandoff(jsonl);
 
@@ -343,11 +358,15 @@ export function runCost(
     outputTokens?: number;
     requestCount?: number;
     requestsPerDay?: number;
-  } = {},
+  } = {}
 ): { estimate: CostEstimate; projection?: CostProjection } {
-  const packed = packWithCacheTopology(items, { maxTokens: budget }, {
-    tokenEstimator: resolveTokenEstimator(options.provider),
-  }) as CacheAwarePack;
+  const packed = packWithCacheTopology(
+    items,
+    { maxTokens: budget },
+    {
+      tokenEstimator: resolveTokenEstimator(options.provider),
+    }
+  ) as CacheAwarePack;
 
   const estimate = estimateCost(packed, model, options.outputTokens);
 
