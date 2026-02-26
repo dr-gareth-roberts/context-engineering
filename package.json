@@ -3,6 +3,15 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "author": "Dr Gareth Roberts <gareth@zmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dr-gareth-roberts/context-engineering.git"
+  },
+  "homepage": "https://github.com/dr-gareth-roberts/context-engineering",
+  "bugs": {
+    "url": "https://github.com/dr-gareth-roberts/context-engineering/issues"
+  },
   "scripts": {
     "dev": "vite --host",
     "build:app": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
