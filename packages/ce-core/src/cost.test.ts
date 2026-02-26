@@ -5,7 +5,7 @@ import type { Budget } from "./types.js";
 
 function makeCacheAwarePack(
   totalTokens: number,
-  cacheableTokens: number,
+  cacheableTokens: number
 ): CacheAwarePack {
   const budget: Budget = { maxTokens: totalTokens + 1000 };
   return {
@@ -113,7 +113,9 @@ describe("projectCosts", () => {
     expect(projection.totalWithoutCache).toBeGreaterThan(0);
     expect(projection.totalWithCache).toBeGreaterThan(0);
     expect(projection.totalSavings).toBeGreaterThan(0);
-    expect(projection.totalWithCache).toBeLessThan(projection.totalWithoutCache);
+    expect(projection.totalWithCache).toBeLessThan(
+      projection.totalWithoutCache
+    );
   });
 
   it("includes monthly estimate when requestsPerDay provided", () => {

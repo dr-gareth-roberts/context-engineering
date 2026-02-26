@@ -59,11 +59,11 @@ export function analyzeContext(items: ContextItem[]): ContextQuality {
   );
 
   // Density: unique words / total tokens
-  const allWords = items.flatMap((item) =>
+  const allWords = items.flatMap(item =>
     item.content
       .toLowerCase()
       .split(/\s+/)
-      .filter((w) => w.length > 0)
+      .filter(w => w.length > 0)
   );
   const uniqueWords = new Set(allWords);
   const density = Math.min(uniqueWords.size / Math.max(totalTokens, 1), 1);
@@ -75,33 +75,29 @@ export function analyzeContext(items: ContextItem[]): ContextQuality {
     const words = item.content
       .toLowerCase()
       .split(/\s+/)
-      .filter((w) => w.length > 0);
+      .filter(w => w.length > 0);
     for (let i = 0; i < words.length - 1; i++) {
       bigrams.add(`${words[i]} ${words[i + 1]}`);
       totalBigrams.count++;
     }
   }
   const diversity =
-    totalBigrams.count > 0
-      ? Math.min(bigrams.size / totalBigrams.count, 1)
-      : 0;
+    totalBigrams.count > 0 ? Math.min(bigrams.size / totalBigrams.count, 1) : 0;
 
   // Freshness: fraction of items with recency > 5 (on 0-10 scale)
-  const freshCount = items.filter(
-    (item) => (item.recency ?? 0) > 5
-  ).length;
+  const freshCount = items.filter(item => (item.recency ?? 0) > 5).length;
   const freshness = freshCount / items.length;
 
   // Redundancy: pairwise word overlap using Jaccard similarity
   let totalOverlap = 0;
   let pairCount = 0;
   const itemWordSets = items.map(
-    (item) =>
+    item =>
       new Set(
         item.content
           .toLowerCase()
           .split(/\s+/)
-          .filter((w) => w.length > 2)
+          .filter(w => w.length > 2)
       )
   );
   for (let i = 0; i < itemWordSets.length; i++) {

@@ -9,10 +9,7 @@ function makeItem(id: string, priority: number, tokens: number): ContextItem {
 describe("createSession", () => {
   it("compiles items into a pack", () => {
     const session = createSession({ budget: { maxTokens: 500 } });
-    session.setItems([
-      makeItem("a", 10, 50),
-      makeItem("b", 5, 50),
-    ]);
+    session.setItems([makeItem("a", 10, 50), makeItem("b", 5, 50)]);
 
     const result = session.compile();
     expect(result.selected).toHaveLength(2);
@@ -90,17 +87,11 @@ describe("createSession", () => {
   it("computes reuse ratio correctly", () => {
     const session = createSession({ budget: { maxTokens: 500 } });
 
-    session.setItems([
-      makeItem("a", 10, 100),
-      makeItem("b", 5, 100),
-    ]);
+    session.setItems([makeItem("a", 10, 100), makeItem("b", 5, 100)]);
     session.compile();
 
     // Replace b, keep a
-    session.setItems([
-      makeItem("a", 10, 100),
-      makeItem("c", 5, 100),
-    ]);
+    session.setItems([makeItem("a", 10, 100), makeItem("c", 5, 100)]);
     const r2 = session.compile();
 
     // a (100 tokens) reusable out of 200 total previous
@@ -155,10 +146,7 @@ describe("createSession", () => {
 
   it("respects budget when packing", () => {
     const session = createSession({ budget: { maxTokens: 100 } });
-    session.setItems([
-      makeItem("a", 10, 60),
-      makeItem("b", 5, 60),
-    ]);
+    session.setItems([makeItem("a", 10, 60), makeItem("b", 5, 60)]);
 
     const result = session.compile();
     expect(result.totalTokens).toBeLessThanOrEqual(100);

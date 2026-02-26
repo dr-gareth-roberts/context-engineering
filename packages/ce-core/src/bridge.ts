@@ -29,7 +29,7 @@ export interface BridgeOptions {
  */
 export function toContextItem(
   memory: MemoryItem,
-  options?: BridgeOptions,
+  options?: BridgeOptions
 ): ContextItem {
   const now = options?.now ?? Date.now();
   const halfLife = options?.recencyHalfLife ?? 3600;
@@ -68,7 +68,7 @@ export function toContextItem(
  */
 export function memoryToContext(
   memories: MemoryItem[],
-  options?: BridgeOptions,
+  options?: BridgeOptions
 ): ContextItem[] {
   return memories.map(m => toContextItem(m, options));
 }

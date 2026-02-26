@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { packWithAllocation } from "./allocation.js";
 import type { ContextItem } from "./types.js";
 
-function makeItem(id: string, kind: string, priority: number, tokens: number): ContextItem {
+function makeItem(
+  id: string,
+  kind: string,
+  priority: number,
+  tokens: number
+): ContextItem {
   return { id, content: `content-${id}`, kind, priority, tokens };
 }
 
@@ -15,15 +20,11 @@ describe("packWithAllocation", () => {
       makeItem("c1", "conversation", 5, 100),
     ];
 
-    const result = packWithAllocation(
-      items,
-      { maxTokens: 300 },
-      [
-        { kind: "system", targetRatio: 0.2 },
-        { kind: "retrieval", targetRatio: 0.5 },
-        { kind: "conversation", targetRatio: 0.3 },
-      ],
-    );
+    const result = packWithAllocation(items, { maxTokens: 300 }, [
+      { kind: "system", targetRatio: 0.2 },
+      { kind: "retrieval", targetRatio: 0.5 },
+      { kind: "conversation", targetRatio: 0.3 },
+    ]);
 
     expect(result.selected.length).toBeGreaterThan(0);
     expect(result.allocations.system).toBeDefined();
@@ -37,17 +38,15 @@ describe("packWithAllocation", () => {
       makeItem("r1", "retrieval", 7, 100),
     ];
 
-    const result = packWithAllocation(
-      items,
-      { maxTokens: 300 },
-      [
-        { kind: "system", minTokens: 200, targetRatio: 0.2 },
-        { kind: "retrieval", targetRatio: 0.8 },
-      ],
-    );
+    const result = packWithAllocation(items, { maxTokens: 300 }, [
+      { kind: "system", minTokens: 200, targetRatio: 0.2 },
+      { kind: "retrieval", targetRatio: 0.8 },
+    ]);
 
     // System gets at least 200 even though 0.2 * 300 = 60
-    expect(result.allocations.system.budgetAllocated).toBeGreaterThanOrEqual(200);
+    expect(result.allocations.system.budgetAllocated).toBeGreaterThanOrEqual(
+      200
+    );
   });
 
   it("respects maximum token constraints", () => {
@@ -57,34 +56,26 @@ describe("packWithAllocation", () => {
       makeItem("r2", "retrieval", 6, 200),
     ];
 
-    const result = packWithAllocation(
-      items,
-      { maxTokens: 500 },
-      [
-        { kind: "system", targetRatio: 0.5, maxTokens: 100 },
-        { kind: "retrieval", targetRatio: 0.5 },
-      ],
-    );
+    const result = packWithAllocation(items, { maxTokens: 500 }, [
+      { kind: "system", targetRatio: 0.5, maxTokens: 100 },
+      { kind: "retrieval", targetRatio: 0.5 },
+    ]);
 
     expect(result.allocations.system.budgetUsed).toBeLessThanOrEqual(100);
   });
 
   it("redistributes surplus by priority", () => {
     const items = [
-      makeItem("s1", "system", 10, 30),  // only uses 30 of its allocation
+      makeItem("s1", "system", 10, 30), // only uses 30 of its allocation
       makeItem("r1", "retrieval", 7, 100),
       makeItem("r2", "retrieval", 6, 100),
       makeItem("r3", "retrieval", 5, 100),
     ];
 
-    const result = packWithAllocation(
-      items,
-      { maxTokens: 400 },
-      [
-        { kind: "system", targetRatio: 0.5, priority: 1 },
-        { kind: "retrieval", targetRatio: 0.5, priority: 10 },
-      ],
-    );
+    const result = packWithAllocation(items, { maxTokens: 400 }, [
+      { kind: "system", targetRatio: 0.5, priority: 1 },
+      { kind: "retrieval", targetRatio: 0.5, priority: 10 },
+    ]);
 
     // Retrieval should get surplus from system's underfill
     expect(result.allocations.retrieval.budgetUsed).toBeGreaterThan(200);
@@ -96,11 +87,9 @@ describe("packWithAllocation", () => {
       makeItem("misc", "other", 5, 50),
     ];
 
-    const result = packWithAllocation(
-      items,
-      { maxTokens: 200 },
-      [{ kind: "system", targetRatio: 0.5 }],
-    );
+    const result = packWithAllocation(items, { maxTokens: 200 }, [
+      { kind: "system", targetRatio: 0.5 },
+    ]);
 
     // "other" kind is uncategorized, should still be packed
     expect(result.selected.map(i => i.id)).toContain("misc");
@@ -113,25 +102,19 @@ describe("packWithAllocation", () => {
       makeItem("r1", "retrieval", 7, 100),
     ];
 
-    const result = packWithAllocation(
-      items,
-      { maxTokens: 200 },
-      [
-        { kind: "system", targetRatio: 0.5 },
-        { kind: "retrieval", targetRatio: 0.5 },
-      ],
-    );
+    const result = packWithAllocation(items, { maxTokens: 200 }, [
+      { kind: "system", targetRatio: 0.5 },
+      { kind: "retrieval", targetRatio: 0.5 },
+    ]);
 
     // Perfect 50/50 split should yield high efficiency
     expect(result.allocationEfficiency).toBeGreaterThan(0.8);
   });
 
   it("handles empty items gracefully", () => {
-    const result = packWithAllocation(
-      [],
-      { maxTokens: 200 },
-      [{ kind: "system", targetRatio: 1.0 }],
-    );
+    const result = packWithAllocation([], { maxTokens: 200 }, [
+      { kind: "system", targetRatio: 1.0 },
+    ]);
 
     expect(result.selected).toHaveLength(0);
     expect(result.totalTokens).toBe(0);
@@ -149,7 +132,7 @@ describe("packWithAllocation", () => {
       [
         { kind: "system", targetRatio: 0.5 },
         { kind: "retrieval", targetRatio: 0.5 },
-      ],
+      ]
     );
 
     expect(result.totalTokens).toBeLessThanOrEqual(150);
@@ -163,15 +146,11 @@ describe("packWithAllocation", () => {
       makeItem("d", "memory", 3, 100),
     ];
 
-    const result = packWithAllocation(
-      items,
-      { maxTokens: 200 },
-      [
-        { kind: "system", targetRatio: 0.3 },
-        { kind: "retrieval", targetRatio: 0.4 },
-        { kind: "memory", targetRatio: 0.3 },
-      ],
-    );
+    const result = packWithAllocation(items, { maxTokens: 200 }, [
+      { kind: "system", targetRatio: 0.3 },
+      { kind: "retrieval", targetRatio: 0.4 },
+      { kind: "memory", targetRatio: 0.3 },
+    ]);
 
     const allIds = new Set([
       ...result.selected.map(i => i.id),

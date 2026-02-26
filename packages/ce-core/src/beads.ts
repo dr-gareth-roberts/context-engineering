@@ -40,7 +40,7 @@ export type BeadsIssueType =
   | "decision"
   | "message"
   | "molecule"
-  | "context";  // extension: context items stored as BEADS
+  | "context"; // extension: context items stored as BEADS
 
 export type BeadsDependencyType =
   | "blocks"
@@ -178,9 +178,7 @@ export function readBeadsJSONL(input: string): BeadsIssue[] {
  * ```
  */
 export function writeBeadsJSONL(issues: BeadsIssue[]): string {
-  return issues
-    .map(issue => JSON.stringify(issue))
-    .join("\n");
+  return issues.map(issue => JSON.stringify(issue)).join("\n");
 }
 
 // ─── ContextItem ↔ BeadsIssue Bridge ─────────────────────────────────
@@ -231,7 +229,7 @@ const DEFAULT_KIND_TO_ISSUE_TYPE: Record<string, BeadsIssueType> = {
  */
 export function contextItemToBeads(
   item: ContextItem,
-  options: BeadsBridgeOptions = {},
+  options: BeadsBridgeOptions = {}
 ): BeadsIssue {
   const now = new Date().toISOString();
   const kindMap = options.kindToIssueType ?? DEFAULT_KIND_TO_ISSUE_TYPE;
@@ -239,9 +237,10 @@ export function contextItemToBeads(
 
   // Map priority: ContextItem priority 10 (high) → BEADS P0 (critical)
   // ContextItem priority 1 (low) → BEADS P4 (backlog)
-  const beadsPriority = Math.max(0, Math.min(4,
-    4 - Math.floor(((item.priority ?? 5) / 10) * 4)
-  ));
+  const beadsPriority = Math.max(
+    0,
+    Math.min(4, 4 - Math.floor(((item.priority ?? 5) / 10) * 4))
+  );
 
   const labels: string[] = [];
   if (item.kind) {
@@ -287,10 +286,13 @@ export function contextItemToBeads(
  * @param issue - The BEADS issue to convert back to a context item
  */
 export function beadsToContextItem(issue: BeadsIssue): ContextItem {
-  const ceMetadata = (issue.metadata as Record<string, unknown>)?._ce as Record<string, unknown> | undefined;
+  const ceMetadata = (issue.metadata as Record<string, unknown>)?._ce as
+    | Record<string, unknown>
+    | undefined;
 
   // Recover original ID: strip ce- prefix if present
-  const originalId = (ceMetadata?.originalId as string) ??
+  const originalId =
+    (ceMetadata?.originalId as string) ??
     (issue.id.startsWith("ce-") ? issue.id.slice(3) : issue.id);
 
   // Recover kind from metadata or labels
@@ -301,7 +303,8 @@ export function beadsToContextItem(issue: BeadsIssue): ContextItem {
   }
 
   // Recover priority: BEADS P0 → priority 10, P4 → priority 1
-  const priority = (ceMetadata?.priority as number) ??
+  const priority =
+    (ceMetadata?.priority as number) ??
     Math.max(1, Math.round(((4 - issue.priority) / 4) * 10));
 
   const content = issue.description ?? issue.title;
@@ -319,7 +322,8 @@ export function beadsToContextItem(issue: BeadsIssue): ContextItem {
     recency: ceMetadata?.recency as number | undefined,
     tokens,
     score: ceMetadata?.score as number | undefined,
-    metadata: metadata && Object.keys(metadata).length > 0 ? metadata : undefined,
+    metadata:
+      metadata && Object.keys(metadata).length > 0 ? metadata : undefined,
   };
 }
 
@@ -373,7 +377,7 @@ export interface HandoffResult {
  */
 export function createHandoff(
   pack: ContextPack,
-  options: HandoffOptions = {},
+  options: HandoffOptions = {}
 ): HandoffResult {
   const issues: BeadsIssue[] = [];
   const now = new Date().toISOString();
@@ -382,7 +386,9 @@ export function createHandoff(
   const manifestIssue: BeadsIssue = {
     id: `ce-handoff-${Date.now().toString(36)}`,
     title: "Context Engineering Handoff",
-    description: options.handoffNotes ?? "Agent context handoff via Context Engineering Toolkit",
+    description:
+      options.handoffNotes ??
+      "Agent context handoff via Context Engineering Toolkit",
     status: "pinned",
     priority: 0,
     issue_type: "message",
@@ -510,7 +516,8 @@ export function pickupHandoff(jsonl: string): PickupResult {
     }
   }
 
-  const handoffMeta = (manifest?.metadata as Record<string, unknown>)?._ce_handoff as Record<string, unknown> | undefined;
+  const handoffMeta = (manifest?.metadata as Record<string, unknown>)
+    ?._ce_handoff as Record<string, unknown> | undefined;
 
   return {
     items,
@@ -540,7 +547,7 @@ export function pickupHandoff(jsonl: string): PickupResult {
  */
 export function mergeBeadsJSONL(
   existing: string,
-  updates: BeadsIssue[],
+  updates: BeadsIssue[]
 ): string {
   const existingIssues = readBeadsJSONL(existing);
   const existingMap = new Map(existingIssues.map(i => [i.id, i]));

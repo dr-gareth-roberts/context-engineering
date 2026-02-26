@@ -18,8 +18,8 @@ npm install @anthropic-ai/sdk  # for AnthropicProvider
 ## Quick Start
 
 ```ts
-import { pack } from '@ce/core';
-import { presets, OpenAIProvider } from '@ce/providers';
+import { pack } from "@ce/core";
+import { presets, OpenAIProvider } from "@ce/providers";
 
 // Use accurate token estimation with packing
 const result = pack(items, budget, {
@@ -28,39 +28,42 @@ const result = pack(items, budget, {
 
 // Use as an LLM provider
 const llm = new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY });
-const response = await llm.generate([{ role: 'user', content: 'Hello' }]);
+const response = await llm.generate([{ role: "user", content: "Hello" }]);
 ```
 
 ## Token Estimators
 
-| Export | Method | Accuracy |
-|---|---|---|
-| `openaiTokenEstimator` | tiktoken (`cl100k_base`) | Exact for GPT models |
-| `anthropicTokenEstimator` | Word heuristic (`words * 1.4`) | Approximate |
+| Export                    | Method                         | Accuracy             |
+| ------------------------- | ------------------------------ | -------------------- |
+| `openaiTokenEstimator`    | tiktoken (`cl100k_base`)       | Exact for GPT models |
+| `anthropicTokenEstimator` | Word heuristic (`words * 1.4`) | Approximate          |
 
 Both implement `TokenEstimator` from `@ce/core` and work with `pack()`.
 
 ## Presets
 
 ```ts
-import { presets } from '@ce/providers';
+import { presets } from "@ce/providers";
 
-presets.openai.estimator    // openaiTokenEstimator
-presets.anthropic.estimator // anthropicTokenEstimator
+presets.openai.estimator; // openaiTokenEstimator
+presets.anthropic.estimator; // anthropicTokenEstimator
 ```
 
 ## LLM Providers
 
-| Class | SDK | Default Model |
-|---|---|---|
-| `OpenAIProvider` | `openai` | `gpt-4o-mini` |
+| Class               | SDK                 | Default Model                |
+| ------------------- | ------------------- | ---------------------------- |
+| `OpenAIProvider`    | `openai`            | `gpt-4o-mini`                |
 | `AnthropicProvider` | `@anthropic-ai/sdk` | `claude-3-5-sonnet-20241022` |
 
 Both implement the `LLMProvider` interface:
 
 ```ts
 interface LLMProvider {
-  generate(messages: LLMMessage[], options?: LLMGenerationOptions): Promise<LLMResult>;
+  generate(
+    messages: LLMMessage[],
+    options?: LLMGenerationOptions
+  ): Promise<LLMResult>;
 }
 ```
 
@@ -68,23 +71,26 @@ Options: `model`, `maxTokens`, `temperature`. API keys fall back to `OPENAI_API_
 
 ## Embedding Provider
 
-| Class | SDK | Default Model |
-|---|---|---|
+| Class                     | SDK      | Default Model            |
+| ------------------------- | -------- | ------------------------ |
 | `OpenAIEmbeddingProvider` | `openai` | `text-embedding-3-small` |
 
 ```ts
 interface EmbeddingProvider {
-  embed(inputs: string[] | string, options?: EmbeddingOptions): Promise<EmbeddingResult>;
+  embed(
+    inputs: string[] | string,
+    options?: EmbeddingOptions
+  ): Promise<EmbeddingResult>;
 }
 ```
 
 ## Model Metadata
 
 ```ts
-import { MODEL_METADATA } from '@ce/providers';
+import { MODEL_METADATA } from "@ce/providers";
 
-MODEL_METADATA.openai['gpt-4o'].maxTokens;                       // 128000
-MODEL_METADATA.anthropic['claude-3-5-sonnet-20241022'].maxTokens; // 200000
+MODEL_METADATA.openai["gpt-4o"].maxTokens; // 128000
+MODEL_METADATA.anthropic["claude-3-5-sonnet-20241022"].maxTokens; // 200000
 ```
 
 ## License

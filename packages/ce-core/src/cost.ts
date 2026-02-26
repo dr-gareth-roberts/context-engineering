@@ -113,7 +113,7 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     cachedInputPerMillion: 1.25,
     outputPerMillion: 10,
   },
-  "o3": {
+  o3: {
     inputPerMillion: 2,
     cachedInputPerMillion: 0.5,
     outputPerMillion: 8,
@@ -144,14 +144,14 @@ export function estimateCost(
   pack: CacheAwarePack,
   model: string,
   outputTokens: number = 500,
-  pricing?: ModelPricing,
+  pricing?: ModelPricing
 ): CostEstimate {
   const price = pricing ?? MODEL_PRICING[model];
   if (!price) {
     const known = Object.keys(MODEL_PRICING).join(", ");
     throw new ValidationError(
       `Unknown model "${model}". Known models: ${known}. Pass custom pricing for unlisted models.`,
-      [{ path: "model", message: `Expected one of: ${known}` }],
+      [{ path: "model", message: `Expected one of: ${known}` }]
     );
   }
 
@@ -179,9 +179,10 @@ export function estimateCost(
     costWithoutCache: Math.round(costWithoutCache * 1_000_000) / 1_000_000,
     costWithCache: Math.round(costWithCache * 1_000_000) / 1_000_000,
     savings: Math.round(savings * 1_000_000) / 1_000_000,
-    savingsPercent: costWithoutCache > 0
-      ? Math.round((savings / costWithoutCache) * 1000) / 10
-      : 0,
+    savingsPercent:
+      costWithoutCache > 0
+        ? Math.round((savings / costWithoutCache) * 1000) / 10
+        : 0,
     cacheEfficiency: pack.cacheEfficiency,
   };
 }
@@ -210,13 +211,13 @@ export function projectCosts(
     outputTokens?: number;
     pricing?: ModelPricing;
     requestsPerDay?: number;
-  },
+  }
 ): CostProjection {
   const perRequest = estimateCost(
     pack,
     model,
     options?.outputTokens ?? 500,
-    options?.pricing,
+    options?.pricing
   );
 
   const totalWithoutCache = perRequest.costWithoutCache * requestCount;
@@ -234,9 +235,12 @@ export function projectCosts(
     const monthlyRequests = options.requestsPerDay * 30;
     result.monthlyEstimate = {
       requestsPerDay: options.requestsPerDay,
-      monthlyCostWithoutCache: Math.round(perRequest.costWithoutCache * monthlyRequests * 100) / 100,
-      monthlyCostWithCache: Math.round(perRequest.costWithCache * monthlyRequests * 100) / 100,
-      monthlySavings: Math.round(perRequest.savings * monthlyRequests * 100) / 100,
+      monthlyCostWithoutCache:
+        Math.round(perRequest.costWithoutCache * monthlyRequests * 100) / 100,
+      monthlyCostWithCache:
+        Math.round(perRequest.costWithCache * monthlyRequests * 100) / 100,
+      monthlySavings:
+        Math.round(perRequest.savings * monthlyRequests * 100) / 100,
     };
   }
 

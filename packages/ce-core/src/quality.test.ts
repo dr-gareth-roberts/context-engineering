@@ -27,7 +27,9 @@ describe("analyzeContext", () => {
   });
 
   it("returns reasonable metrics for a single item", () => {
-    const items = [makeItem("a", "The quick brown fox jumps over the lazy dog")];
+    const items = [
+      makeItem("a", "The quick brown fox jumps over the lazy dog"),
+    ];
     const result = analyzeContext(items);
 
     expect(result.itemCount).toBe(1);

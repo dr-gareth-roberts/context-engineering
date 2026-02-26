@@ -56,14 +56,14 @@ These 6 functions + 4 types + 4 errors are the essential API. Everything else bu
 
 ### Functions
 
-| Function | What it does | Key behavior |
-|----------|-------------|--------------|
-| **`pack(items, budget, options?)`** | Select items that fit a token budget | Greedy score-based. Score = priority×1.0 + recency×0.7 + salience×0.5. Validates inputs via Zod. Supports compressions. |
-| **`tracePack(items, budget, options?)`** | Pack with decision log | Returns `ContextTrace` with per-item include/compress/exclude decisions and reasons. |
-| **`diff(before, after)`** | Compare two context states | Returns added, removed, kept, changed items. |
-| **`estimateTokens(content, options?)`** | Count tokens | Heuristic (words×1.3), OpenAI (tiktoken), or Anthropic (words×1.4). Returns 0 for empty input. |
-| **`createContextItem(id, content, overrides?)`** | Create an item | Convenience factory — only id + content required. |
-| **`createScorer(weights?)`** | Custom scoring | Weights: `{ priority, recency, salience }`. Returns scorer function. |
+| Function                                         | What it does                         | Key behavior                                                                                                            |
+| ------------------------------------------------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| **`pack(items, budget, options?)`**              | Select items that fit a token budget | Greedy score-based. Score = priority×1.0 + recency×0.7 + salience×0.5. Validates inputs via Zod. Supports compressions. |
+| **`tracePack(items, budget, options?)`**         | Pack with decision log               | Returns `ContextTrace` with per-item include/compress/exclude decisions and reasons.                                    |
+| **`diff(before, after)`**                        | Compare two context states           | Returns added, removed, kept, changed items.                                                                            |
+| **`estimateTokens(content, options?)`**          | Count tokens                         | Heuristic (words×1.3), OpenAI (tiktoken), or Anthropic (words×1.4). Returns 0 for empty input.                          |
+| **`createContextItem(id, content, overrides?)`** | Create an item                       | Convenience factory — only id + content required.                                                                       |
+| **`createScorer(weights?)`**                     | Custom scoring                       | Weights: `{ priority, recency, salience }`. Returns scorer function.                                                    |
 
 ### Types
 
@@ -86,27 +86,27 @@ All inherit from `ContextEngineeringError` with a `code` field:
 
 Each extends the core pack/item model. Use when needed, ignore when not.
 
-| Feature | Entry point | Purpose |
-|---------|-------------|---------|
-| **Cache topology** | `packWithCacheTopology()` | Partition items by volatility for prefix cache reuse |
-| **Allocation** | `packWithAllocation()` | Kind-aware budget splits with min/max/target constraints |
-| **Sessions** | `createSession()` | Track what changed between compiles (delta, reuse ratio) |
-| **Pipeline** | `pipeline(budget)` | Fluent builder chaining `.add().allocate().cacheTopology().build()` |
-| **Placement** | `placeItems()` | Reorder items by model attention profile (start/end bias) |
-| **Quality** | `analyzeContext()` | Density, diversity, freshness, redundancy scores |
-| **Cost** | `estimateCost()` | Dollar cost with prefix cache savings (Claude, GPT pricing) |
-| **BEADS handoff** | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context as BEADS JSONL for agent handoff |
-| **Compaction** | `createContextManager()` | Auto-summarize old turns across conversation |
-| **Stream** | `packStream()` | Async generator variant of pack |
-| **Bridge** | `toContextItem()` | Convert MemoryItems to ContextItems |
-| **Caching** | `createCachedEstimator()` | LRU cache for token estimators |
+| Feature            | Entry point                           | Purpose                                                             |
+| ------------------ | ------------------------------------- | ------------------------------------------------------------------- |
+| **Cache topology** | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse                |
+| **Allocation**     | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints            |
+| **Sessions**       | `createSession()`                     | Track what changed between compiles (delta, reuse ratio)            |
+| **Pipeline**       | `pipeline(budget)`                    | Fluent builder chaining `.add().allocate().cacheTopology().build()` |
+| **Placement**      | `placeItems()`                        | Reorder items by model attention profile (start/end bias)           |
+| **Quality**        | `analyzeContext()`                    | Density, diversity, freshness, redundancy scores                    |
+| **Cost**           | `estimateCost()`                      | Dollar cost with prefix cache savings (Claude, GPT pricing)         |
+| **BEADS handoff**  | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context as BEADS JSONL for agent handoff      |
+| **Compaction**     | `createContextManager()`              | Auto-summarize old turns across conversation                        |
+| **Stream**         | `packStream()`                        | Async generator variant of pack                                     |
+| **Bridge**         | `toContextItem()`                     | Convert MemoryItems to ContextItems                                 |
+| **Caching**        | `createCachedEstimator()`             | LRU cache for token estimators                                      |
 
 ### Memory Stores (`@ce/memory`)
 
 ```ts
-createMemoryStore("memory")                        // In-memory
-createMemoryStore("file", { path: "mem.jsonl" })   // JSONL with atomic writes
-createMemoryStore("sqlite", { path: "db.sqlite" }) // SQLite
+createMemoryStore("memory"); // In-memory
+createMemoryStore("file", { path: "mem.jsonl" }); // JSONL with atomic writes
+createMemoryStore("sqlite", { path: "db.sqlite" }); // SQLite
 ```
 
 Interface: `put()`, `get()`, `query()`, `forget()`, `close?()`

@@ -50,6 +50,8 @@ describe("defaultTokenEstimator edge cases", () => {
   });
 
   it("returns > 0 for unicode/emoji text", () => {
-    expect(defaultTokenEstimator("\u{1F389}\u{1F389}\u{1F389}")).toBeGreaterThan(0);
+    expect(
+      defaultTokenEstimator("\u{1F389}\u{1F389}\u{1F389}")
+    ).toBeGreaterThan(0);
   });
 });

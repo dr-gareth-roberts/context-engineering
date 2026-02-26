@@ -19,7 +19,10 @@ import {
   packWithCacheTopology,
   createSession,
 } from "../packages/ce-core/src/index.js";
-import type { ContextItem, KindAllocation } from "../packages/ce-core/src/index.js";
+import type {
+  ContextItem,
+  KindAllocation,
+} from "../packages/ce-core/src/index.js";
 
 // ─── 1. Define Context Items ──────────────────────────────────────────
 
@@ -61,7 +64,8 @@ Tests use Vitest. Formatting uses Prettier.`,
 
 const recentConversation: ContextItem = {
   id: "conversation-1",
-  content: "User: Add a new 'validate' command to the CLI.\nAssistant: I'll add it to cli.ts with input validation.",
+  content:
+    "User: Add a new 'validate' command to the CLI.\nAssistant: I'll add it to cli.ts with input validation.",
   kind: "conversation",
   priority: 6,
   recency: 8,
@@ -70,7 +74,8 @@ const recentConversation: ContextItem = {
 
 const memoryItem: ContextItem = {
   id: "memory-preference",
-  content: "User prefers descriptive variable names and explicit error handling.",
+  content:
+    "User prefers descriptive variable names and explicit error handling.",
   kind: "memory",
   priority: 5,
   recency: 4,
@@ -79,7 +84,8 @@ const memoryItem: ContextItem = {
 
 const currentQuery: ContextItem = {
   id: "query",
-  content: "Implement the validate command with JSON schema validation using Ajv.",
+  content:
+    "Implement the validate command with JSON schema validation using Ajv.",
   kind: "query",
   priority: 8,
   recency: 10,
@@ -160,7 +166,9 @@ if (result.cacheKey) {
 
 console.log(`\nPlacement order:`);
 result.selected.forEach((item, i) => {
-  console.log(`  ${i + 1}. ${item.id} [${item.kind}] (score: ${item.score?.toFixed(1)})`);
+  console.log(
+    `  ${i + 1}. ${item.id} [${item.kind}] (score: ${item.score?.toFixed(1)})`
+  );
 });
 
 // ─── 4. Cost Estimation ──────────────────────────────────────────────
@@ -172,7 +180,9 @@ console.log(`\n=== Cost Estimate (claude-sonnet-4-6) ===`);
 console.log(`Per request:`);
 console.log(`  Without cache: $${cost.costWithoutCache.toFixed(6)}`);
 console.log(`  With cache:    $${cost.costWithCache.toFixed(6)}`);
-console.log(`  Savings:       $${cost.savings.toFixed(6)} (${cost.savingsPercent}%)`);
+console.log(
+  `  Savings:       $${cost.savings.toFixed(6)} (${cost.savingsPercent}%)`
+);
 
 const projection = projectCosts(cachePack, "claude-sonnet-4-6", 10000, {
   requestsPerDay: 1000,
@@ -180,9 +190,15 @@ const projection = projectCosts(cachePack, "claude-sonnet-4-6", 10000, {
 
 if (projection.monthlyEstimate) {
   console.log(`\nMonthly (1000 req/day):`);
-  console.log(`  Without cache: $${projection.monthlyEstimate.monthlyCostWithoutCache.toFixed(2)}/mo`);
-  console.log(`  With cache:    $${projection.monthlyEstimate.monthlyCostWithCache.toFixed(2)}/mo`);
-  console.log(`  Savings:       $${projection.monthlyEstimate.monthlySavings.toFixed(2)}/mo`);
+  console.log(
+    `  Without cache: $${projection.monthlyEstimate.monthlyCostWithoutCache.toFixed(2)}/mo`
+  );
+  console.log(
+    `  With cache:    $${projection.monthlyEstimate.monthlyCostWithCache.toFixed(2)}/mo`
+  );
+  console.log(
+    `  Savings:       $${projection.monthlyEstimate.monthlySavings.toFixed(2)}/mo`
+  );
 }
 
 // ─── 5. Agent Handoff (BEADS) ─────────────────────────────────────────
@@ -191,7 +207,8 @@ const handoff = createHandoff(result, {
   agent: "engineer-agent-1",
   sessionId: "session-abc123",
   includeDropped: true,
-  handoffNotes: "Working on adding validate CLI command. Schema validation with Ajv is the approach.",
+  handoffNotes:
+    "Working on adding validate CLI command. Schema validation with Ajv is the approach.",
 });
 
 console.log(`\n=== BEADS Handoff ===`);
@@ -217,5 +234,7 @@ const result2 = pipeline(budget)
   .session(session2)
   .build();
 
-console.log(`\nAgent 2 context: ${result2.selected.length} items, ${result2.totalTokens} tokens`);
+console.log(
+  `\nAgent 2 context: ${result2.selected.length} items, ${result2.totalTokens} tokens`
+);
 console.log("Handoff complete — Agent 2 has full context.");

@@ -12,11 +12,19 @@ import {
 import type { ContextItem, ContextPack, Budget } from "./types.js";
 import type { BeadsIssue } from "./beads.js";
 
-function makeItem(id: string, kind: string, priority: number, tokens: number): ContextItem {
+function makeItem(
+  id: string,
+  kind: string,
+  priority: number,
+  tokens: number
+): ContextItem {
   return { id, content: `content-${id}`, kind, priority, tokens };
 }
 
-function makePack(items: ContextItem[], dropped: ContextItem[] = []): ContextPack {
+function makePack(
+  items: ContextItem[],
+  dropped: ContextItem[] = []
+): ContextPack {
   const budget: Budget = { maxTokens: 500 };
   return {
     budget,
@@ -31,8 +39,24 @@ function makePack(items: ContextItem[], dropped: ContextItem[] = []): ContextPac
 describe("readBeadsJSONL", () => {
   it("parses valid JSONL", () => {
     const jsonl = [
-      JSON.stringify({ id: "bd-1", title: "Test", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" }),
-      JSON.stringify({ id: "bd-2", title: "Test 2", status: "closed", priority: 1, issue_type: "bug", created_at: "2025-01-01", updated_at: "2025-01-01" }),
+      JSON.stringify({
+        id: "bd-1",
+        title: "Test",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      }),
+      JSON.stringify({
+        id: "bd-2",
+        title: "Test 2",
+        status: "closed",
+        priority: 1,
+        issue_type: "bug",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      }),
     ].join("\n");
 
     const issues = readBeadsJSONL(jsonl);
@@ -45,7 +69,15 @@ describe("readBeadsJSONL", () => {
     const jsonl = [
       "# This is a comment",
       "",
-      JSON.stringify({ id: "bd-1", title: "Test", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" }),
+      JSON.stringify({
+        id: "bd-1",
+        title: "Test",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      }),
       "",
       "# Another comment",
     ].join("\n");
@@ -57,7 +89,15 @@ describe("readBeadsJSONL", () => {
   it("skips malformed lines", () => {
     const jsonl = [
       "not json",
-      JSON.stringify({ id: "bd-1", title: "Test", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" }),
+      JSON.stringify({
+        id: "bd-1",
+        title: "Test",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      }),
       "{bad json",
     ].join("\n");
 
@@ -68,7 +108,15 @@ describe("readBeadsJSONL", () => {
   it("skips objects without id", () => {
     const jsonl = [
       JSON.stringify({ title: "No ID" }),
-      JSON.stringify({ id: "bd-1", title: "Has ID", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" }),
+      JSON.stringify({
+        id: "bd-1",
+        title: "Has ID",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      }),
     ].join("\n");
 
     const issues = readBeadsJSONL(jsonl);
@@ -85,8 +133,24 @@ describe("readBeadsJSONL", () => {
 describe("writeBeadsJSONL", () => {
   it("serializes issues to JSONL", () => {
     const issues: BeadsIssue[] = [
-      { id: "bd-1", title: "A", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
-      { id: "bd-2", title: "B", status: "closed", priority: 1, issue_type: "bug", created_at: "2025-01-01", updated_at: "2025-01-01" },
+      {
+        id: "bd-1",
+        title: "A",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
+      {
+        id: "bd-2",
+        title: "B",
+        status: "closed",
+        priority: 1,
+        issue_type: "bug",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
     ];
 
     const jsonl = writeBeadsJSONL(issues);
@@ -98,7 +162,16 @@ describe("writeBeadsJSONL", () => {
 
   it("roundtrips through read/write", () => {
     const issues: BeadsIssue[] = [
-      { id: "bd-1", title: "A", status: "open", priority: 2, issue_type: "task", labels: ["test"], created_at: "2025-01-01", updated_at: "2025-01-01" },
+      {
+        id: "bd-1",
+        title: "A",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        labels: ["test"],
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
     ];
 
     const jsonl = writeBeadsJSONL(issues);
@@ -144,7 +217,10 @@ describe("contextItemToBeads", () => {
     };
 
     const issue = contextItemToBeads(item);
-    const ce = (issue.metadata as Record<string, unknown>)._ce as Record<string, unknown>;
+    const ce = (issue.metadata as Record<string, unknown>)._ce as Record<
+      string,
+      unknown
+    >;
 
     expect(ce.kind).toBe("memory");
     expect(ce.priority).toBe(7);
@@ -255,7 +331,7 @@ describe("createHandoff", () => {
   it("includes dropped items when requested", () => {
     const pack = makePack(
       [makeItem("sys", "system", 10, 100)],
-      [makeItem("low", "memory", 2, 50)],
+      [makeItem("low", "memory", 2, 50)]
     );
 
     const result = createHandoff(pack, { includeDropped: true });
@@ -279,7 +355,8 @@ describe("createHandoff", () => {
     expect(manifest.status).toBe("pinned");
     expect(manifest.description).toBe("Completed phase 1");
 
-    const meta = (manifest.metadata as Record<string, unknown>)._ce_handoff as Record<string, unknown>;
+    const meta = (manifest.metadata as Record<string, unknown>)
+      ._ce_handoff as Record<string, unknown>;
     expect(meta.sessionId).toBe("session-xyz");
     expect(meta.totalTokens).toBe(100);
   });
@@ -304,7 +381,7 @@ describe("pickupHandoff", () => {
   it("separates deferred items", () => {
     const pack = makePack(
       [makeItem("active", "system", 10, 100)],
-      [makeItem("deferred", "memory", 2, 50)],
+      [makeItem("deferred", "memory", 2, 50)]
     );
 
     const handoff = createHandoff(pack, { includeDropped: true });
@@ -340,7 +417,9 @@ describe("pickupHandoff", () => {
         labels: ["context-engineering", "kind:system"],
         created_at: "2025-01-01",
         updated_at: "2025-01-01",
-        metadata: { _ce: { originalId: "sys", kind: "system", priority: 10, tokens: 50 } },
+        metadata: {
+          _ce: { originalId: "sys", kind: "system", priority: 10, tokens: 50 },
+        },
       }),
       JSON.stringify({
         id: "bd-task-1",
@@ -401,11 +480,27 @@ describe("pickupHandoff", () => {
 describe("mergeBeadsJSONL", () => {
   it("merges new issues into existing JSONL", () => {
     const existing = writeBeadsJSONL([
-      { id: "bd-1", title: "A", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
+      {
+        id: "bd-1",
+        title: "A",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
     ]);
 
     const updates: BeadsIssue[] = [
-      { id: "bd-2", title: "B", status: "open", priority: 1, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
+      {
+        id: "bd-2",
+        title: "B",
+        status: "open",
+        priority: 1,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
     ];
 
     const merged = mergeBeadsJSONL(existing, updates);
@@ -415,11 +510,27 @@ describe("mergeBeadsJSONL", () => {
 
   it("replaces existing issues by id", () => {
     const existing = writeBeadsJSONL([
-      { id: "bd-1", title: "Old", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
+      {
+        id: "bd-1",
+        title: "Old",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
     ]);
 
     const updates: BeadsIssue[] = [
-      { id: "bd-1", title: "New", status: "closed", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-02" },
+      {
+        id: "bd-1",
+        title: "New",
+        status: "closed",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-02",
+      },
     ];
 
     const merged = mergeBeadsJSONL(existing, updates);
@@ -433,9 +544,33 @@ describe("mergeBeadsJSONL", () => {
 describe("getReadyIssues", () => {
   it("returns open non-blocked issues", () => {
     const issues: BeadsIssue[] = [
-      { id: "bd-1", title: "Ready", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
-      { id: "bd-2", title: "In Progress", status: "in_progress", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
-      { id: "bd-3", title: "Closed", status: "closed", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
+      {
+        id: "bd-1",
+        title: "Ready",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
+      {
+        id: "bd-2",
+        title: "In Progress",
+        status: "in_progress",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
+      {
+        id: "bd-3",
+        title: "Closed",
+        status: "closed",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
     ];
 
     const ready = getReadyIssues(issues);
@@ -445,11 +580,26 @@ describe("getReadyIssues", () => {
 
   it("filters out blocked issues", () => {
     const issues: BeadsIssue[] = [
-      { id: "bd-1", title: "Blocker", status: "open", priority: 1, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
       {
-        id: "bd-2", title: "Blocked", status: "open", priority: 2, issue_type: "task",
-        created_at: "2025-01-01", updated_at: "2025-01-01",
-        dependencies: [{ issue_id: "bd-2", depends_on_id: "bd-1", type: "blocks" }],
+        id: "bd-1",
+        title: "Blocker",
+        status: "open",
+        priority: 1,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
+      {
+        id: "bd-2",
+        title: "Blocked",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+        dependencies: [
+          { issue_id: "bd-2", depends_on_id: "bd-1", type: "blocks" },
+        ],
       },
     ];
 
@@ -460,11 +610,26 @@ describe("getReadyIssues", () => {
 
   it("unblocks when blocker is closed", () => {
     const issues: BeadsIssue[] = [
-      { id: "bd-1", title: "Done", status: "closed", priority: 1, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
       {
-        id: "bd-2", title: "Was Blocked", status: "open", priority: 2, issue_type: "task",
-        created_at: "2025-01-01", updated_at: "2025-01-01",
-        dependencies: [{ issue_id: "bd-2", depends_on_id: "bd-1", type: "blocks" }],
+        id: "bd-1",
+        title: "Done",
+        status: "closed",
+        priority: 1,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
+      {
+        id: "bd-2",
+        title: "Was Blocked",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+        dependencies: [
+          { issue_id: "bd-2", depends_on_id: "bd-1", type: "blocks" },
+        ],
       },
     ];
 
@@ -476,8 +641,25 @@ describe("getReadyIssues", () => {
   it("filters out deferred issues", () => {
     const future = new Date(Date.now() + 86400000).toISOString();
     const issues: BeadsIssue[] = [
-      { id: "bd-1", title: "Ready", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
-      { id: "bd-2", title: "Deferred", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01", defer_until: future },
+      {
+        id: "bd-1",
+        title: "Ready",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
+      {
+        id: "bd-2",
+        title: "Deferred",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+        defer_until: future,
+      },
     ];
 
     const ready = getReadyIssues(issues);
@@ -487,8 +669,25 @@ describe("getReadyIssues", () => {
 
   it("filters out ephemeral issues", () => {
     const issues: BeadsIssue[] = [
-      { id: "bd-1", title: "Normal", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01" },
-      { id: "bd-2", title: "Ephemeral", status: "open", priority: 2, issue_type: "task", created_at: "2025-01-01", updated_at: "2025-01-01", ephemeral: true },
+      {
+        id: "bd-1",
+        title: "Normal",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+      },
+      {
+        id: "bd-2",
+        title: "Ephemeral",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        created_at: "2025-01-01",
+        updated_at: "2025-01-01",
+        ephemeral: true,
+      },
     ];
 
     const ready = getReadyIssues(issues);

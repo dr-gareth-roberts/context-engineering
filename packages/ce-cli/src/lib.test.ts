@@ -149,15 +149,45 @@ describe("loadItemsFromFile", () => {
 // ─── New command tests ────────────────────────────────────────────────
 
 const richItems = [
-  { id: "sys", content: "You are a helpful assistant.", kind: "system", priority: 10, recency: 3, tokens: 10 },
-  { id: "doc1", content: "Document about context engineering and token budgets.", kind: "retrieval", priority: 7, recency: 8, tokens: 15 },
-  { id: "doc2", content: "Another document about context engineering and packing.", kind: "retrieval", priority: 6, recency: 7, tokens: 15 },
-  { id: "query", content: "How does packing work?", kind: "query", priority: 8, recency: 10, tokens: 8 },
+  {
+    id: "sys",
+    content: "You are a helpful assistant.",
+    kind: "system",
+    priority: 10,
+    recency: 3,
+    tokens: 10,
+  },
+  {
+    id: "doc1",
+    content: "Document about context engineering and token budgets.",
+    kind: "retrieval",
+    priority: 7,
+    recency: 8,
+    tokens: 15,
+  },
+  {
+    id: "doc2",
+    content: "Another document about context engineering and packing.",
+    kind: "retrieval",
+    priority: 6,
+    recency: 7,
+    tokens: 15,
+  },
+  {
+    id: "query",
+    content: "How does packing work?",
+    kind: "query",
+    priority: 8,
+    recency: 10,
+    tokens: 8,
+  },
 ];
 
 describe("runPlace", () => {
   it("places items with attention-optimized strategy", () => {
-    const result = runPlace(richItems, 1000, { strategy: "attention-optimized" });
+    const result = runPlace(richItems, 1000, {
+      strategy: "attention-optimized",
+    });
     expect(result.selected.length).toBe(4);
     expect(result.strategy).toBe("attention-optimized");
     expect(result.totalTokens).toBeGreaterThan(0);
@@ -198,8 +228,18 @@ describe("runQuality", () => {
 
   it("detects redundancy in similar items", () => {
     const similar = [
-      { id: "a", content: "context engineering toolkit pack tokens budget", tokens: 10, priority: 5 },
-      { id: "b", content: "context engineering toolkit pack tokens budget", tokens: 10, priority: 5 },
+      {
+        id: "a",
+        content: "context engineering toolkit pack tokens budget",
+        tokens: 10,
+        priority: 5,
+      },
+      {
+        id: "b",
+        content: "context engineering toolkit pack tokens budget",
+        tokens: 10,
+        priority: 5,
+      },
     ];
     const quality = runQuality(similar, 1000);
     expect(quality.redundancy).toBeGreaterThan(0.5);
@@ -294,9 +334,14 @@ describe("runCost", () => {
   });
 
   it("includes projection when requestCount specified", () => {
-    const { estimate, projection } = runCost(richItems, 1000, "claude-sonnet-4-6", {
-      requestCount: 1000,
-    });
+    const { estimate, projection } = runCost(
+      richItems,
+      1000,
+      "claude-sonnet-4-6",
+      {
+        requestCount: 1000,
+      }
+    );
     expect(projection).toBeDefined();
     expect(projection!.requestCount).toBe(1000);
     expect(projection!.totalWithoutCache).toBeGreaterThan(0);
@@ -309,10 +354,14 @@ describe("runCost", () => {
     });
     expect(projection!.monthlyEstimate).toBeDefined();
     expect(projection!.monthlyEstimate!.requestsPerDay).toBe(500);
-    expect(projection!.monthlyEstimate!.monthlyCostWithoutCache).toBeGreaterThan(0);
+    expect(
+      projection!.monthlyEstimate!.monthlyCostWithoutCache
+    ).toBeGreaterThan(0);
   });
 
   it("throws for unknown model", () => {
-    expect(() => runCost(richItems, 1000, "unknown-model")).toThrow(/Unknown model/);
+    expect(() => runCost(richItems, 1000, "unknown-model")).toThrow(
+      /Unknown model/
+    );
   });
 });

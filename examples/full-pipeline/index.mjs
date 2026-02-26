@@ -52,7 +52,9 @@ console.log(`Retrieved ${memories.length} memories above salience 0.3\n`);
 const items = memories.map(m => toContextItem(m, { recencyHalfLife: 3600 }));
 console.log("Bridged items:");
 items.forEach(i =>
-  console.log(`  ${i.id}: recency=${i.recency}, salience=${i.metadata?.salience}`)
+  console.log(
+    `  ${i.id}: recency=${i.recency}, salience=${i.metadata?.salience}`
+  )
 );
 console.log();
 
@@ -62,7 +64,9 @@ const budget = effectiveBudget(128000, "claude"); // 89600 effective
 console.log(`Effective budget for Claude 128K: ${budget} tokens`);
 
 const packed = pack(items, { maxTokens: 50 }); // small budget for demo
-console.log(`Packed: ${packed.selected.length} selected, ${packed.dropped.length} dropped`);
+console.log(
+  `Packed: ${packed.selected.length} selected, ${packed.dropped.length} dropped`
+);
 console.log();
 
 // -- 4. Position-aware placement --
@@ -94,17 +98,37 @@ const mgr = createContextManager({
   summarizeAfterTurns: 3,
 });
 
-mgr.addTurn({ role: "user", content: "Review this pull request for the auth system" });
-mgr.addTurn({ role: "assistant", content: "I see several issues with the JWT validation..." });
-mgr.addTurn({ role: "user", content: "Can you focus on the token refresh logic?" });
-mgr.addTurn({ role: "tool", content: "File: auth/refresh.ts\nfunction refreshToken(token: string) {\n  // ... 50 lines of code\n}" });
-mgr.addTurn({ role: "assistant", content: "The refresh logic has a race condition at line 23..." });
+mgr.addTurn({
+  role: "user",
+  content: "Review this pull request for the auth system",
+});
+mgr.addTurn({
+  role: "assistant",
+  content: "I see several issues with the JWT validation...",
+});
+mgr.addTurn({
+  role: "user",
+  content: "Can you focus on the token refresh logic?",
+});
+mgr.addTurn({
+  role: "tool",
+  content:
+    "File: auth/refresh.ts\nfunction refreshToken(token: string) {\n  // ... 50 lines of code\n}",
+});
+mgr.addTurn({
+  role: "assistant",
+  content: "The refresh logic has a race condition at line 23...",
+});
 
 const compiled = mgr.compile();
 console.log("Compaction manager:");
 console.log(`  Total turns: ${mgr.turnCount()}`);
 console.log(`  Compiled turns: ${compiled.turns.length}`);
-console.log(`  Token usage: ${compiled.totalTokens}/${mgr.getTokenUsage().budget}`);
+console.log(
+  `  Token usage: ${compiled.totalTokens}/${mgr.getTokenUsage().budget}`
+);
 compiled.turns.forEach((t, i) =>
-  console.log(`  Turn ${i}: [${t.role}] ${t.isSummary ? "(summary) " : ""}${t.content.slice(0, 60)}...`)
+  console.log(
+    `  Turn ${i}: [${t.role}] ${t.isSummary ? "(summary) " : ""}${t.content.slice(0, 60)}...`
+  )
 );

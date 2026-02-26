@@ -84,7 +84,7 @@ export function packWithAllocation(
   items: ContextItem[],
   budget: Budget,
   allocations: KindAllocation[],
-  options: PackOptions = {},
+  options: PackOptions = {}
 ): AllocatedPack {
   const effectiveBudget = budget.maxTokens - (budget.reserveTokens ?? 0);
 
@@ -137,7 +137,10 @@ export function packWithAllocation(
   }
 
   // Phase 2: Pack within each kind's allocation
-  const kindResults = new Map<string, { selected: ContextItem[]; dropped: ContextItem[]; used: number }>();
+  const kindResults = new Map<
+    string,
+    { selected: ContextItem[]; dropped: ContextItem[]; used: number }
+  >();
   let totalSurplus = 0;
 
   for (const alloc of allocations) {
@@ -145,7 +148,11 @@ export function packWithAllocation(
     const kindBudget = kindBudgets.get(alloc.kind) ?? 0;
 
     if (kindItems.length === 0 || kindBudget <= 0) {
-      kindResults.set(alloc.kind, { selected: [], dropped: kindItems, used: 0 });
+      kindResults.set(alloc.kind, {
+        selected: [],
+        dropped: kindItems,
+        used: 0,
+      });
       totalSurplus += kindBudget;
       continue;
     }
@@ -163,8 +170,9 @@ export function packWithAllocation(
 
   // Phase 3: Redistribute surplus to kinds that need more space
   if (totalSurplus > 0) {
-    const sortedByPriority = [...allocations]
-      .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+    const sortedByPriority = [...allocations].sort(
+      (a, b) => (b.priority ?? 0) - (a.priority ?? 0)
+    );
 
     for (const alloc of sortedByPriority) {
       if (totalSurplus <= 0) break;
@@ -172,14 +180,19 @@ export function packWithAllocation(
       const result = kindResults.get(alloc.kind);
       if (!result || result.dropped.length === 0) continue;
 
-      const maxExtra = alloc.maxTokens !== undefined
-        ? alloc.maxTokens - result.used
-        : totalSurplus;
+      const maxExtra =
+        alloc.maxTokens !== undefined
+          ? alloc.maxTokens - result.used
+          : totalSurplus;
 
       if (maxExtra <= 0) continue;
 
       const extraBudget = Math.min(totalSurplus, maxExtra);
-      const extraPack = pack(result.dropped, { maxTokens: extraBudget }, options);
+      const extraPack = pack(
+        result.dropped,
+        { maxTokens: extraBudget },
+        options
+      );
 
       result.selected.push(...extraPack.selected);
       result.dropped = extraPack.dropped;
@@ -189,14 +202,19 @@ export function packWithAllocation(
   }
 
   // Phase 4: Pack uncategorized items into remaining budget
-  const usedSoFar = Array.from(kindResults.values())
-    .reduce((sum, r) => sum + r.used, 0);
+  const usedSoFar = Array.from(kindResults.values()).reduce(
+    (sum, r) => sum + r.used,
+    0
+  );
   const remainingBudget = effectiveBudget - usedSoFar;
 
   let uncategorizedResult: { selected: ContextItem[]; dropped: ContextItem[] };
   if (uncategorized.length > 0 && remainingBudget > 0) {
     const result = pack(uncategorized, { maxTokens: remainingBudget }, options);
-    uncategorizedResult = { selected: result.selected, dropped: result.dropped };
+    uncategorizedResult = {
+      selected: result.selected,
+      dropped: result.dropped,
+    };
   } else {
     uncategorizedResult = { selected: [], dropped: uncategorized };
   }
@@ -222,9 +240,13 @@ export function packWithAllocation(
   allSelected.push(...uncategorizedResult.selected);
   allDropped.push(...uncategorizedResult.dropped);
 
-  if (uncategorizedResult.selected.length > 0 || uncategorizedResult.dropped.length > 0) {
+  if (
+    uncategorizedResult.selected.length > 0 ||
+    uncategorizedResult.dropped.length > 0
+  ) {
     const uncatTokens = uncategorizedResult.selected.reduce(
-      (sum, i) => sum + (i.tokens ?? 0), 0
+      (sum, i) => sum + (i.tokens ?? 0),
+      0
     );
     allocResult["_uncategorized"] = {
       kind: "_uncategorized",
@@ -235,16 +257,15 @@ export function packWithAllocation(
     };
   }
 
-  const totalTokens = allSelected.reduce(
-    (sum, i) => sum + (i.tokens ?? 0), 0
-  );
+  const totalTokens = allSelected.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
 
   // Compute allocation efficiency: how close actual ratios match targets
   let efficiencySum = 0;
   let efficiencyCount = 0;
   for (const alloc of allocations) {
     if (alloc.targetRatio !== undefined && totalTokens > 0) {
-      const actualRatio = (allocResult[alloc.kind]?.budgetUsed ?? 0) / totalTokens;
+      const actualRatio =
+        (allocResult[alloc.kind]?.budgetUsed ?? 0) / totalTokens;
       const diff = Math.abs(actualRatio - alloc.targetRatio);
       efficiencySum += 1 - Math.min(diff / alloc.targetRatio, 1);
       efficiencyCount++;
@@ -261,8 +282,9 @@ export function packWithAllocation(
       remainingTokens: Math.max(0, effectiveBudget - totalTokens),
     },
     allocations: allocResult,
-    allocationEfficiency: efficiencyCount > 0
-      ? Math.round((efficiencySum / efficiencyCount) * 1000) / 1000
-      : 1,
+    allocationEfficiency:
+      efficiencyCount > 0
+        ? Math.round((efficiencySum / efficiencyCount) * 1000) / 1000
+        : 1,
   };
 }

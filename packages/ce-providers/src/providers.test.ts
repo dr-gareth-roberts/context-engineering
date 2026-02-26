@@ -31,9 +31,7 @@ describe("OpenAIProvider", () => {
       },
     };
 
-    const result = await provider.generate([
-      { role: "user", content: "Hi" },
-    ]);
+    const result = await provider.generate([{ role: "user", content: "Hi" }]);
 
     expect(result.text).toBe("Hello from GPT");
     expect(result.model).toBe("gpt-4o-mini");
@@ -57,8 +55,11 @@ describe("OpenAIProvider", () => {
     };
 
     await provider.generate(
-      [{ role: "system", content: "Be helpful" }, { role: "user", content: "Hi" }],
-      { model: "gpt-4.1", maxTokens: 200, temperature: 0.5 },
+      [
+        { role: "system", content: "Be helpful" },
+        { role: "user", content: "Hi" },
+      ],
+      { model: "gpt-4.1", maxTokens: 200, temperature: 0.5 }
     );
 
     expect(createMock).toHaveBeenCalledWith({
@@ -85,9 +86,7 @@ describe("OpenAIProvider", () => {
       },
     };
 
-    const result = await provider.generate([
-      { role: "user", content: "Hi" },
-    ]);
+    const result = await provider.generate([{ role: "user", content: "Hi" }]);
 
     expect(result.text).toBe("");
   });
@@ -105,9 +104,7 @@ describe("OpenAIProvider", () => {
       },
     };
 
-    const result = await provider.generate([
-      { role: "user", content: "Hi" },
-    ]);
+    const result = await provider.generate([{ role: "user", content: "Hi" }]);
 
     expect(result.usage).toBeUndefined();
   });
@@ -123,7 +120,7 @@ describe("OpenAIProvider", () => {
     };
 
     await expect(
-      provider.generate([{ role: "user", content: "Hi" }]),
+      provider.generate([{ role: "user", content: "Hi" }])
     ).rejects.toThrow("Rate limited");
   });
 });
@@ -152,9 +149,7 @@ describe("AnthropicProvider", () => {
       },
     };
 
-    const result = await provider.generate([
-      { role: "user", content: "Hi" },
-    ]);
+    const result = await provider.generate([{ role: "user", content: "Hi" }]);
 
     expect(result.text).toBe("Hello from Claude");
     expect(result.model).toBe("claude-3-5-sonnet-20241022");
@@ -184,7 +179,7 @@ describe("AnthropicProvider", () => {
       expect.objectContaining({
         system: "You are a helpful assistant.",
         messages: [{ role: "user", content: "Hi" }],
-      }),
+      })
     );
   });
 
@@ -207,7 +202,7 @@ describe("AnthropicProvider", () => {
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         system: "First instruction.\n\nSecond instruction.",
-      }),
+      })
     );
   });
 
@@ -226,7 +221,7 @@ describe("AnthropicProvider", () => {
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         system: undefined,
-      }),
+      })
     );
   });
 
@@ -246,9 +241,7 @@ describe("AnthropicProvider", () => {
       },
     };
 
-    const result = await provider.generate([
-      { role: "user", content: "Hi" },
-    ]);
+    const result = await provider.generate([{ role: "user", content: "Hi" }]);
 
     expect(result.text).toBe("Part 1Part 2");
   });
@@ -268,9 +261,7 @@ describe("AnthropicProvider", () => {
       },
     };
 
-    const result = await provider.generate([
-      { role: "user", content: "Hi" },
-    ]);
+    const result = await provider.generate([{ role: "user", content: "Hi" }]);
 
     expect(result.text).toBe("");
   });
@@ -285,10 +276,11 @@ describe("AnthropicProvider", () => {
 
     (provider as any).client = { messages: { create: createMock } };
 
-    await provider.generate(
-      [{ role: "user", content: "Hi" }],
-      { model: "claude-opus-4-6", maxTokens: 4096, temperature: 0.7 },
-    );
+    await provider.generate([{ role: "user", content: "Hi" }], {
+      model: "claude-opus-4-6",
+      maxTokens: 4096,
+      temperature: 0.7,
+    });
 
     expect(createMock).toHaveBeenCalledWith({
       model: "claude-opus-4-6",
@@ -308,7 +300,7 @@ describe("AnthropicProvider", () => {
     };
 
     await expect(
-      provider.generate([{ role: "user", content: "Hi" }]),
+      provider.generate([{ role: "user", content: "Hi" }])
     ).rejects.toThrow("Auth failed");
   });
 });

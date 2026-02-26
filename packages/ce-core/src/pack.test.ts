@@ -89,20 +89,27 @@ describe("pack", () => {
   });
 
   it("throws EstimationError when token estimator throws", () => {
-    const itemsNoTokens: ContextItem[] = [
-      { id: "x", content: "hello world" },
-    ];
+    const itemsNoTokens: ContextItem[] = [{ id: "x", content: "hello world" }];
     const brokenEstimator: TokenEstimator = () => {
       throw new Error("estimator broken");
     };
     expect(() =>
-      pack(itemsNoTokens, { maxTokens: 100 }, { tokenEstimator: brokenEstimator })
+      pack(
+        itemsNoTokens,
+        { maxTokens: 100 },
+        { tokenEstimator: brokenEstimator }
+      )
     ).toThrow(EstimationError);
   });
 
   it("uses custom summarizer that returns compressed content", () => {
     const bigItems: ContextItem[] = [
-      { id: "big", content: "Very long content here", priority: 10, tokens: 200 },
+      {
+        id: "big",
+        content: "Very long content here",
+        priority: 10,
+        tokens: 200,
+      },
     ];
     const summarizer: Summarizer = (_item, _targetTokens) => ({
       id: "big",
@@ -216,9 +223,7 @@ describe("NaN/Infinity validation", () => {
   });
 
   it("rejects NaN in priority", () => {
-    const items: ContextItem[] = [
-      { id: "a", content: "test", priority: NaN },
-    ];
+    const items: ContextItem[] = [{ id: "a", content: "test", priority: NaN }];
     expect(() => pack(items, { maxTokens: 100 })).toThrow(ValidationError);
   });
 

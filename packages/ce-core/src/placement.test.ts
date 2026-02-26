@@ -40,13 +40,13 @@ describe("placeItems", () => {
   it("returns items unchanged with score-order strategy", () => {
     const items = [makeItem("a", 10), makeItem("b", 5), makeItem("c", 1)];
     const result = placeItems(items, { strategy: "score-order" });
-    expect(result.map((i) => i.id)).toEqual(["a", "b", "c"]);
+    expect(result.map(i => i.id)).toEqual(["a", "b", "c"]);
   });
 
   it("returns items unchanged when no options provided (default is score-order)", () => {
     const items = [makeItem("a", 10), makeItem("b", 5), makeItem("c", 1)];
     const result = placeItems(items);
-    expect(result.map((i) => i.id)).toEqual(["a", "b", "c"]);
+    expect(result.map(i => i.id)).toEqual(["a", "b", "c"]);
   });
 
   it("returns items as-is when 2 or fewer items regardless of strategy", () => {
@@ -54,10 +54,10 @@ describe("placeItems", () => {
     const pair = [makeItem("a", 10), makeItem("b", 5)];
 
     const r1 = placeItems(single, { strategy: "attention-optimized" });
-    expect(r1.map((i) => i.id)).toEqual(["a"]);
+    expect(r1.map(i => i.id)).toEqual(["a"]);
 
     const r2 = placeItems(pair, { strategy: "attention-optimized" });
-    expect(r2.map((i) => i.id)).toEqual(["a", "b"]);
+    expect(r2.map(i => i.id)).toEqual(["a", "b"]);
   });
 
   it("returns a shallow copy, not the original array", () => {
@@ -84,7 +84,7 @@ describe("placeItems", () => {
 
     // All items should be present
     expect(result).toHaveLength(5);
-    const ids = new Set(result.map((i) => i.id));
+    const ids = new Set(result.map(i => i.id));
     expect(ids.size).toBe(5);
 
     // The highest-scored item should be at start or end (high-attention positions)
@@ -95,16 +95,12 @@ describe("placeItems", () => {
 
     // The lowest-scored item should be in the middle
     const middleIndex = Math.floor(result.length / 2);
-    const middleItems = result.slice(1, result.length - 1).map((i) => i.id);
+    const middleItems = result.slice(1, result.length - 1).map(i => i.id);
     expect(middleItems).toContain("low");
   });
 
   it("uses claude profile when model is set to claude", () => {
-    const items = [
-      makeItem("a", 100),
-      makeItem("b", 50),
-      makeItem("c", 10),
-    ];
+    const items = [makeItem("a", 100), makeItem("b", 50), makeItem("c", 10)];
 
     const result = placeItems(items, {
       strategy: "attention-optimized",
@@ -125,11 +121,7 @@ describe("placeItems", () => {
       positionWeights: [1.0, 0.1, 0.1],
     };
 
-    const items = [
-      makeItem("a", 100),
-      makeItem("b", 50),
-      makeItem("c", 10),
-    ];
+    const items = [makeItem("a", 100), makeItem("b", 50), makeItem("c", 10)];
 
     const result = placeItems(items, {
       strategy: "attention-optimized",
@@ -144,11 +136,7 @@ describe("placeItems", () => {
   });
 
   it("falls back to default profile for unknown model", () => {
-    const items = [
-      makeItem("a", 100),
-      makeItem("b", 50),
-      makeItem("c", 10),
-    ];
+    const items = [makeItem("a", 100), makeItem("b", 50), makeItem("c", 10)];
 
     const result = placeItems(items, {
       strategy: "attention-optimized",
@@ -169,7 +157,7 @@ describe("placeItems", () => {
     const result = placeItems(items, { strategy: "attention-optimized" });
     expect(result).toHaveLength(3);
     // The one with a score should get a high-attention position
-    const ids = result.map((i) => i.id);
+    const ids = result.map(i => i.id);
     expect(ids).toContain("c");
   });
 });

@@ -3,7 +3,12 @@ import { pipeline, ContextPipeline } from "./pipeline.js";
 import { createSession } from "./session.js";
 import type { ContextItem, MemoryItem } from "./types.js";
 
-function makeItem(id: string, kind: string, priority: number, tokens: number): ContextItem {
+function makeItem(
+  id: string,
+  kind: string,
+  priority: number,
+  tokens: number
+): ContextItem {
   return { id, content: `content-${id}`, kind, priority, tokens };
 }
 
@@ -28,10 +33,7 @@ describe("pipeline", () => {
 
   it("adds multiple items", () => {
     const result = pipeline(500)
-      .add(
-        makeItem("a", "system", 10, 50),
-        makeItem("b", "retrieval", 7, 50),
-      )
+      .add(makeItem("a", "system", 10, 50), makeItem("b", "retrieval", 7, 50))
       .build();
 
     expect(result.selected).toHaveLength(2);
@@ -54,10 +56,7 @@ describe("pipeline", () => {
 
   it("respects budget constraints", () => {
     const result = pipeline(100)
-      .add(
-        makeItem("a", "system", 10, 60),
-        makeItem("b", "retrieval", 5, 60),
-      )
+      .add(makeItem("a", "system", 10, 60), makeItem("b", "retrieval", 5, 60))
       .build();
 
     expect(result.totalTokens).toBeLessThanOrEqual(100);
@@ -69,7 +68,7 @@ describe("pipeline", () => {
       .add(
         makeItem("s", "system", 10, 50),
         makeItem("r1", "retrieval", 7, 100),
-        makeItem("r2", "retrieval", 6, 100),
+        makeItem("r2", "retrieval", 6, 100)
       )
       .allocate([
         { kind: "system", targetRatio: 0.3 },
@@ -84,10 +83,7 @@ describe("pipeline", () => {
 
   it("applies cache topology", () => {
     const result = pipeline(500)
-      .add(
-        makeItem("sys", "system", 10, 100),
-        makeItem("q", "query", 8, 50),
-      )
+      .add(makeItem("sys", "system", 10, 100), makeItem("q", "query", 8, 50))
       .cacheTopology({ provider: "anthropic" })
       .build();
 
@@ -99,10 +95,7 @@ describe("pipeline", () => {
 
   it("cache topology orders static before request", () => {
     const result = pipeline(500)
-      .add(
-        makeItem("q", "query", 8, 50),
-        makeItem("sys", "system", 10, 50),
-      )
+      .add(makeItem("q", "query", 8, 50), makeItem("sys", "system", 10, 50))
       .cacheTopology()
       .build();
 
@@ -115,7 +108,7 @@ describe("pipeline", () => {
       .add(
         makeItem("a", "system", 10, 50),
         makeItem("b", "retrieval", 7, 50),
-        makeItem("c", "query", 5, 50),
+        makeItem("c", "query", 5, 50)
       )
       .place("score-order")
       .build();
@@ -126,10 +119,7 @@ describe("pipeline", () => {
 
   it("applies quality gate", () => {
     const result = pipeline(500)
-      .add(
-        makeItem("a", "system", 10, 100),
-        makeItem("b", "retrieval", 7, 100),
-      )
+      .add(makeItem("a", "system", 10, 100), makeItem("b", "retrieval", 7, 100))
       .qualityGate({ minOverall: 0.0 }) // permissive gate
       .build();
 
@@ -166,7 +156,7 @@ describe("pipeline", () => {
       .add(
         makeItem("sys", "system", 10, 100),
         makeItem("mem", "memory", 5, 100),
-        makeItem("q", "query", 8, 50),
+        makeItem("q", "query", 8, 50)
       )
       .allocate([
         { kind: "system", targetRatio: 0.4 },
@@ -190,7 +180,7 @@ describe("pipeline", () => {
         makeItem("sys", "system", 10, 100),
         makeItem("mem", "memory", 5, 80),
         makeItem("doc", "retrieval", 7, 80),
-        makeItem("q", "query", 8, 50),
+        makeItem("q", "query", 8, 50)
       )
       .allocate([
         { kind: "system", targetRatio: 0.3 },
@@ -225,7 +215,11 @@ describe("pipeline", () => {
 
   it("addMemories bridges memory items", () => {
     const memories: MemoryItem[] = [
-      { id: "m1", content: "I like TypeScript", createdAt: new Date().toISOString() },
+      {
+        id: "m1",
+        content: "I like TypeScript",
+        createdAt: new Date().toISOString(),
+      },
       { id: "m2", content: "I use React", createdAt: new Date().toISOString() },
     ];
 
@@ -239,10 +233,7 @@ describe("pipeline", () => {
 
   it("weights affect scoring", () => {
     const r1 = pipeline(100)
-      .add(
-        makeItem("a", "system", 10, 80),
-        makeItem("b", "retrieval", 3, 80),
-      )
+      .add(makeItem("a", "system", 10, 80), makeItem("b", "retrieval", 3, 80))
       .weights({ priority: 1.0, recency: 0.0 })
       .build();
 

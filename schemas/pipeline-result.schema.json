@@ -4,7 +4,14 @@
   "title": "PipelineResult",
   "description": "Result of a composable context pipeline build",
   "type": "object",
-  "required": ["selected", "dropped", "totalTokens", "budget", "inputCount", "stages"],
+  "required": [
+    "selected",
+    "dropped",
+    "totalTokens",
+    "budget",
+    "inputCount",
+    "stages"
+  ],
   "properties": {
     "selected": {
       "type": "array",

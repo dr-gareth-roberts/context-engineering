@@ -1,50 +1,75 @@
 import { describe, expect, it } from "vitest";
-import {
-  classifyVolatility,
-  packWithCacheTopology,
-} from "./cache-topology.js";
+import { classifyVolatility, packWithCacheTopology } from "./cache-topology.js";
 import type { ContextItem } from "./types.js";
 
 function makeItem(
   id: string,
   kind: string,
   priority: number,
-  tokens: number,
+  tokens: number
 ): ContextItem {
   return { id, content: `content-${id}`, kind, priority, tokens };
 }
 
 describe("classifyVolatility", () => {
   it("classifies system/tool/schema as static", () => {
-    expect(classifyVolatility({ id: "a", content: "", kind: "system" })).toBe("static");
-    expect(classifyVolatility({ id: "a", content: "", kind: "tool" })).toBe("static");
-    expect(classifyVolatility({ id: "a", content: "", kind: "schema" })).toBe("static");
-    expect(classifyVolatility({ id: "a", content: "", kind: "example" })).toBe("static");
-    expect(classifyVolatility({ id: "a", content: "", kind: "instruction" })).toBe("static");
+    expect(classifyVolatility({ id: "a", content: "", kind: "system" })).toBe(
+      "static"
+    );
+    expect(classifyVolatility({ id: "a", content: "", kind: "tool" })).toBe(
+      "static"
+    );
+    expect(classifyVolatility({ id: "a", content: "", kind: "schema" })).toBe(
+      "static"
+    );
+    expect(classifyVolatility({ id: "a", content: "", kind: "example" })).toBe(
+      "static"
+    );
+    expect(
+      classifyVolatility({ id: "a", content: "", kind: "instruction" })
+    ).toBe("static");
   });
 
   it("classifies memory/conversation/history as session", () => {
-    expect(classifyVolatility({ id: "a", content: "", kind: "memory" })).toBe("session");
-    expect(classifyVolatility({ id: "a", content: "", kind: "conversation" })).toBe("session");
-    expect(classifyVolatility({ id: "a", content: "", kind: "history" })).toBe("session");
+    expect(classifyVolatility({ id: "a", content: "", kind: "memory" })).toBe(
+      "session"
+    );
+    expect(
+      classifyVolatility({ id: "a", content: "", kind: "conversation" })
+    ).toBe("session");
+    expect(classifyVolatility({ id: "a", content: "", kind: "history" })).toBe(
+      "session"
+    );
   });
 
   it("classifies query/retrieval/tool-result as request", () => {
-    expect(classifyVolatility({ id: "a", content: "", kind: "query" })).toBe("request");
-    expect(classifyVolatility({ id: "a", content: "", kind: "retrieval" })).toBe("request");
-    expect(classifyVolatility({ id: "a", content: "", kind: "tool-result" })).toBe("request");
+    expect(classifyVolatility({ id: "a", content: "", kind: "query" })).toBe(
+      "request"
+    );
+    expect(
+      classifyVolatility({ id: "a", content: "", kind: "retrieval" })
+    ).toBe("request");
+    expect(
+      classifyVolatility({ id: "a", content: "", kind: "tool-result" })
+    ).toBe("request");
   });
 
   it("defaults to request for unknown kinds", () => {
-    expect(classifyVolatility({ id: "a", content: "", kind: "unknown" })).toBe("request");
+    expect(classifyVolatility({ id: "a", content: "", kind: "unknown" })).toBe(
+      "request"
+    );
     expect(classifyVolatility({ id: "a", content: "" })).toBe("request");
   });
 
   it("respects explicit volatility in metadata", () => {
-    expect(classifyVolatility({
-      id: "a", content: "", kind: "query",
-      metadata: { volatility: "static" },
-    })).toBe("static");
+    expect(
+      classifyVolatility({
+        id: "a",
+        content: "",
+        kind: "query",
+        metadata: { volatility: "static" },
+      })
+    ).toBe("static");
   });
 });
 
@@ -94,11 +119,11 @@ describe("packWithCacheTopology", () => {
 
     const r1 = packWithCacheTopology(
       [...staticItems, makeItem("q1", "query", 5, 50)],
-      { maxTokens: 500 },
+      { maxTokens: 500 }
     );
     const r2 = packWithCacheTopology(
       [...staticItems, makeItem("q2", "query", 5, 50)],
-      { maxTokens: 500 },
+      { maxTokens: 500 }
     );
 
     expect(r1.cacheKey).toBe(r2.cacheKey);
@@ -107,11 +132,11 @@ describe("packWithCacheTopology", () => {
   it("changes cacheKey when static items change", () => {
     const r1 = packWithCacheTopology(
       [makeItem("sys1", "system", 10, 50), makeItem("q", "query", 5, 50)],
-      { maxTokens: 500 },
+      { maxTokens: 500 }
     );
     const r2 = packWithCacheTopology(
       [makeItem("sys2", "system", 10, 50), makeItem("q", "query", 5, 50)],
-      { maxTokens: 500 },
+      { maxTokens: 500 }
     );
 
     expect(r1.cacheKey).not.toBe(r2.cacheKey);
@@ -147,8 +172,10 @@ describe("packWithCacheTopology", () => {
       makeItem("q", "query", 8, 50),
     ];
     const result = packWithCacheTopology(
-      items, { maxTokens: 500 }, {},
-      { markBreakpoints: true },
+      items,
+      { maxTokens: 500 },
+      {},
+      { markBreakpoints: true }
     );
     const staticEnd = result.selected.find(
       i => i.metadata?._cacheBreakpoint === "static-end"

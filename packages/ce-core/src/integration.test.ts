@@ -31,11 +31,12 @@ function makeItem(
   kind: string,
   priority: number,
   tokens: number,
-  content?: string,
+  content?: string
 ): ContextItem {
   return {
     id,
-    content: content ?? `Content for ${id}: ${kind} context with priority ${priority}`,
+    content:
+      content ?? `Content for ${id}: ${kind} context with priority ${priority}`,
     kind,
     priority,
     tokens,
@@ -45,14 +46,62 @@ function makeItem(
 
 describe("integration: pack → place → quality → cost", () => {
   const items: ContextItem[] = [
-    makeItem("system-prompt", "system", 10, 200, "You are a helpful assistant."),
-    makeItem("tool-schema", "system", 9, 150, "Available tools: search, calculate, summarize."),
-    makeItem("user-profile", "memory", 7, 80, "User prefers concise responses."),
-    makeItem("doc-1", "retrieval", 6, 300, "API documentation for the search endpoint."),
-    makeItem("doc-2", "retrieval", 5, 250, "Tutorial on building context-aware agents."),
-    makeItem("doc-3", "retrieval", 3, 200, "Reference guide for token estimation."),
-    makeItem("conversation-1", "conversation", 8, 100, "User asked about context engineering."),
-    makeItem("conversation-2", "conversation", 4, 120, "Previous discussion about budgets."),
+    makeItem(
+      "system-prompt",
+      "system",
+      10,
+      200,
+      "You are a helpful assistant."
+    ),
+    makeItem(
+      "tool-schema",
+      "system",
+      9,
+      150,
+      "Available tools: search, calculate, summarize."
+    ),
+    makeItem(
+      "user-profile",
+      "memory",
+      7,
+      80,
+      "User prefers concise responses."
+    ),
+    makeItem(
+      "doc-1",
+      "retrieval",
+      6,
+      300,
+      "API documentation for the search endpoint."
+    ),
+    makeItem(
+      "doc-2",
+      "retrieval",
+      5,
+      250,
+      "Tutorial on building context-aware agents."
+    ),
+    makeItem(
+      "doc-3",
+      "retrieval",
+      3,
+      200,
+      "Reference guide for token estimation."
+    ),
+    makeItem(
+      "conversation-1",
+      "conversation",
+      8,
+      100,
+      "User asked about context engineering."
+    ),
+    makeItem(
+      "conversation-2",
+      "conversation",
+      4,
+      120,
+      "Previous discussion about budgets."
+    ),
     makeItem("query", "query", 9, 50, "How do I optimize prefix cache usage?"),
   ];
 
@@ -136,7 +185,7 @@ describe("integration: composable pipeline with sessions", () => {
       .add(
         makeItem("sys", "system", 10, 100, "You are helpful."),
         makeItem("doc", "retrieval", 7, 200, "API docs."),
-        makeItem("q1", "query", 9, 50, "What is context engineering?"),
+        makeItem("q1", "query", 9, 50, "What is context engineering?")
       )
       .allocate([
         { kind: "system", targetRatio: 0.2 },
@@ -162,7 +211,7 @@ describe("integration: composable pipeline with sessions", () => {
       .add(
         makeItem("sys", "system", 10, 100, "You are helpful."),
         makeItem("doc", "retrieval", 7, 200, "API docs."),
-        makeItem("q2", "query", 9, 50, "How do I use the pipeline?"),
+        makeItem("q2", "query", 9, 50, "How do I use the pipeline?")
       )
       .cacheTopology()
       .session(session)
@@ -197,7 +246,7 @@ describe("integration: allocation + cost projection", () => {
       { kind: "memory", targetRatio: 0.15 },
       { kind: "retrieval", targetRatio: 0.35 },
       { kind: "conversation", targetRatio: 0.15 },
-      { kind: "query", targetRatio: 0.10 },
+      { kind: "query", targetRatio: 0.1 },
     ]);
 
     expect(allocated.selected.length).toBeGreaterThan(0);
@@ -206,10 +255,9 @@ describe("integration: allocation + cost projection", () => {
     expect(allocated.allocationEfficiency).toBeGreaterThan(0);
 
     // Apply cache topology on allocated items
-    const cachePack = packWithCacheTopology(
-      allocated.selected,
-      { maxTokens: allocated.totalTokens + 100 },
-    );
+    const cachePack = packWithCacheTopology(allocated.selected, {
+      maxTokens: allocated.totalTokens + 100,
+    });
 
     expect(cachePack.cacheableTokens).toBeGreaterThan(0);
 
@@ -223,7 +271,9 @@ describe("integration: allocation + cost projection", () => {
     expect(projection.totalSavings).toBeGreaterThanOrEqual(0);
     expect(projection.monthlyEstimate).toBeDefined();
     expect(projection.monthlyEstimate!.requestsPerDay).toBe(500);
-    expect(projection.monthlyEstimate!.monthlySavings).toBeGreaterThanOrEqual(0);
+    expect(projection.monthlyEstimate!.monthlySavings).toBeGreaterThanOrEqual(
+      0
+    );
   });
 });
 
@@ -283,7 +333,8 @@ describe("integration: effective budget → trace → diff", () => {
     const pack2 = pack(items, { maxTokens: 500 });
     const d = diff(pack1, pack2);
 
-    expect(d.added.length + d.removed.length + d.changed.length + d.kept.length)
-      .toBeGreaterThan(0);
+    expect(
+      d.added.length + d.removed.length + d.changed.length + d.kept.length
+    ).toBeGreaterThan(0);
   });
 });

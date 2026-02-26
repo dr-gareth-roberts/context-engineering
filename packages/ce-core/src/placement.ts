@@ -23,25 +23,19 @@ export const ATTENTION_PROFILES: Record<string, AttentionProfile> = {
   claude: {
     name: "claude",
     effectiveCapacity: 0.7,
-    positionWeights: [
-      1.0, 0.85, 0.65, 0.55, 0.5, 0.5, 0.55, 0.65, 0.8, 0.95,
-    ],
+    positionWeights: [1.0, 0.85, 0.65, 0.55, 0.5, 0.5, 0.55, 0.65, 0.8, 0.95],
   },
   // GPT-4 family: strong recency bias
   gpt4: {
     name: "gpt4",
     effectiveCapacity: 0.65,
-    positionWeights: [
-      0.9, 0.75, 0.6, 0.5, 0.45, 0.45, 0.5, 0.6, 0.8, 1.0,
-    ],
+    positionWeights: [0.9, 0.75, 0.6, 0.5, 0.45, 0.45, 0.5, 0.6, 0.8, 1.0],
   },
   // Default: balanced U-shape
   default: {
     name: "default",
     effectiveCapacity: 0.7,
-    positionWeights: [
-      0.95, 0.8, 0.65, 0.55, 0.5, 0.5, 0.55, 0.65, 0.8, 0.95,
-    ],
+    positionWeights: [0.95, 0.8, 0.65, 0.55, 0.5, 0.5, 0.55, 0.65, 0.8, 0.95],
   },
 };
 
@@ -78,7 +72,7 @@ export interface PlacementOptions {
  */
 export function placeItems(
   items: ContextItem[],
-  options?: PlacementOptions,
+  options?: PlacementOptions
 ): ContextItem[] {
   const strategy = options?.strategy ?? "score-order";
   if (strategy === "score-order" || items.length <= 2) return [...items];
@@ -105,7 +99,7 @@ export function placeItems(
   const positionAttention = Array.from({ length: n }, (_, i) => {
     const bucketIndex = Math.min(
       Math.floor((i / n) * bucketCount),
-      bucketCount - 1,
+      bucketCount - 1
     );
     return { position: i, attention: profile.positionWeights[bucketIndex] };
   });
@@ -137,7 +131,7 @@ export function placeItems(
  */
 export function effectiveBudget(
   advertisedTokens: number,
-  model?: string,
+  model?: string
 ): number {
   const profile =
     ATTENTION_PROFILES[model ?? "default"] ?? ATTENTION_PROFILES.default;
