@@ -3,6 +3,7 @@ Full Context Engineering Pipeline Example (Python)
 
 Demonstrates: memory -> bridge -> pack -> place -> analyze -> compact
 """
+
 from datetime import datetime, timezone, timedelta
 
 from context_engineering import (
@@ -10,7 +11,6 @@ from context_engineering import (
     Budget,
     MemoryItem,
     InMemoryStore,
-    to_context_item,
     memory_to_context,
     place_items,
     effective_budget,
@@ -18,7 +18,6 @@ from context_engineering import (
     create_context_manager,
     create_cached_estimator,
     estimate_tokens,
-    ContextItem,
 )
 
 
@@ -27,32 +26,34 @@ from context_engineering import (
 store = InMemoryStore()
 now = datetime.now(timezone.utc)
 
-store.put([
-    MemoryItem(
-        id="arch",
-        content="The system uses event sourcing with CQRS pattern",
-        createdAt=now.isoformat(),
-        salience=0.95,
-    ),
-    MemoryItem(
-        id="perf",
-        content="P99 latency must stay under 200ms for all API endpoints",
-        createdAt=now.isoformat(),
-        salience=0.80,
-    ),
-    MemoryItem(
-        id="style",
-        content="Team prefers functional style with immutability by default",
-        createdAt=(now - timedelta(hours=2)).isoformat(),
-        salience=0.50,
-    ),
-    MemoryItem(
-        id="old",
-        content="Discussed migrating to Rust but decided against it",
-        createdAt=(now - timedelta(days=1)).isoformat(),
-        salience=0.20,
-    ),
-])
+store.put(
+    [
+        MemoryItem(
+            id="arch",
+            content="The system uses event sourcing with CQRS pattern",
+            createdAt=now.isoformat(),
+            salience=0.95,
+        ),
+        MemoryItem(
+            id="perf",
+            content="P99 latency must stay under 200ms for all API endpoints",
+            createdAt=now.isoformat(),
+            salience=0.80,
+        ),
+        MemoryItem(
+            id="style",
+            content="Team prefers functional style with immutability by default",
+            createdAt=(now - timedelta(hours=2)).isoformat(),
+            salience=0.50,
+        ),
+        MemoryItem(
+            id="old",
+            content="Discussed migrating to Rust but decided against it",
+            createdAt=(now - timedelta(days=1)).isoformat(),
+            salience=0.20,
+        ),
+    ]
+)
 
 memories = store.query()
 print(f"Retrieved {len(memories)} memories\n")
@@ -63,7 +64,9 @@ print(f"Retrieved {len(memories)} memories\n")
 items = memory_to_context(memories)
 print("Bridged items:")
 for item in items:
-    print(f"  {item.id}: recency={item.recency}, salience={item.metadata.get('salience')}")
+    print(
+        f"  {item.id}: recency={item.recency}, salience={item.metadata.get('salience')}"
+    )
 print()
 
 
@@ -118,7 +121,10 @@ mgr = create_context_manager(
 mgr.add_turn("user", "Review this pull request for the auth system")
 mgr.add_turn("assistant", "I see several issues with the JWT validation...")
 mgr.add_turn("user", "Can you focus on the token refresh logic?")
-mgr.add_turn("tool", "File: auth/refresh.ts\nfunction refreshToken(token: string) {\n  // ... 50 lines\n}")
+mgr.add_turn(
+    "tool",
+    "File: auth/refresh.ts\nfunction refreshToken(token: string) {\n  // ... 50 lines\n}",
+)
 mgr.add_turn("assistant", "The refresh logic has a race condition at line 23...")
 
 compiled = mgr.compile()
