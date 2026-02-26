@@ -1,9 +1,8 @@
 """Tests for the bridge module: MemoryItem -> ContextItem conversion."""
+
 from datetime import datetime, timezone
 
-import pytest
-
-from context_engineering.bridge import BridgeOptions, to_context_item, memory_to_context
+from context_engineering.bridge import BridgeOptions, memory_to_context, to_context_item
 from context_engineering.memory import MemoryItem
 
 
@@ -72,7 +71,6 @@ class TestToContextItem:
 
     def test_half_life_affects_decay_rate(self):
         now_ms = 1000000000000
-        created = "2001-09-08T25:46:40+00:00"  # won't parse, falls back
         mem = _make_memory(created_at="2001-09-08T20:46:40+00:00")  # ~5h ago
 
         fast_decay = BridgeOptions(now=now_ms, recency_half_life=3600)  # 1h half-life

@@ -1,5 +1,4 @@
 """Tests for the cache module: LRU-cached token estimator."""
-import pytest
 
 from context_engineering.cache import create_cached_estimator
 

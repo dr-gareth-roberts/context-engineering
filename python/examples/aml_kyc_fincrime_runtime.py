@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from context_framework import (  # noqa: E402
+    USE_CASE_INDEX,
     AMLExecutionPolicy,
     AMLKYCFincrimeCommander,
     InMemoryCaseActionAdapter,
@@ -18,7 +19,6 @@ from context_framework import (  # noqa: E402
     InMemoryTransactionGraphAdapter,
     JSONLAuditLogger,
     TriProviderPipeline,
-    USE_CASE_INDEX,
     build_case_action_adapter_from_env,
     build_sanctions_screen_adapter_from_env,
     build_transaction_graph_adapter_from_env,

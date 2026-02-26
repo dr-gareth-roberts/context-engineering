@@ -5,23 +5,22 @@ import json
 import os
 import sys
 from typing import Any, List
+
 from jsonschema import Draft202012Validator, RefResolver
 
-from .core import Budget, ContextItem, ContextPack, pack, trace_pack, diff, estimate_tokens
-from .placement import place_items, effective_budget, ATTENTION_PROFILES
-from .quality import analyze_context
 from .beads import (
-    create_handoff,
-    pickup_handoff,
-    write_beads_jsonl,
-    read_beads_jsonl,
-    get_ready_issues,
     HandoffOptions,
+    create_handoff,
+    get_ready_issues,
+    pickup_handoff,
+    read_beads_jsonl,
 )
-from .cache_topology import pack_with_cache_topology, CacheConfig
+from .cache_topology import CacheConfig, pack_with_cache_topology
+from .core import Budget, ContextItem, ContextPack, diff, estimate_tokens, pack, trace_pack
 from .cost import estimate_cost, project_costs
 from .errors import ContextEngineeringError
-
+from .placement import ATTENTION_PROFILES, effective_budget, place_items
+from .quality import analyze_context
 
 # Environment variable defaults for CI/CD ergonomics
 _ENV_BUDGET = int(os.environ.get("CE_BUDGET", "4096"))
@@ -40,19 +39,32 @@ class _fmt:
         return f"\033[{code}m{text}\033[0m"
 
     @staticmethod
-    def bold(text): return _fmt._wrap("1", text)
+    def bold(text):
+        return _fmt._wrap("1", text)
+
     @staticmethod
-    def red(text): return _fmt._wrap("31", text)
+    def red(text):
+        return _fmt._wrap("31", text)
+
     @staticmethod
-    def green(text): return _fmt._wrap("32", text)
+    def green(text):
+        return _fmt._wrap("32", text)
+
     @staticmethod
-    def cyan(text): return _fmt._wrap("36", text)
+    def cyan(text):
+        return _fmt._wrap("36", text)
+
     @staticmethod
-    def dim(text): return _fmt._wrap("2", text)
+    def dim(text):
+        return _fmt._wrap("2", text)
+
     @staticmethod
-    def success(text): return _fmt._wrap("32", f"OK {text}")
+    def success(text):
+        return _fmt._wrap("32", f"OK {text}")
+
     @staticmethod
-    def error(text): return _fmt._wrap("31", f"ERR {text}")
+    def error(text):
+        return _fmt._wrap("31", f"ERR {text}")
 
 
 def _load_items(path: str) -> List[ContextItem]:
@@ -63,7 +75,11 @@ def _load_items(path: str) -> List[ContextItem]:
         return []
 
     if path.endswith(".jsonl"):
-        return [ContextItem.model_validate(json.loads(line)) for line in content.splitlines() if line.strip()]
+        return [
+            ContextItem.model_validate(json.loads(line))
+            for line in content.splitlines()
+            if line.strip()
+        ]
 
     data = json.loads(content)
     if isinstance(data, list):
@@ -113,6 +129,7 @@ def _load_schema(name: str) -> Any:
     with open(schema_path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
+
 def _load_all_schemas() -> dict[str, Any]:
     schema_dir = _find_schema_dir(os.getcwd())
     schemas = {}
@@ -159,7 +176,13 @@ def _model_dump_json(obj: Any) -> str:
     """Dump a Pydantic model to JSON, excluding None values."""
     if hasattr(obj, "model_dump_json"):
         return obj.model_dump_json(by_alias=True, indent=2, exclude_none=True)
-    return json.dumps(obj, indent=2, default=lambda o: o.model_dump(by_alias=True, exclude_none=True) if hasattr(o, "model_dump") else o)
+    return json.dumps(
+        obj,
+        indent=2,
+        default=lambda o: (
+            o.model_dump(by_alias=True, exclude_none=True) if hasattr(o, "model_dump") else o
+        ),
+    )
 
 
 def cmd_pack(args: argparse.Namespace) -> None:
@@ -169,7 +192,9 @@ def cmd_pack(args: argparse.Namespace) -> None:
         if isinstance(items_data, list):
             items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data]
         else:
-            items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data.get("items", [])]
+            items = [
+                ContextItem(**i) if isinstance(i, dict) else i for i in items_data.get("items", [])
+            ]
     else:
         items = _load_items(args.input)
     budget = Budget(maxTokens=args.budget)
@@ -177,8 +202,10 @@ def cmd_pack(args: argparse.Namespace) -> None:
     if not _is_tty():
         print(_model_dump_json(result))
     else:
-        print(f"{_fmt.bold(f'Selected {len(result.selected)} items')}"
-              f" {_fmt.dim(f'(dropped {len(result.dropped)})')}")
+        print(
+            f"{_fmt.bold(f'Selected {len(result.selected)} items')}"
+            f" {_fmt.dim(f'(dropped {len(result.dropped)})')}"
+        )
         print(f"Total tokens: {_fmt.cyan(str(result.total_tokens))}")
 
 
@@ -189,7 +216,9 @@ def cmd_trace(args: argparse.Namespace) -> None:
         if isinstance(items_data, list):
             items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data]
         else:
-            items = [ContextItem(**i) if isinstance(i, dict) else i for i in items_data.get("items", [])]
+            items = [
+                ContextItem(**i) if isinstance(i, dict) else i for i in items_data.get("items", [])
+            ]
     else:
         items = _load_items(args.input)
     budget = Budget(maxTokens=args.budget)
@@ -210,7 +239,17 @@ def cmd_diff(args: argparse.Namespace) -> None:
         after = json.load(handle)
     result = diff(before, after)
     if not _is_tty():
-        print(json.dumps(result, default=lambda o: o.model_dump(by_alias=True, exclude_none=True) if hasattr(o, "model_dump") else o, indent=2))
+        print(
+            json.dumps(
+                result,
+                default=lambda o: (
+                    o.model_dump(by_alias=True, exclude_none=True)
+                    if hasattr(o, "model_dump")
+                    else o
+                ),
+                indent=2,
+            )
+        )
     else:
         print(_fmt.green(f"  + {len(result['added'])} added"))
         print(_fmt.red(f"  - {len(result['removed'])} removed"))
@@ -265,10 +304,12 @@ def cmd_place(args: argparse.Namespace) -> None:
         model=args.model,
     )
     if not _is_tty():
-        print(json.dumps(
-            [i.model_dump(by_alias=True, exclude_none=True) for i in placed],
-            indent=2,
-        ))
+        print(
+            json.dumps(
+                [i.model_dump(by_alias=True, exclude_none=True) for i in placed],
+                indent=2,
+            )
+        )
     else:
         print(_fmt.bold(f"Placed {len(placed)} items ({args.strategy})"))
         for i, item in enumerate(placed):
@@ -279,15 +320,20 @@ def cmd_quality(args: argparse.Namespace) -> None:
     items = _load_items(args.input)
     quality = analyze_context(items)
     if not _is_tty():
-        print(json.dumps({
-            "itemCount": quality.item_count,
-            "totalTokens": quality.total_tokens,
-            "density": quality.density,
-            "diversity": quality.diversity,
-            "freshness": quality.freshness,
-            "redundancy": quality.redundancy,
-            "overall": quality.overall,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "itemCount": quality.item_count,
+                    "totalTokens": quality.total_tokens,
+                    "density": quality.density,
+                    "diversity": quality.diversity,
+                    "freshness": quality.freshness,
+                    "redundancy": quality.redundancy,
+                    "overall": quality.overall,
+                },
+                indent=2,
+            )
+        )
     else:
         print(_fmt.bold("Context Quality"))
         print(f"  Items:      {quality.item_count}")
@@ -317,7 +363,9 @@ def cmd_handoff(args: argparse.Namespace) -> None:
 
     # Pack items first, optionally with cache topology
     if args.cache_topology:
-        result = pack_with_cache_topology(items, budget, cache_config=CacheConfig(provider=args.provider))
+        result = pack_with_cache_topology(
+            items, budget, cache_config=CacheConfig(provider=args.provider)
+        )
         pack_result = ContextPack(
             budget=budget,
             selected=result.selected,
@@ -368,12 +416,19 @@ def cmd_pickup(args: argparse.Namespace) -> None:
         return
 
     if not _is_tty():
-        print(json.dumps({
-            "items": [i.model_dump(by_alias=True, exclude_none=True) for i in pickup.items],
-            "deferred": [i.model_dump(by_alias=True, exclude_none=True) for i in pickup.deferred],
-            "workItems": [i.to_dict() for i in pickup.work_items],
-            "stats": pickup.stats,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "items": [i.model_dump(by_alias=True, exclude_none=True) for i in pickup.items],
+                    "deferred": [
+                        i.model_dump(by_alias=True, exclude_none=True) for i in pickup.deferred
+                    ],
+                    "workItems": [i.to_dict() for i in pickup.work_items],
+                    "stats": pickup.stats,
+                },
+                indent=2,
+            )
+        )
     else:
         print(_fmt.bold("Pickup Summary"))
         print(f"  Context items:  {_fmt.green(str(len(pickup.items)))}")
@@ -398,29 +453,40 @@ def cmd_cost(args: argparse.Namespace) -> None:
     cost = estimate_cost(result, args.model, output_tokens=args.output_tokens)
 
     if not _is_tty():
-        print(json.dumps({
-            "model": cost.model,
-            "inputTokens": cost.input_tokens,
-            "cachedTokens": cost.cached_tokens,
-            "uncachedTokens": cost.uncached_tokens,
-            "costWithoutCache": cost.cost_without_cache,
-            "costWithCache": cost.cost_with_cache,
-            "savings": cost.savings,
-            "savingsPercent": cost.savings_percent,
-            "cacheEfficiency": cost.cache_efficiency,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "model": cost.model,
+                    "inputTokens": cost.input_tokens,
+                    "cachedTokens": cost.cached_tokens,
+                    "uncachedTokens": cost.uncached_tokens,
+                    "costWithoutCache": cost.cost_without_cache,
+                    "costWithCache": cost.cost_with_cache,
+                    "savings": cost.savings,
+                    "savingsPercent": cost.savings_percent,
+                    "cacheEfficiency": cost.cache_efficiency,
+                },
+                indent=2,
+            )
+        )
     else:
         print(_fmt.bold(f"Cost Estimate ({cost.model})"))
         print(f"  Input tokens:    {cost.input_tokens}")
-        print(f"  Cached:          {_fmt.green(str(cost.cached_tokens))} ({cost.cache_efficiency:.0%} efficient)")
+        print(
+            f"  Cached:          {_fmt.green(str(cost.cached_tokens))} ({cost.cache_efficiency:.0%} efficient)"
+        )
         print(f"  Uncached:        {cost.uncached_tokens}")
         print(f"  Without cache:   ${cost.cost_without_cache:.6f}")
         print(f"  With cache:      ${cost.cost_with_cache:.6f}")
-        print(f"  {_fmt.bold(f'Savings:          ${cost.savings:.6f} ({cost.savings_percent:.1f}%)')}")
+        print(
+            f"  {_fmt.bold(f'Savings:          ${cost.savings:.6f} ({cost.savings_percent:.1f}%)')}"
+        )
 
         if args.requests_per_day:
             proj = project_costs(
-                result, args.model, args.requests_per_day * 30,
+                result,
+                args.model,
+                args.requests_per_day * 30,
                 output_tokens=args.output_tokens,
                 requests_per_day=args.requests_per_day,
             )
@@ -465,8 +531,12 @@ def main() -> None:
 
     place_parser = subparsers.add_parser("place", help="Attention-optimized item placement")
     place_parser.add_argument("-i", "--input", required=True)
-    place_parser.add_argument("-s", "--strategy", default="attention-optimized",
-                              choices=["score-order", "attention-optimized"])
+    place_parser.add_argument(
+        "-s",
+        "--strategy",
+        default="attention-optimized",
+        choices=["score-order", "attention-optimized"],
+    )
     place_parser.add_argument("-m", "--model", default="default")
     place_parser.set_defaults(func=cmd_place)
 
@@ -479,21 +549,33 @@ def main() -> None:
     eb_parser.add_argument("-m", "--model", default=None)
     eb_parser.set_defaults(func=cmd_effective_budget)
 
-    handoff_parser = subparsers.add_parser("handoff", help="Create BEADS JSONL handoff for agent context")
+    handoff_parser = subparsers.add_parser(
+        "handoff", help="Create BEADS JSONL handoff for agent context"
+    )
     handoff_parser.add_argument("-i", "--input", required=True)
-    handoff_parser.add_argument("-o", "--output", default=None, help="Output file (default: stdout)")
+    handoff_parser.add_argument(
+        "-o", "--output", default=None, help="Output file (default: stdout)"
+    )
     handoff_parser.add_argument("-b", "--budget", type=int, default=_ENV_BUDGET)
     handoff_parser.add_argument("-p", "--provider", default=_ENV_PROVIDER)
     handoff_parser.add_argument("--agent", default=None, help="Agent identity")
     handoff_parser.add_argument("--session-id", default=None, help="Session ID")
     handoff_parser.add_argument("--notes", default=None, help="Handoff notes")
-    handoff_parser.add_argument("--include-dropped", action="store_true", help="Include dropped items as deferred")
-    handoff_parser.add_argument("--cache-topology", action="store_true", help="Use cache-topology-aware packing")
+    handoff_parser.add_argument(
+        "--include-dropped", action="store_true", help="Include dropped items as deferred"
+    )
+    handoff_parser.add_argument(
+        "--cache-topology", action="store_true", help="Use cache-topology-aware packing"
+    )
     handoff_parser.set_defaults(func=cmd_handoff)
 
     pickup_parser = subparsers.add_parser("pickup", help="Pick up context from BEADS JSONL handoff")
-    pickup_parser.add_argument("-i", "--input", required=True, help="BEADS JSONL file (or - for stdin)")
-    pickup_parser.add_argument("--ready", action="store_true", help="Show only ready (unblocked) issues")
+    pickup_parser.add_argument(
+        "-i", "--input", required=True, help="BEADS JSONL file (or - for stdin)"
+    )
+    pickup_parser.add_argument(
+        "--ready", action="store_true", help="Show only ready (unblocked) issues"
+    )
     pickup_parser.set_defaults(func=cmd_pickup)
 
     cost_parser = subparsers.add_parser("cost", help="Estimate API cost with cache savings")

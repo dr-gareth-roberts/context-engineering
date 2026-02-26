@@ -14,11 +14,10 @@ Based on: https://ankitbko.github.io/blog/2025/08/prompt-engineering-kv-cache/
 
 from __future__ import annotations
 
-import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
-from .core import Budget, ContextItem, ContextPack, estimate_tokens, pack
+from .core import Budget, ContextItem, estimate_tokens, pack
 
 Volatility = Literal["static", "session", "request"]
 
@@ -31,6 +30,7 @@ _REQUEST_KINDS = {"query", "retrieval", "tool-result", "request"}
 @dataclass
 class CacheConfig:
     """Provider-specific cache configuration."""
+
     provider: Optional[str] = None  # "anthropic", "openai", "auto"
     min_prefix_tokens: Optional[int] = None
     mark_breakpoints: bool = False
@@ -39,6 +39,7 @@ class CacheConfig:
 @dataclass
 class CacheAwarePack:
     """Result of cache-aware packing."""
+
     budget: Budget
     selected: List[ContextItem]
     dropped: List[ContextItem]
@@ -80,7 +81,7 @@ def _hash_string(s: str) -> str:
     h = 0
     for ch in s:
         h = ((h << 5) - h + ord(ch)) & 0xFFFFFFFF
-    return format(h, 'x')
+    return format(h, "x")
 
 
 def pack_with_cache_topology(
@@ -174,9 +175,7 @@ def pack_with_cache_topology(
     # 5. Compose final ordered list: static -> session -> request
     selected = selected_static + session_selected + request_selected
     dropped = (
-        [i for i in static_items if i not in selected_static]
-        + session_dropped
-        + request_dropped
+        [i for i in static_items if i not in selected_static] + session_dropped + request_dropped
     )
 
     # 6. Add breakpoint markers if configured

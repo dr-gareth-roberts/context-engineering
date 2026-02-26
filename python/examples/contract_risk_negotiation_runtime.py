@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from context_framework import (  # noqa: E402
+    USE_CASE_INDEX,
     ContractExecutionPolicy,
     ContractNegotiationCommander,
     InMemoryClauseRiskAdapter,
@@ -18,7 +19,6 @@ from context_framework import (  # noqa: E402
     InMemoryNegotiationPrecedentAdapter,
     JSONLAuditLogger,
     TriProviderPipeline,
-    USE_CASE_INDEX,
     build_clause_risk_adapter_from_env,
     build_contract_action_adapter_from_env,
     build_negotiation_precedent_adapter_from_env,

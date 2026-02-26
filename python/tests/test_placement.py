@@ -1,5 +1,4 @@
 """Tests for the placement module: attention-aware item ordering."""
-import pytest
 
 from context_engineering.core import ContextItem
 from context_engineering.placement import (

@@ -3,21 +3,29 @@
 These tests exercise pack → place → quality → cost → handoff → pickup
 roundtrips, and the composable pipeline API with sessions.
 """
-import pytest
-from context_engineering.core import (
-    Budget, ContextItem, pack, diff, trace_pack, estimate_tokens,
-)
-from context_engineering.placement import place_items, effective_budget
-from context_engineering.quality import analyze_context
-from context_engineering.cache_topology import pack_with_cache_topology, CacheConfig
-from context_engineering.allocation import pack_with_allocation, KindAllocation
-from context_engineering.cost import estimate_cost, project_costs
+
+from context_engineering.allocation import KindAllocation, pack_with_allocation
 from context_engineering.beads import (
-    create_handoff, pickup_handoff, write_beads_jsonl,
-    read_beads_jsonl, get_ready_issues, HandoffOptions,
+    HandoffOptions,
+    create_handoff,
+    get_ready_issues,
+    pickup_handoff,
+    read_beads_jsonl,
+    write_beads_jsonl,
 )
-from context_engineering.session import create_session
+from context_engineering.cache_topology import pack_with_cache_topology
+from context_engineering.core import (
+    Budget,
+    ContextItem,
+    diff,
+    pack,
+    trace_pack,
+)
+from context_engineering.cost import estimate_cost, project_costs
 from context_engineering.pipeline import create_pipeline
+from context_engineering.placement import effective_budget, place_items
+from context_engineering.quality import analyze_context
+from context_engineering.session import create_session
 
 
 def make_item(id: str, kind: str, priority: float, tokens: int, content: str = None) -> ContextItem:
@@ -80,12 +88,15 @@ class TestFullPipelineRoundtrip:
         assert cost.savings_percent >= 0
 
         # Step 5: Create handoff
-        handoff = create_handoff(packed, HandoffOptions(
-            agent="integration-test",
-            session_id="test-session-1",
-            handoff_notes="Full integration test handoff",
-            include_dropped=True,
-        ))
+        handoff = create_handoff(
+            packed,
+            HandoffOptions(
+                agent="integration-test",
+                session_id="test-session-1",
+                handoff_notes="Full integration test handoff",
+                include_dropped=True,
+            ),
+        )
         assert handoff.jsonl
         assert handoff.stats["activeItems"] == len(packed.selected)
         assert handoff.stats["deferredItems"] == len(packed.dropped)
@@ -113,22 +124,26 @@ class TestComposablePipelineWithSessions:
         session = create_session(Budget(max_tokens=600))
 
         # Turn 1
-        r1 = (create_pipeline(600)
+        r1 = (
+            create_pipeline(600)
             .add(
                 make_item("sys", "system", 10, 100, "You are helpful."),
                 make_item("doc", "retrieval", 7, 200, "API docs."),
                 make_item("q1", "query", 9, 50, "What is context engineering?"),
             )
-            .allocate([
-                KindAllocation(kind="system", target_ratio=0.2),
-                KindAllocation(kind="retrieval", target_ratio=0.5),
-                KindAllocation(kind="query", target_ratio=0.3),
-            ])
+            .allocate(
+                [
+                    KindAllocation(kind="system", target_ratio=0.2),
+                    KindAllocation(kind="retrieval", target_ratio=0.5),
+                    KindAllocation(kind="query", target_ratio=0.3),
+                ]
+            )
             .cache_topology()
             .place("attention-optimized")
             .quality_gate()
             .session(session)
-            .build())
+            .build()
+        )
 
         assert len(r1.selected) > 0
         assert "allocate" in r1.stages
@@ -139,7 +154,8 @@ class TestComposablePipelineWithSessions:
         assert r1.delta is None  # first compile
 
         # Turn 2 — same system + doc, different query
-        r2 = (create_pipeline(600)
+        r2 = (
+            create_pipeline(600)
             .add(
                 make_item("sys", "system", 10, 100, "You are helpful."),
                 make_item("doc", "retrieval", 7, 200, "API docs."),
@@ -147,7 +163,8 @@ class TestComposablePipelineWithSessions:
             )
             .cache_topology()
             .session(session)
-            .build())
+            .build()
+        )
 
         assert r2.delta is not None
         assert r2.delta.kept_count > 0
@@ -172,13 +189,17 @@ class TestAllocationCostProjection:
         budget = 1200
 
         # Allocate
-        allocated = pack_with_allocation(items, Budget(max_tokens=budget), [
-            KindAllocation(kind="system", target_ratio=0.25, min_tokens=400),
-            KindAllocation(kind="memory", target_ratio=0.15),
-            KindAllocation(kind="retrieval", target_ratio=0.35),
-            KindAllocation(kind="conversation", target_ratio=0.15),
-            KindAllocation(kind="query", target_ratio=0.10),
-        ])
+        allocated = pack_with_allocation(
+            items,
+            Budget(max_tokens=budget),
+            [
+                KindAllocation(kind="system", target_ratio=0.25, min_tokens=400),
+                KindAllocation(kind="memory", target_ratio=0.15),
+                KindAllocation(kind="retrieval", target_ratio=0.35),
+                KindAllocation(kind="conversation", target_ratio=0.15),
+                KindAllocation(kind="query", target_ratio=0.10),
+            ],
+        )
 
         assert len(allocated.selected) > 0
         # minTokens guarantee may cause slight budget overshoot
@@ -192,8 +213,9 @@ class TestAllocationCostProjection:
         assert cache_pack.cacheable_tokens > 0
 
         # Monthly projection
-        projection = project_costs(cache_pack, "claude-sonnet-4-6", 10000,
-            output_tokens=800, requests_per_day=500)
+        projection = project_costs(
+            cache_pack, "claude-sonnet-4-6", 10000, output_tokens=800, requests_per_day=500
+        )
         assert projection.request_count == 10000
         assert projection.total_savings >= 0
         assert projection.monthly_estimate is not None

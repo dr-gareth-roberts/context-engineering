@@ -11,7 +11,7 @@ delta updates compared to full recomputation baselines.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 from .core import Budget, ContextItem, estimate_tokens, pack
@@ -20,6 +20,7 @@ from .core import Budget, ContextItem, estimate_tokens, pack
 @dataclass
 class ManifestEntry:
     """A manifest entry tracking an item's position and content hash."""
+
     id: str
     content_hash: str
     tokens: int
@@ -29,6 +30,7 @@ class ManifestEntry:
 @dataclass
 class SessionDelta:
     """Delta between two session states."""
+
     added: List[ContextItem]
     removed_ids: List[str]
     changed: List[ContextItem]
@@ -41,6 +43,7 @@ class SessionDelta:
 @dataclass
 class SessionPack:
     """Result from session compile."""
+
     selected: List[ContextItem]
     dropped: List[ContextItem]
     total_tokens: int
@@ -54,7 +57,7 @@ def _quick_hash(s: str) -> str:
     h = 0
     for ch in s:
         h = ((h << 5) - h + ord(ch)) & 0xFFFFFFFF
-    return format(h, 'x')
+    return format(h, "x")
 
 
 class ContextSession:
@@ -113,12 +116,14 @@ class ContextSession:
         current_manifest: List[ManifestEntry] = []
         for i, item in enumerate(packed.selected):
             tokens = item.tokens or estimate_tokens(item.content)
-            current_manifest.append(ManifestEntry(
-                id=item.id,
-                content_hash=_quick_hash(item.content),
-                tokens=tokens,
-                position=i,
-            ))
+            current_manifest.append(
+                ManifestEntry(
+                    id=item.id,
+                    content_hash=_quick_hash(item.content),
+                    tokens=tokens,
+                    position=i,
+                )
+            )
 
         # Compute delta from previous
         delta: Optional[SessionDelta] = None
@@ -173,13 +178,16 @@ class ContextSession:
             )
 
         # Generate cache key from unchanged items
-        unchanged_ids = sorted([
-            e.id for e in current_manifest
-            if any(
-                p.id == e.id and p.content_hash == e.content_hash
-                for p in self._previous_manifest
-            )
-        ])
+        unchanged_ids = sorted(
+            [
+                e.id
+                for e in current_manifest
+                if any(
+                    p.id == e.id and p.content_hash == e.content_hash
+                    for p in self._previous_manifest
+                )
+            ]
+        )
         cache_key = _quick_hash(",".join(unchanged_ids) or "empty")
 
         # Update state for next compile

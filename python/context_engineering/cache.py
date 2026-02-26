@@ -3,10 +3,11 @@
 Wraps an existing estimator with content-keyed caching to avoid
 redundant estimation of the same text.
 """
+
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Callable, Optional
+from typing import Callable
 
 
 def create_cached_estimator(

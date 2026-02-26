@@ -4,7 +4,17 @@
   "title": "CacheAwarePack",
   "description": "Cache-topology-aware context pack with prefix caching metadata",
   "type": "object",
-  "required": ["budget", "selected", "dropped", "totalTokens", "cacheKey", "cacheableTokens", "volatileTokens", "cacheEfficiency", "partitionBoundaries"],
+  "required": [
+    "budget",
+    "selected",
+    "dropped",
+    "totalTokens",
+    "cacheKey",
+    "cacheableTokens",
+    "volatileTokens",
+    "cacheEfficiency",
+    "partitionBoundaries"
+  ],
   "properties": {
     "budget": {
       "type": "object",
@@ -24,10 +34,24 @@
     },
     "totalTokens": { "type": "number" },
     "stats": { "type": "object", "additionalProperties": true },
-    "cacheKey": { "type": "string", "description": "Hash of the stable prefix — same hash means cache hit" },
-    "cacheableTokens": { "type": "number", "description": "Tokens in the stable prefix (cacheable)" },
-    "volatileTokens": { "type": "number", "description": "Tokens in the volatile suffix (changes per request)" },
-    "cacheEfficiency": { "type": "number", "minimum": 0, "maximum": 1, "description": "Ratio of cacheable to total tokens" },
+    "cacheKey": {
+      "type": "string",
+      "description": "Hash of the stable prefix — same hash means cache hit"
+    },
+    "cacheableTokens": {
+      "type": "number",
+      "description": "Tokens in the stable prefix (cacheable)"
+    },
+    "volatileTokens": {
+      "type": "number",
+      "description": "Tokens in the volatile suffix (changes per request)"
+    },
+    "cacheEfficiency": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Ratio of cacheable to total tokens"
+    },
     "partitionBoundaries": {
       "type": "array",
       "items": { "type": "number" },

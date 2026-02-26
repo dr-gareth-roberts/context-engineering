@@ -1,8 +1,7 @@
 """Tests for the compaction module: multi-turn context management."""
-import pytest
 
+from context_engineering.compaction import create_context_manager
 from context_engineering.core import Budget, ContextItem
-from context_engineering.compaction import Turn, create_context_manager
 
 
 def _word_estimator(text: str) -> int:
@@ -103,10 +102,12 @@ class TestContextManager:
             token_estimator=_word_estimator,
         )
         mgr.add_turn("user", "hello")
-        mgr.add_items([
-            ContextItem(id="doc1", content="some context information", tokens=3),
-            ContextItem(id="doc2", content="more context", tokens=2),
-        ])
+        mgr.add_items(
+            [
+                ContextItem(id="doc1", content="some context information", tokens=3),
+                ContextItem(id="doc2", content="more context", tokens=2),
+            ]
+        )
         result = mgr.compile()
         assert len(result.items) == 2
         assert set(i.id for i in result.items) == {"doc1", "doc2"}
@@ -162,11 +163,13 @@ class TestContextManager:
             token_estimator=_word_estimator,
         )
         mgr.add_turn("user", "hi")  # 1 token
-        mgr.add_items([
-            ContextItem(id="low", content="low score item", tokens=8, score=1),
-            ContextItem(id="high", content="high score item", tokens=8, score=10),
-            ContextItem(id="mid", content="mid score item", tokens=8, score=5),
-        ])
+        mgr.add_items(
+            [
+                ContextItem(id="low", content="low score item", tokens=8, score=1),
+                ContextItem(id="high", content="high score item", tokens=8, score=10),
+                ContextItem(id="mid", content="mid score item", tokens=8, score=5),
+            ]
+        )
         result = mgr.compile()
         # Budget 20, turn=1, so 19 for items. high(8)+mid(8)=16, low would push to 24
         assert [i.id for i in result.items] == ["high", "mid"]

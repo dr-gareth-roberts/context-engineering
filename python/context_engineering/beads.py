@@ -22,20 +22,16 @@ import json
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional
 
-from .core import Budget, ContextItem, ContextPack, estimate_tokens
-
+from .core import ContextItem, ContextPack, estimate_tokens
 
 # ─── BEADS Types ──────────────────────────────────────────────────────
 
-BeadsStatus = Literal[
-    "open", "in_progress", "blocked", "deferred", "closed", "pinned", "hooked"
-]
+BeadsStatus = Literal["open", "in_progress", "blocked", "deferred", "closed", "pinned", "hooked"]
 
 BeadsIssueType = Literal[
-    "bug", "feature", "task", "epic", "chore",
-    "decision", "message", "molecule", "context"
+    "bug", "feature", "task", "epic", "chore", "decision", "message", "molecule", "context"
 ]
 
 
@@ -60,6 +56,7 @@ class BeadsComment:
 @dataclass
 class BeadsIssue:
     """A BEADS issue — the core record type in the JSONL format."""
+
     id: str
     title: str
     status: str  # BeadsStatus
@@ -104,15 +101,9 @@ class BeadsIssue:
             if v is None or k == "extra":
                 continue
             if k == "dependencies" and v:
-                d[k] = [
-                    {kk: vv for kk, vv in dep.__dict__.items() if vv is not None}
-                    for dep in v
-                ]
+                d[k] = [{kk: vv for kk, vv in dep.__dict__.items() if vv is not None} for dep in v]
             elif k == "comments" and v:
-                d[k] = [
-                    {kk: vv for kk, vv in c.__dict__.items() if vv is not None}
-                    for c in v
-                ]
+                d[k] = [{kk: vv for kk, vv in c.__dict__.items() if vv is not None} for c in v]
             else:
                 d[k] = v
         if self.extra:
@@ -142,8 +133,7 @@ class BeadsIssue:
         # Parse comments
         if "comments" in known_data and known_data["comments"]:
             known_data["comments"] = [
-                BeadsComment(**c) if isinstance(c, dict) else c
-                for c in known_data["comments"]
+                BeadsComment(**c) if isinstance(c, dict) else c for c in known_data["comments"]
             ]
 
         issue = cls(**known_data)
@@ -153,6 +143,7 @@ class BeadsIssue:
 
 
 # ─── BEADS JSONL Read/Write ───────────────────────────────────────────
+
 
 def read_beads_jsonl(input_str: str) -> List[BeadsIssue]:
     """Parse a BEADS JSONL string into a list of issues.
@@ -184,9 +175,11 @@ def write_beads_jsonl(issues: List[BeadsIssue]) -> str:
 
 # ─── ContextItem ↔ BeadsIssue Bridge ─────────────────────────────────
 
+
 @dataclass
 class BeadsBridgeOptions:
     """Options for bridging between ContextItems and BEADS issues."""
+
     agent: Optional[str] = None
     source_system: str = "context-engineering"
     default_status: str = "open"
@@ -307,9 +300,11 @@ def beads_to_context_item(issue: BeadsIssue) -> ContextItem:
 
 # ─── Agent Handoff Protocol ──────────────────────────────────────────
 
+
 @dataclass
 class HandoffOptions(BeadsBridgeOptions):
     """Options for creating a handoff."""
+
     session_id: Optional[str] = None
     include_dropped: bool = False
     handoff_notes: Optional[str] = None
@@ -318,6 +313,7 @@ class HandoffOptions(BeadsBridgeOptions):
 @dataclass
 class HandoffResult:
     """Result of creating a BEADS handoff."""
+
     jsonl: str
     issues: List[BeadsIssue]
     stats: Dict[str, Any]
@@ -414,6 +410,7 @@ def create_handoff(
 @dataclass
 class PickupResult:
     """Result of picking up context from a BEADS handoff."""
+
     items: List[ContextItem]
     deferred: List[ContextItem]
     manifest: Optional[BeadsIssue]
@@ -445,9 +442,8 @@ def pickup_handoff(jsonl: str) -> PickupResult:
 
     for issue in issues:
         # Check if it's a handoff manifest
-        if (
-            issue.id.startswith("ce-handoff-")
-            or (issue.labels and "handoff" in issue.labels and issue.issue_type == "message")
+        if issue.id.startswith("ce-handoff-") or (
+            issue.labels and "handoff" in issue.labels and issue.issue_type == "message"
         ):
             manifest = issue
             continue
@@ -490,6 +486,7 @@ def pickup_handoff(jsonl: str) -> PickupResult:
 
 
 # ─── Incremental BEADS Operations ────────────────────────────────────
+
 
 def merge_beads_jsonl(existing: str, updates: List[BeadsIssue]) -> str:
     """Merge new issues into an existing BEADS JSONL string.

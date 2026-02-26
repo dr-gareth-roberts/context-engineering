@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from context_framework import (
+    USE_CASE_INDEX,
     CatastropheClaimsCommander,
     ClaimsExecutionPolicy,
     InMemoryFraudAdapter,
@@ -15,7 +16,6 @@ from context_framework import (
     InMemoryPayoutAdapter,
     InMemoryPolicyAdapter,
     TriProviderPipeline,
-    USE_CASE_INDEX,
 )
 
 

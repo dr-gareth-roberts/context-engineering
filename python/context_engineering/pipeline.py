@@ -31,19 +31,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
-from .core import Budget, ContextItem, ContextPack, estimate_tokens, pack
+from .allocation import KindAllocation, pack_with_allocation
 from .bridge import BridgeOptions, memory_to_context
+from .cache_topology import CacheConfig, pack_with_cache_topology
+from .core import Budget, ContextItem, estimate_tokens, pack
+from .memory import MemoryItem
 from .placement import place_items
 from .quality import ContextQuality, analyze_context
-from .cache_topology import CacheConfig, pack_with_cache_topology
-from .allocation import KindAllocation, pack_with_allocation
 from .session import ContextSession, SessionDelta
-from .memory import MemoryItem
 
 
 @dataclass
 class PipelineResult:
     """Result of a pipeline build."""
+
     selected: List[ContextItem]
     dropped: List[ContextItem]
     total_tokens: int
@@ -90,7 +91,9 @@ class ContextPipeline:
             self._items.append(merged)
         return self
 
-    def add_memories(self, memories: List[MemoryItem], options: Optional[BridgeOptions] = None) -> "ContextPipeline":
+    def add_memories(
+        self, memories: List[MemoryItem], options: Optional[BridgeOptions] = None
+    ) -> "ContextPipeline":
         """Bridge memory items into context items and add them."""
         context_items = memory_to_context(memories, options)
         self._items.extend(context_items)
@@ -102,17 +105,25 @@ class ContextPipeline:
         self._allocation_config = allocations
         return self
 
-    def cache_topology(self, provider: Optional[str] = None, mark_breakpoints: bool = False) -> "ContextPipeline":
+    def cache_topology(
+        self, provider: Optional[str] = None, mark_breakpoints: bool = False
+    ) -> "ContextPipeline":
         """Configure cache-topology-aware packing."""
-        self._cache_topology_config = CacheConfig(provider=provider, mark_breakpoints=mark_breakpoints)
+        self._cache_topology_config = CacheConfig(
+            provider=provider, mark_breakpoints=mark_breakpoints
+        )
         return self
 
-    def place(self, strategy: str = "score-order", model: Optional[str] = None) -> "ContextPipeline":
+    def place(
+        self, strategy: str = "score-order", model: Optional[str] = None
+    ) -> "ContextPipeline":
         """Configure attention-aware placement."""
         self._placement_config = {"strategy": strategy, "model": model}
         return self
 
-    def quality_gate(self, min_overall: Optional[float] = None, warn: bool = False) -> "ContextPipeline":
+    def quality_gate(
+        self, min_overall: Optional[float] = None, warn: bool = False
+    ) -> "ContextPipeline":
         """Add a quality gate."""
         self._quality_config = {"min_overall": min_overall, "warn": warn}
         return self
@@ -122,7 +133,9 @@ class ContextPipeline:
         self._session_instance = session
         return self
 
-    def weights(self, priority: float = 1.0, recency: float = 0.0, salience: float = 0.0) -> "ContextPipeline":
+    def weights(
+        self, priority: float = 1.0, recency: float = 0.0, salience: float = 0.0
+    ) -> "ContextPipeline":
         """Set scoring weights."""
         self._pack_options["weights"] = {
             "priority": priority,
@@ -177,7 +190,8 @@ class ContextPipeline:
         elif self._cache_topology_config:
             stages.append("cacheTopology")
             result = pack_with_cache_topology(
-                items, self._budget,
+                items,
+                self._budget,
                 cache_config=self._cache_topology_config,
             )
             selected = list(result.selected)

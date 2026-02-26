@@ -9,11 +9,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from context_framework import (
+    USE_CASE_INDEX,
     DeepAgentsBridge,
     LangGraphBridge,
     PydanticAIBridge,
     TriProviderPipeline,
-    USE_CASE_INDEX,
 )
 
 

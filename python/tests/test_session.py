@@ -1,5 +1,5 @@
 """Tests for differential context sessions."""
-import pytest
+
 from context_engineering.core import Budget, ContextItem
 from context_engineering.session import create_session
 
@@ -62,14 +62,18 @@ class TestCreateSession:
 
     def test_detects_changed_items(self):
         session = create_session(Budget(max_tokens=500))
-        session.set_items([
-            ContextItem(id="a", content="original content", priority=10, tokens=50),
-        ])
+        session.set_items(
+            [
+                ContextItem(id="a", content="original content", priority=10, tokens=50),
+            ]
+        )
         session.compile()
 
-        session.set_items([
-            ContextItem(id="a", content="modified content", priority=10, tokens=50),
-        ])
+        session.set_items(
+            [
+                ContextItem(id="a", content="modified content", priority=10, tokens=50),
+            ]
+        )
         r2 = session.compile()
 
         assert len(r2.delta.changed) == 1

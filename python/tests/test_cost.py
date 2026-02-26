@@ -1,10 +1,12 @@
 """Tests for cost estimation with cache savings."""
+
 import pytest
-from context_engineering.core import Budget, ContextItem
+
 from context_engineering.cache_topology import CacheAwarePack
+from context_engineering.core import Budget
 from context_engineering.cost import (
-    ModelPricing,
     MODEL_PRICING,
+    ModelPricing,
     estimate_cost,
     project_costs,
 )
@@ -101,6 +103,8 @@ class TestProjectCosts:
 
     def test_large_scale_opus(self):
         pack = make_pack(8000, 6000)
-        proj = project_costs(pack, "claude-opus-4-6", 10000, output_tokens=1000, requests_per_day=1000)
+        proj = project_costs(
+            pack, "claude-opus-4-6", 10000, output_tokens=1000, requests_per_day=1000
+        )
         assert proj.total_savings > 500
         assert proj.monthly_estimate.monthly_savings > 1000

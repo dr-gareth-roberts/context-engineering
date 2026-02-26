@@ -1,11 +1,11 @@
 """Tests for cache-topology-aware packing."""
-import pytest
-from context_engineering.core import Budget, ContextItem
+
 from context_engineering.cache_topology import (
     CacheConfig,
     classify_volatility,
     pack_with_cache_topology,
 )
+from context_engineering.core import Budget, ContextItem
 
 
 def make_item(id: str, kind: str, priority: float, tokens: int) -> ContextItem:
@@ -122,11 +122,16 @@ class TestPackWithCacheTopology:
             make_item("q", "query", 8, 50),
         ]
         result = pack_with_cache_topology(
-            items, Budget(max_tokens=500),
+            items,
+            Budget(max_tokens=500),
             cache_config=CacheConfig(mark_breakpoints=True),
         )
         static_end = next(
-            (i for i in result.selected if (i.metadata or {}).get("_cacheBreakpoint") == "static-end"),
+            (
+                i
+                for i in result.selected
+                if (i.metadata or {}).get("_cacheBreakpoint") == "static-end"
+            ),
             None,
         )
         assert static_end is not None

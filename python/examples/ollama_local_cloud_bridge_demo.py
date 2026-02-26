@@ -12,7 +12,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from context_framework import ContextManager, OllamaChatAdapter, OllamaSDKBridge
 
-
 DEFAULT_PROMPT = "Draft a concise incident update for an API latency spike."
 
 

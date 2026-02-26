@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from context_framework import (  # noqa: E402
+    USE_CASE_INDEX,
     InMemoryComplianceActionAdapter,
     InMemoryControlCoverageAdapter,
     InMemoryRegulationIntelAdapter,
@@ -18,7 +19,6 @@ from context_framework import (  # noqa: E402
     RegulatoryChangeCommander,
     RegulatoryExecutionPolicy,
     TriProviderPipeline,
-    USE_CASE_INDEX,
     build_compliance_action_adapter_from_env,
     build_control_coverage_adapter_from_env,
     build_regulation_intel_adapter_from_env,

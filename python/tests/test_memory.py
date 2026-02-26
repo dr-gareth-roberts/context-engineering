@@ -1,8 +1,14 @@
 import os
 import tempfile
-import pytest
 from datetime import datetime, timezone
-from context_engineering.memory import InMemoryStore, FileStore, SqliteStore, MemoryItem, MemoryQuery
+
+from context_engineering.memory import (
+    FileStore,
+    InMemoryStore,
+    MemoryItem,
+    MemoryQuery,
+    SqliteStore,
+)
 
 
 def _now_iso():
@@ -24,10 +30,12 @@ class TestInMemoryStore:
 
     def test_batch_put(self):
         store = InMemoryStore()
-        items = store.put([
-            MemoryItem(id="a", content="First", createdAt=_now_iso()),
-            MemoryItem(id="b", content="Second", createdAt=_now_iso()),
-        ])
+        items = store.put(
+            [
+                MemoryItem(id="a", content="First", createdAt=_now_iso()),
+                MemoryItem(id="b", content="Second", createdAt=_now_iso()),
+            ]
+        )
         assert len(items) == 2
         assert store.get("a") is not None
         assert store.get("b") is not None
@@ -44,11 +52,13 @@ class TestInMemoryStore:
 
     def test_query_limit(self):
         store = InMemoryStore()
-        store.put([
-            MemoryItem(id="a", content="1", createdAt=_now_iso()),
-            MemoryItem(id="b", content="2", createdAt=_now_iso()),
-            MemoryItem(id="c", content="3", createdAt=_now_iso()),
-        ])
+        store.put(
+            [
+                MemoryItem(id="a", content="1", createdAt=_now_iso()),
+                MemoryItem(id="b", content="2", createdAt=_now_iso()),
+                MemoryItem(id="c", content="3", createdAt=_now_iso()),
+            ]
+        )
         results = store.query(MemoryQuery(limit=2))
         assert len(results) == 2
 
@@ -76,7 +86,6 @@ class TestFileStore:
             store1.put(MemoryItem(id="f1", content="Data", createdAt=_now_iso()))
             store2 = FileStore(path)
             assert store2.get("f1").content == "Data"
-
 
     def test_corrupted_json_recovery(self):
         """FileStore skips corrupted JSON lines instead of crashing."""
@@ -126,11 +135,13 @@ class TestFileStore:
             def writer(thread_id):
                 try:
                     for i in range(5):
-                        store.put(MemoryItem(
-                            id=f"t{thread_id}-{i}",
-                            content=f"Thread {thread_id} item {i}",
-                            createdAt=_now_iso(),
-                        ))
+                        store.put(
+                            MemoryItem(
+                                id=f"t{thread_id}-{i}",
+                                content=f"Thread {thread_id} item {i}",
+                                createdAt=_now_iso(),
+                            )
+                        )
                 except Exception as e:
                     errors.append(e)
 
@@ -149,10 +160,12 @@ class TestFileStore:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = os.path.join(temp_dir, "forget.jsonl")
             store = FileStore(path)
-            store.put([
-                MemoryItem(id="keep", content="Keep me", createdAt=_now_iso()),
-                MemoryItem(id="remove", content="Remove me", createdAt=_now_iso()),
-            ])
+            store.put(
+                [
+                    MemoryItem(id="keep", content="Keep me", createdAt=_now_iso()),
+                    MemoryItem(id="remove", content="Remove me", createdAt=_now_iso()),
+                ]
+            )
             assert store.forget("remove") is True
             # Verify persistence by reloading
             store2 = FileStore(path)
@@ -174,8 +187,10 @@ class TestSqliteStore:
 
     def test_batch_insert(self):
         store = SqliteStore(":memory:")
-        items = store.put([
-            MemoryItem(id="b1", content="First", createdAt=_now_iso()),
-            MemoryItem(id="b2", content="Second", createdAt=_now_iso()),
-        ])
+        items = store.put(
+            [
+                MemoryItem(id="b1", content="First", createdAt=_now_iso()),
+                MemoryItem(id="b2", content="Second", createdAt=_now_iso()),
+            ]
+        )
         assert len(items) == 2

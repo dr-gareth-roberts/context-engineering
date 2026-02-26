@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from context_framework import TriProviderPipeline, USE_CASES
+from context_framework import USE_CASES, TriProviderPipeline
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,7 +36,9 @@ def main() -> None:
 
     for report in reports:
         print(f"[{report.use_case_id}] {report.title}")
-        print(f"  mode={report.mode} tokens={report.context_tokens_used}/{report.context_token_budget}")
+        print(
+            f"  mode={report.mode} tokens={report.context_tokens_used}/{report.context_token_budget}"
+        )
         if report.ranked_actions:
             top = report.ranked_actions[0]
             print(f"  top_action={top.action}")

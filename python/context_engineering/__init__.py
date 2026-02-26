@@ -1,81 +1,96 @@
-from .errors import (
-    ContextEngineeringError,
-    ValidationError,
-    BudgetExceededError,
-    EstimationError,
-    ValidationDetail,
+from .allocation import (
+    AllocatedPack,
+    KindAllocation,
+    KindResult,
+    pack_with_allocation,
 )
+from .beads import (
+    BeadsBridgeOptions,
+    BeadsComment,
+    BeadsDependency,
+    BeadsIssue,
+    HandoffOptions,
+    HandoffResult,
+    PickupResult,
+    beads_to_context_item,
+    context_item_to_beads,
+    create_handoff,
+    get_ready_issues,
+    merge_beads_jsonl,
+    pickup_handoff,
+    read_beads_jsonl,
+    write_beads_jsonl,
+)
+from .bridge import BridgeOptions, memory_to_context, to_context_item
+from .cache import create_cached_estimator
+from .cache_topology import (
+    CacheAwarePack,
+    CacheConfig,
+    classify_volatility,
+    pack_with_cache_topology,
+)
+from .compaction import CompileResult, ContextManager, Turn, create_context_manager
 from .core import (
     Budget,
+    Compression,
+    ContextHandoff,
     ContextItem,
     ContextPack,
     ContextPlan,
     ContextTrace,
-    ContextHandoff,
     ScoringWeights,
-    Compression,
     create_context_item,
-    pack,
-    trace_pack,
     diff,
     estimate_tokens,
+    pack,
     simulate_budgets,
+    trace_pack,
 )
-from .memory import MemoryItem, InMemoryStore, FileStore, SqliteStore, MemoryQuery
-from .providers import OpenAIProvider, AnthropicProvider, LLMMessage, EmbeddingResult, EmbeddingProvider, CerebrasProvider
-from .framework import AgentContextManager
-from .segmentation import Segment, SegmentBoundary, StructuralSegmenter, SemanticSegmenter, PerplexitySegmenter, HybridSegmenter, BoundaryProtector
-from .bridge import BridgeOptions, to_context_item, memory_to_context
-from .placement import AttentionProfile, ATTENTION_PROFILES, place_items, effective_budget
-from .quality import ContextQuality, analyze_context, analyze_context_pack
-from .compaction import Turn, CompileResult, ContextManager, create_context_manager
-from .cache import create_cached_estimator
-from .stream import pack_stream
-from .cache_topology import (
-    CacheConfig,
-    CacheAwarePack,
-    classify_volatility,
-    pack_with_cache_topology,
-)
-from .allocation import (
-    KindAllocation,
-    KindResult,
-    AllocatedPack,
-    pack_with_allocation,
-)
-from .session import (
-    SessionDelta,
-    SessionPack,
-    ContextSession,
-    create_session,
-)
-from .pipeline import ContextPipeline, PipelineResult, create_pipeline
 from .cost import (
-    ModelPricing,
+    MODEL_PRICING,
     CostEstimate,
     CostProjection,
+    ModelPricing,
     MonthlyEstimate,
-    MODEL_PRICING,
     estimate_cost,
     project_costs,
 )
-from .beads import (
-    BeadsIssue,
-    BeadsDependency,
-    BeadsComment,
-    BeadsBridgeOptions,
-    HandoffOptions,
-    HandoffResult,
-    PickupResult,
-    read_beads_jsonl,
-    write_beads_jsonl,
-    context_item_to_beads,
-    beads_to_context_item,
-    create_handoff,
-    pickup_handoff,
-    merge_beads_jsonl,
-    get_ready_issues,
+from .errors import (
+    BudgetExceededError,
+    ContextEngineeringError,
+    EstimationError,
+    ValidationDetail,
+    ValidationError,
 )
+from .framework import AgentContextManager
+from .memory import FileStore, InMemoryStore, MemoryItem, MemoryQuery, SqliteStore
+from .pipeline import ContextPipeline, PipelineResult, create_pipeline
+from .placement import ATTENTION_PROFILES, AttentionProfile, effective_budget, place_items
+from .providers import (
+    AnthropicProvider,
+    CerebrasProvider,
+    EmbeddingProvider,
+    EmbeddingResult,
+    LLMMessage,
+    OpenAIProvider,
+)
+from .quality import ContextQuality, analyze_context, analyze_context_pack
+from .segmentation import (
+    BoundaryProtector,
+    HybridSegmenter,
+    PerplexitySegmenter,
+    Segment,
+    SegmentBoundary,
+    SemanticSegmenter,
+    StructuralSegmenter,
+)
+from .session import (
+    ContextSession,
+    SessionDelta,
+    SessionPack,
+    create_session,
+)
+from .stream import pack_stream
 
 __all__ = [
     # Errors
