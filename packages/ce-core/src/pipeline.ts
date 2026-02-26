@@ -28,28 +28,21 @@
  * ```
  */
 
-import type { Budget, ContextItem, ContextPack, PackOptions, ScoringWeights } from "./types.js";
+import type {
+  Budget,
+  ContextItem,
+  PackOptions,
+  ScoringWeights,
+} from "./types.js";
 import type { MemoryItem } from "./types.js";
 import { pack } from "./pack.js";
 import { estimateTokens } from "./estimate.js";
 import { memoryToContext, type BridgeOptions } from "./bridge.js";
 import { placeItems, type PlacementStrategy } from "./placement.js";
 import { analyzeContext, type ContextQuality } from "./quality.js";
-import {
-  packWithCacheTopology,
-  type CacheConfig,
-  type CacheAwarePack,
-} from "./cache-topology.js";
-import {
-  packWithAllocation,
-  type KindAllocation,
-  type AllocatedPack,
-} from "./allocation.js";
-import {
-  createSession,
-  type ContextSession,
-  type SessionDelta,
-} from "./session.js";
+import { packWithCacheTopology, type CacheConfig } from "./cache-topology.js";
+import { packWithAllocation, type KindAllocation } from "./allocation.js";
+import { type ContextSession, type SessionDelta } from "./session.js";
 
 /**
  * Result of a pipeline build.
@@ -104,9 +97,7 @@ export class ContextPipeline {
   private stagesApplied: string[] = [];
 
   constructor(budget: Budget | number) {
-    this.budget = typeof budget === "number"
-      ? { maxTokens: budget }
-      : budget;
+    this.budget = typeof budget === "number" ? { maxTokens: budget } : budget;
   }
 
   /**
@@ -217,9 +208,11 @@ export class ContextPipeline {
     // Ensure all items have token estimates
     const items = this.items.map(item => ({
       ...item,
-      tokens: item.tokens ?? estimateTokens(item.content, {
-        estimator: this.packOptions.tokenEstimator,
-      }),
+      tokens:
+        item.tokens ??
+        estimateTokens(item.content, {
+          estimator: this.packOptions.tokenEstimator,
+        }),
     }));
 
     let selected: ContextItem[];
@@ -238,7 +231,7 @@ export class ContextPipeline {
         items,
         this.budget,
         this.allocationConfig,
-        this.packOptions,
+        this.packOptions
       );
       selected = result.selected;
       dropped = result.dropped;
@@ -253,7 +246,7 @@ export class ContextPipeline {
           selected,
           { maxTokens: totalTokens + 100 }, // generous budget since already packed
           this.packOptions,
-          this.cacheTopologyConfig,
+          this.cacheTopologyConfig
         );
         selected = cacheResult.selected;
         cacheKey = cacheResult.cacheKey;
@@ -266,7 +259,7 @@ export class ContextPipeline {
         items,
         this.budget,
         this.packOptions,
-        this.cacheTopologyConfig,
+        this.cacheTopologyConfig
       );
       selected = result.selected;
       dropped = result.dropped;

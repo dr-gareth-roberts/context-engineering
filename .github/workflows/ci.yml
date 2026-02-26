@@ -82,3 +82,6 @@ jobs:
 
       - name: Prettier check
         run: npx prettier --check .
+
+      - name: ESLint
+        run: pnpm lint

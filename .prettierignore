@@ -1,5 +1,13 @@
 dist
 node_modules
 .git
+coverage
 *.min.js
 *.min.css
+pnpm-lock.yaml
+CHANGELOG.md
+LICENSE
+__pycache__
+.venv
+*.egg-info
+python/dist

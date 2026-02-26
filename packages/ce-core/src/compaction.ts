@@ -1,6 +1,10 @@
-import type { Budget, ContextItem, Summarizer, TokenEstimator } from "./types.js";
-import { estimateTokens, defaultTokenEstimator } from "./estimate.js";
-import { pack } from "./pack.js";
+import type {
+  Budget,
+  ContextItem,
+  Summarizer,
+  TokenEstimator,
+} from "./types.js";
+import { defaultTokenEstimator } from "./estimate.js";
 
 export interface Turn {
   role: "user" | "assistant" | "tool" | "system";
@@ -68,7 +72,9 @@ export interface ContextManager {
  * @param options - Compaction configuration including budget, summarization thresholds, and system prompt
  * @returns A ContextManager instance
  */
-export function createContextManager(options: CompactionOptions): ContextManager {
+export function createContextManager(
+  options: CompactionOptions
+): ContextManager {
   const estimate = options.tokenEstimator ?? defaultTokenEstimator;
   const summarizeAfter = options.summarizeAfterTurns ?? 5;
   const preserveRecent = options.preserveRecentTurns ?? 2;
@@ -92,7 +98,11 @@ export function createContextManager(options: CompactionOptions): ContextManager
     items = [...items, ...newItems];
   }
 
-  function getTokenUsage(): { used: number; budget: number; remaining: number } {
+  function getTokenUsage(): {
+    used: number;
+    budget: number;
+    remaining: number;
+  } {
     const used =
       systemTokens +
       turns.reduce((sum, t) => sum + (t.tokens ?? 0), 0) +
@@ -156,7 +166,6 @@ export function createContextManager(options: CompactionOptions): ContextManager
     // Phase 3: Pack context items into remaining budget
     let selectedItems: ContextItem[] = [];
     if (items.length > 0 && availableTokens > 0) {
-      const itemBudget: Budget = { maxTokens: availableTokens };
       // Use synchronous estimation for items
       selectedItems = items
         .map(i => ({ ...i, tokens: i.tokens ?? estimate(i.content) }))

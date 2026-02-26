@@ -1,4 +1,4 @@
-import { ContextItem, ContextPack, PackDiff } from "./types.js";
+import type { ContextItem, ContextPack, PackDiff } from "./types.js";
 import { ValidationError } from "./errors.js";
 
 function normalize(input: ContextPack | ContextItem[]): ContextItem[] {

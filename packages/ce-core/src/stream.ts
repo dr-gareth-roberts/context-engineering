@@ -1,10 +1,6 @@
 import type { Budget, ContextItem, PackOptions } from "./types.js";
 import { BudgetSchema, ContextItemSchema } from "./schemas.js";
-import {
-  ValidationError,
-  BudgetExceededError,
-  EstimationError,
-} from "./errors.js";
+import { ValidationError, BudgetExceededError } from "./errors.js";
 import { createScorer, defaultItemScorer } from "./score.js";
 import { estimateTokens } from "./estimate.js";
 import { z } from "zod";

@@ -12,7 +12,6 @@
 import type { Budget, ContextItem, PackOptions } from "./types.js";
 import { pack } from "./pack.js";
 import { estimateTokens } from "./estimate.js";
-import { diff } from "./diff.js";
 
 /**
  * A manifest entry tracking an item's position and content hash.
@@ -133,7 +132,7 @@ export function createSession(options: SessionOptions): ContextSession {
 
   let currentItems: ContextItem[] = [];
   let previousManifest: ManifestEntry[] = [];
-  let previousSelectedIds = new Set<string>();
+  let _previousSelectedIds = new Set<string>();
   let compileCount = 0;
 
   function setItems(items: ContextItem[]): void {
@@ -223,9 +222,10 @@ export function createSession(options: SessionOptions): ContextSession {
         keptCount,
         deltaTokens,
         reusableTokens,
-        reuseRatio: totalPrev > 0
-          ? Math.round((reusableTokens / totalPrev) * 1000) / 1000
-          : 0,
+        reuseRatio:
+          totalPrev > 0
+            ? Math.round((reusableTokens / totalPrev) * 1000) / 1000
+            : 0,
       };
     }
 
@@ -242,7 +242,7 @@ export function createSession(options: SessionOptions): ContextSession {
 
     // Update state for next compile
     previousManifest = currentManifest;
-    previousSelectedIds = new Set(currentManifest.map(e => e.id));
+    _previousSelectedIds = new Set(currentManifest.map(e => e.id));
     compileCount++;
 
     return {
@@ -266,9 +266,17 @@ export function createSession(options: SessionOptions): ContextSession {
   function clear(): void {
     currentItems = [];
     previousManifest = [];
-    previousSelectedIds = new Set();
+    _previousSelectedIds = new Set();
     compileCount = 0;
   }
 
-  return { setItems, addItems, removeItems, compile, itemCount, getCompileCount, clear };
+  return {
+    setItems,
+    addItems,
+    removeItems,
+    compile,
+    itemCount,
+    getCompileCount,
+    clear,
+  };
 }
