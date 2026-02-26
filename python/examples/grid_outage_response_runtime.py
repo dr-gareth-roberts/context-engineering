@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from context_framework import (  # noqa: E402
+    USE_CASE_INDEX,
     GridExecutionPolicy,
     GridOutageCommander,
     InMemoryCriticalLoadAdapter,
@@ -18,7 +19,6 @@ from context_framework import (  # noqa: E402
     InMemoryGridTelemetryAdapter,
     JSONLAuditLogger,
     TriProviderPipeline,
-    USE_CASE_INDEX,
     build_critical_load_adapter_from_env,
     build_grid_action_adapter_from_env,
     build_grid_telemetry_adapter_from_env,

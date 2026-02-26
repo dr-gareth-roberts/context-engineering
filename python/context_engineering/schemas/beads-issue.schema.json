@@ -4,7 +4,15 @@
   "title": "BeadsIssue",
   "description": "A BEADS issue — the core record type in the JSONL format for agent handoff",
   "type": "object",
-  "required": ["id", "title", "status", "priority", "issue_type", "created_at", "updated_at"],
+  "required": [
+    "id",
+    "title",
+    "status",
+    "priority",
+    "issue_type",
+    "created_at",
+    "updated_at"
+  ],
   "properties": {
     "id": { "type": "string" },
     "title": { "type": "string" },
@@ -14,12 +22,30 @@
     "notes": { "type": "string" },
     "status": {
       "type": "string",
-      "enum": ["open", "in_progress", "blocked", "deferred", "closed", "pinned", "hooked"]
+      "enum": [
+        "open",
+        "in_progress",
+        "blocked",
+        "deferred",
+        "closed",
+        "pinned",
+        "hooked"
+      ]
     },
     "priority": { "type": "number", "minimum": 0, "maximum": 4 },
     "issue_type": {
       "type": "string",
-      "enum": ["bug", "feature", "task", "epic", "chore", "decision", "message", "molecule", "context"]
+      "enum": [
+        "bug",
+        "feature",
+        "task",
+        "epic",
+        "chore",
+        "decision",
+        "message",
+        "molecule",
+        "context"
+      ]
     },
     "assignee": { "type": "string" },
     "owner": { "type": "string" },

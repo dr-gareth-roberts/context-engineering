@@ -4,6 +4,7 @@ import time
 import unittest
 
 from context_framework import (
+    USE_CASE_INDEX,
     ExecutionPolicy,
     InMemoryEDRAdapter,
     InMemoryIAMAdapter,
@@ -11,7 +12,6 @@ from context_framework import (
     InMemorySIEMAdapter,
     SOCIncidentCommander,
     TriProviderPipeline,
-    USE_CASE_INDEX,
 )
 
 
@@ -86,8 +86,7 @@ class SOCRuntimeTests(unittest.TestCase):
         )
 
         scenario = (
-            "Critical exfiltration: user_admin from 198.51.100.9 on host "
-            "finance-01.prod.corp"
+            "Critical exfiltration: user_admin from 198.51.100.9 on host finance-01.prod.corp"
         )
 
         first = commander.run(
@@ -108,7 +107,9 @@ class SOCRuntimeTests(unittest.TestCase):
 
         self.assertTrue(all(row.status == "skipped" for row in second.edr_actions))
         self.assertTrue(all(row.status == "skipped" for row in second.iam_actions))
-        self.assertEqual(second.stats.skipped_total, len(second.edr_actions) + len(second.iam_actions))
+        self.assertEqual(
+            second.stats.skipped_total, len(second.edr_actions) + len(second.iam_actions)
+        )
 
     def test_retry_recovers_from_transient_edr_failure(self) -> None:
         flaky_edr = _FlakyEDR()
@@ -150,10 +151,7 @@ class SOCRuntimeTests(unittest.TestCase):
             retry_backoff_seconds=0.0,
         )
 
-        scenario = (
-            "critical incident from 198.51.100.1 198.51.100.2 "
-            "198.51.100.3 198.51.100.4"
-        )
+        scenario = "critical incident from 198.51.100.1 198.51.100.2 198.51.100.3 198.51.100.4"
 
         started = time.perf_counter()
         report = commander.run(scenario=scenario, mode="dry")

@@ -1,8 +1,9 @@
 """Tests for the quality module: context quality metrics."""
+
 import pytest
 
 from context_engineering.core import ContextItem
-from context_engineering.quality import ContextQuality, analyze_context, analyze_context_pack
+from context_engineering.quality import analyze_context, analyze_context_pack
 
 
 def _item(id: str, content: str, recency: float = 0, tokens: int | None = None) -> ContextItem:

@@ -2,18 +2,16 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Sequence
+from typing import Any, Literal, Sequence
 
 from .manager import ContextManager
 from .provider_sdk import (
     AnthropicSDKBridge,
     CerebrasSDKBridge,
     OpenAIResponsesSDKBridge,
-    PerplexityResult,
     SpeculativeDecodingMetrics,
 )
 from .tri_provider_use_cases import TriProviderUseCaseSpec
-
 
 RunMode = Literal["dry", "live"]
 
@@ -228,9 +226,7 @@ class TriProviderPipeline:
         )
 
         anthropic_tools = (
-            self.spec.anthropic.tools
-            if self.spec.anthropic.tools
-            else tuple(self._domain_tools())
+            self.spec.anthropic.tools if self.spec.anthropic.tools else tuple(self._domain_tools())
         )
         tool_choice = self.spec.anthropic.tool_choice
         if tool_choice is None and anthropic_tools:
@@ -405,8 +401,8 @@ class TriProviderPipeline:
             client = Cerebras()
             response = client.chat.completions.create(**cerebras_request)
             preview = self._extract_cerebras_preview(response)
-            speculative_metrics = (
-                self.cerebras_bridge.extract_speculative_decoding_metrics(response)
+            speculative_metrics = self.cerebras_bridge.extract_speculative_decoding_metrics(
+                response
             )
 
             live_ranked: list[CandidateRanking] = []
@@ -923,7 +919,9 @@ class TriProviderPipeline:
         if not choices:
             return str(response)[:500]
         first = choices[0]
-        message = first.get("message") if isinstance(first, dict) else getattr(first, "message", None)
+        message = (
+            first.get("message") if isinstance(first, dict) else getattr(first, "message", None)
+        )
         content = (
             message.get("content")
             if isinstance(message, dict)

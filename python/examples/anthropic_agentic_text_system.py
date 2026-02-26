@@ -11,7 +11,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from context_framework import AnthropicAgenticTextSystem
 
-
 DEFAULT_TEXT = (
     "Hello   team,\n\n"
     "Please email me at Ada.Lovelace@example.com or call +1 (415) 555-0199.\n"

@@ -18,100 +18,100 @@ pip install -e .
 
 ### Core Functions
 
-| Export | Description |
-|---|---|
-| `pack(items, budget, **kwargs)` | Greedy score-based context packing into a token budget |
-| `trace_pack(items, budget, **kwargs)` | Pack with step-by-step decision trace for debugging |
-| `diff(before, after)` | Compare two packs or item arrays (added/removed/kept/changed) |
-| `estimate_tokens(text, provider?, model?)` | Token count estimation (heuristic or tiktoken) |
-| `simulate_budgets(items, min, max, step)` | Run pack across a budget range |
-| `to_context_item(memory, options?)` | Convert a `MemoryItem` to a scored `ContextItem` |
-| `memory_to_context(memories, options?)` | Batch convert `MemoryItem[]` to `ContextItem[]` |
-| `place_items(items, strategy?, model?)` | Reorder items for optimal model attention placement |
-| `effective_budget(tokens, model?)` | De-rate token budget based on model attention degradation |
-| `analyze_context(items)` | Quality metrics: density, diversity, freshness, redundancy |
-| `analyze_context_pack(pack)` | Quality metrics for a `ContextPack` |
-| `create_context_manager(budget, ...)` | Automatic context compaction manager for multi-turn agents |
-| `create_cached_estimator(estimator, max_size?)` | LRU-cached wrapper around any token estimator |
-| `pack_stream(items, budget, ...)` | Async generator variant of `pack` — yields items as selected |
+| Export                                          | Description                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| `pack(items, budget, **kwargs)`                 | Greedy score-based context packing into a token budget        |
+| `trace_pack(items, budget, **kwargs)`           | Pack with step-by-step decision trace for debugging           |
+| `diff(before, after)`                           | Compare two packs or item arrays (added/removed/kept/changed) |
+| `estimate_tokens(text, provider?, model?)`      | Token count estimation (heuristic or tiktoken)                |
+| `simulate_budgets(items, min, max, step)`       | Run pack across a budget range                                |
+| `to_context_item(memory, options?)`             | Convert a `MemoryItem` to a scored `ContextItem`              |
+| `memory_to_context(memories, options?)`         | Batch convert `MemoryItem[]` to `ContextItem[]`               |
+| `place_items(items, strategy?, model?)`         | Reorder items for optimal model attention placement           |
+| `effective_budget(tokens, model?)`              | De-rate token budget based on model attention degradation     |
+| `analyze_context(items)`                        | Quality metrics: density, diversity, freshness, redundancy    |
+| `analyze_context_pack(pack)`                    | Quality metrics for a `ContextPack`                           |
+| `create_context_manager(budget, ...)`           | Automatic context compaction manager for multi-turn agents    |
+| `create_cached_estimator(estimator, max_size?)` | LRU-cached wrapper around any token estimator                 |
+| `pack_stream(items, budget, ...)`               | Async generator variant of `pack` — yields items as selected  |
 
 ### Cache Topology
 
-| Export | Description |
-|---|---|
+| Export                                         | Description                             |
+| ---------------------------------------------- | --------------------------------------- |
 | `pack_with_cache_topology(items, budget, ...)` | Pack with stable prefix for cache reuse |
-| `classify_volatility(item)` | Classify item as static/session/request |
+| `classify_volatility(item)`                    | Classify item as static/session/request |
 
 ### Budget Allocation
 
-| Export | Description |
-|---|---|
+| Export                                                  | Description                                           |
+| ------------------------------------------------------- | ----------------------------------------------------- |
 | `pack_with_allocation(items, budget, allocations, ...)` | Per-kind budget allocation with min/max/target ratios |
 
 ### Sessions
 
-| Export | Description |
-|---|---|
+| Export                        | Description                                         |
+| ----------------------------- | --------------------------------------------------- |
 | `create_session(budget, ...)` | Stateful context session with differential tracking |
 
 ### Pipeline
 
-| Export | Description |
-|---|---|
+| Export                    | Description                                         |
+| ------------------------- | --------------------------------------------------- |
 | `create_pipeline(budget)` | Composable pipeline builder chaining all operations |
 
 ### Cost Estimation
 
-| Export | Description |
-|---|---|
-| `estimate_cost(pack, model, ...)` | Per-request cost with cache savings |
-| `project_costs(pack, model, count, ...)` | Multi-request projection with monthly estimates |
-| `MODEL_PRICING` | Built-in pricing for Claude, GPT-4.1, GPT-4o, o3, o4-mini |
+| Export                                   | Description                                               |
+| ---------------------------------------- | --------------------------------------------------------- |
+| `estimate_cost(pack, model, ...)`        | Per-request cost with cache savings                       |
+| `project_costs(pack, model, count, ...)` | Multi-request projection with monthly estimates           |
+| `MODEL_PRICING`                          | Built-in pricing for Claude, GPT-4.1, GPT-4o, o3, o4-mini |
 
 ### BEADS Agent Handoff
 
-| Export | Description |
-|---|---|
-| `create_handoff(pack, ...)` | Serialize context pack to BEADS JSONL |
-| `pickup_handoff(jsonl)` | Recover context items from BEADS JSONL |
-| `context_item_to_beads(item, ...)` | Convert ContextItem to BEADS issue |
-| `beads_to_context_item(issue)` | Convert BEADS issue back to ContextItem |
-| `read_beads_jsonl(input)` | Parse BEADS JSONL string |
-| `write_beads_jsonl(issues)` | Serialize BEADS issues to JSONL |
-| `merge_beads_jsonl(existing, updates)` | Merge BEADS JSONL by ID |
-| `get_ready_issues(issues)` | Filter to ready (open, unblocked) issues |
+| Export                                 | Description                              |
+| -------------------------------------- | ---------------------------------------- |
+| `create_handoff(pack, ...)`            | Serialize context pack to BEADS JSONL    |
+| `pickup_handoff(jsonl)`                | Recover context items from BEADS JSONL   |
+| `context_item_to_beads(item, ...)`     | Convert ContextItem to BEADS issue       |
+| `beads_to_context_item(issue)`         | Convert BEADS issue back to ContextItem  |
+| `read_beads_jsonl(input)`              | Parse BEADS JSONL string                 |
+| `write_beads_jsonl(issues)`            | Serialize BEADS issues to JSONL          |
+| `merge_beads_jsonl(existing, updates)` | Merge BEADS JSONL by ID                  |
+| `get_ready_issues(issues)`             | Filter to ready (open, unblocked) issues |
 
 ### Types
 
-| Export | Description |
-|---|---|
-| `ContextItem` | Input item with `id`, `content`, `priority`, `recency`, `compressions` |
-| `Budget` | `max_tokens`, optional `reserve_tokens` |
-| `ContextPack` | Pack result with `selected`, `dropped`, `total_tokens`, `stats` |
-| `ContextTrace` | Trace result with `pack`, `steps[]`, `created_at` |
-| `ScoringWeights` | `priority`, `recency`, `salience` weights for scoring |
-| `MemoryItem` | Memory store item with `id`, `content`, `salience`, `created_at` |
-| `BridgeOptions` | Memory-to-item options: `priority`, `recency_half_life`, `now`, `kind` |
-| `AttentionProfile` | Model attention curve: `name`, `effective_capacity`, `position_weights` |
-| `ContextQuality` | Quality metrics: `density`, `diversity`, `freshness`, `redundancy`, `overall` |
-| `CacheAwarePack` | Extends ContextPack with `cache_key`, `cacheable_tokens`, `cache_efficiency` |
-| `AllocatedPack` | Extends ContextPack with per-kind allocation results |
-| `SessionPack` | Session compile result with differential `delta` |
-| `PipelineResult` | Pipeline output with all stage metadata |
-| `CostEstimate` | Per-request cost breakdown with cache savings |
-| `CostProjection` | Multi-request projection with monthly estimates |
-| `BeadsIssue` | BEADS issue type for agent handoff |
-| `KindAllocation` | Per-kind budget: `kind`, `target_ratio`, `min_ratio?`, `max_ratio?` |
-| `Turn` | Conversation turn: `role`, `content`, `tokens`, `is_summary` |
-| `ContextManager` | Compaction manager: `add_turn()`, `add_items()`, `compile()`, `get_token_usage()` |
+| Export             | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `ContextItem`      | Input item with `id`, `content`, `priority`, `recency`, `compressions`            |
+| `Budget`           | `max_tokens`, optional `reserve_tokens`                                           |
+| `ContextPack`      | Pack result with `selected`, `dropped`, `total_tokens`, `stats`                   |
+| `ContextTrace`     | Trace result with `pack`, `steps[]`, `created_at`                                 |
+| `ScoringWeights`   | `priority`, `recency`, `salience` weights for scoring                             |
+| `MemoryItem`       | Memory store item with `id`, `content`, `salience`, `created_at`                  |
+| `BridgeOptions`    | Memory-to-item options: `priority`, `recency_half_life`, `now`, `kind`            |
+| `AttentionProfile` | Model attention curve: `name`, `effective_capacity`, `position_weights`           |
+| `ContextQuality`   | Quality metrics: `density`, `diversity`, `freshness`, `redundancy`, `overall`     |
+| `CacheAwarePack`   | Extends ContextPack with `cache_key`, `cacheable_tokens`, `cache_efficiency`      |
+| `AllocatedPack`    | Extends ContextPack with per-kind allocation results                              |
+| `SessionPack`      | Session compile result with differential `delta`                                  |
+| `PipelineResult`   | Pipeline output with all stage metadata                                           |
+| `CostEstimate`     | Per-request cost breakdown with cache savings                                     |
+| `CostProjection`   | Multi-request projection with monthly estimates                                   |
+| `BeadsIssue`       | BEADS issue type for agent handoff                                                |
+| `KindAllocation`   | Per-kind budget: `kind`, `target_ratio`, `min_ratio?`, `max_ratio?`               |
+| `Turn`             | Conversation turn: `role`, `content`, `tokens`, `is_summary`                      |
+| `ContextManager`   | Compaction manager: `add_turn()`, `add_items()`, `compile()`, `get_token_usage()` |
 
 ### Memory Stores
 
-| Export | Description |
-|---|---|
-| `InMemoryStore` | Dict-based, no persistence |
-| `FileStore` | JSONL file-backed store |
-| `SqliteStore` | SQLite-backed store with embeddings |
+| Export          | Description                         |
+| --------------- | ----------------------------------- |
+| `InMemoryStore` | Dict-based, no persistence          |
+| `FileStore`     | JSONL file-backed store             |
+| `SqliteStore`   | SQLite-backed store with embeddings |
 
 ### Quick Start
 

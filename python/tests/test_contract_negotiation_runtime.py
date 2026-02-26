@@ -8,13 +8,13 @@ import unittest
 from pathlib import Path
 
 from context_framework import (
+    USE_CASE_INDEX,
     ContractExecutionPolicy,
     ContractNegotiationCommander,
     InMemoryClauseRiskAdapter,
     InMemoryContractActionAdapter,
     InMemoryNegotiationPrecedentAdapter,
     TriProviderPipeline,
-    USE_CASE_INDEX,
 )
 
 
@@ -150,7 +150,9 @@ class ContractNegotiationRuntimeTests(unittest.TestCase):
             retry_backoff_seconds=0.0,
         )
 
-        scenario = "CONTRACT-ALPHA-001 CLAUSE-LIABILITY-01 VENDOR-OMEGA unlimited liability 48 months 4x"
+        scenario = (
+            "CONTRACT-ALPHA-001 CLAUSE-LIABILITY-01 VENDOR-OMEGA unlimited liability 48 months 4x"
+        )
         first = commander.run(scenario=scenario, mode="dry", metadata={"batch_id": "batch-fixed"})
         second = commander.run(scenario=scenario, mode="dry", metadata={"batch_id": "batch-fixed"})
 

@@ -15,8 +15,7 @@ def _tokenize(text: str) -> set[str]:
 
 
 class RelevanceScorer(Protocol):
-    def score(self, query: str, item: ContextItem) -> float:
-        ...
+    def score(self, query: str, item: ContextItem) -> float: ...
 
 
 class KeywordOverlapScorer:
@@ -42,7 +41,7 @@ def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     if len(left) != len(right):
         raise ValueError("Embedding vectors must have the same dimensions")
 
-    dot = sum(l * r for l, r in zip(left, right, strict=True))
+    dot = sum(lv * rv for lv, rv in zip(left, right, strict=True))
     left_norm = math.sqrt(sum(v * v for v in left))
     right_norm = math.sqrt(sum(v * v for v in right))
     if left_norm == 0 or right_norm == 0:

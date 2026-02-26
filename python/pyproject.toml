@@ -66,3 +66,12 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+ignore = [
+  "E501",  # line too long — enforced by formatter, not linter
+  "E701",  # multiple statements on one line (colon)
+  "E702",  # multiple statements on one line (semicolon)
+  "E731",  # lambda assignment
+]
+
+[tool.ruff.lint.per-file-ignores]
+"examples/**" = ["E402"]  # sys.path manipulation before imports is intentional

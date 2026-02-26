@@ -2,11 +2,12 @@
 
 Yields items one at a time as they are selected, useful for large item sets.
 """
+
 from __future__ import annotations
 
 from typing import AsyncGenerator, List, Optional
 
-from .core import Budget, ContextItem, estimate_tokens, calculate_weighted_score, ScoringWeights
+from .core import Budget, ContextItem, ScoringWeights, calculate_weighted_score, estimate_tokens
 from .errors import BudgetExceededError, ValidationError
 
 

@@ -1,10 +1,18 @@
 import pytest
-from context_engineering.core import pack, diff, estimate_tokens, Budget, ContextItem, create_context_item
+
+from context_engineering.core import (
+    Budget,
+    ContextItem,
+    create_context_item,
+    diff,
+    estimate_tokens,
+    pack,
+)
 from context_engineering.errors import (
-    ContextEngineeringError,
-    ValidationError,
     BudgetExceededError,
+    ContextEngineeringError,
     EstimationError,
+    ValidationError,
 )
 
 
@@ -83,6 +91,7 @@ def test_pack_drops_all_when_nothing_fits():
 
 # --- Error hierarchy tests ---
 
+
 def test_error_hierarchy():
     """All custom errors inherit from ContextEngineeringError."""
     assert issubclass(ValidationError, ContextEngineeringError)
@@ -103,11 +112,11 @@ def test_validation_error_has_details():
 def test_estimation_error_from_cost():
     """estimate_cost raises EstimationError for unknown models."""
     from context_engineering.cost import estimate_cost
-    from context_engineering.cache_topology import CacheAwarePack, CacheConfig
 
     items = [ContextItem(id="a", content="test", tokens=100)]
     # Create a minimal CacheAwarePack to pass to estimate_cost
     from context_engineering.cache_topology import pack_with_cache_topology
+
     pack_result = pack_with_cache_topology(items, Budget(maxTokens=500))
     with pytest.raises(EstimationError) as exc_info:
         estimate_cost(pack_result, "nonexistent-model-xyz")
@@ -116,6 +125,7 @@ def test_estimation_error_from_cost():
 
 
 # --- create_context_item tests ---
+
 
 def test_create_context_item_basic():
     """create_context_item creates a valid ContextItem with just id and content."""
@@ -146,6 +156,7 @@ def test_create_context_item_works_with_pack():
 
 
 # --- Core edge case tests ---
+
 
 def test_pack_tokens_zero_respected():
     """Item with tokens=0 should be selected and the 0 respected (not re-estimated)."""
@@ -249,6 +260,7 @@ def test_create_context_item_empty_content():
 
 # --- NaN/Infinity validation tests ---
 
+
 def test_pack_rejects_infinity_priority():
     """pack() rejects items with Infinity priority."""
     items = [ContextItem(id="a", content="test", priority=float("inf"), tokens=10)]
@@ -277,6 +289,7 @@ def test_pack_rejects_nan_recency():
 
 
 # --- Empty ID validation tests ---
+
 
 def test_pack_rejects_empty_id():
     """pack() rejects items with empty string id."""

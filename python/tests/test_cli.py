@@ -1,7 +1,7 @@
-import subprocess
-import sys
 import json
 import os
+import subprocess
+import sys
 import tempfile
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,7 +12,9 @@ MONOREPO_ROOT = os.path.join(PROJECT_ROOT, "..")
 def run_cli(*args, input=None, cwd=None):
     return subprocess.run(
         [sys.executable, "-m", "context_engineering.cli", *args],
-        capture_output=True, text=True, input=input,
+        capture_output=True,
+        text=True,
+        input=input,
         cwd=cwd or MONOREPO_ROOT,
     )
 
@@ -36,10 +38,12 @@ def test_cli_budget_missing_args():
 
 
 def test_cli_pack_stdin():
-    items_json = json.dumps([
-        {"id": "a", "content": "hello world", "tokens": 10},
-        {"id": "b", "content": "foo bar", "tokens": 20},
-    ])
+    items_json = json.dumps(
+        [
+            {"id": "a", "content": "hello world", "tokens": 10},
+            {"id": "b", "content": "foo bar", "tokens": 20},
+        ]
+    )
     result = run_cli("pack", "-i", "-", "-b", "50", input=items_json)
     assert result.returncode == 0
     data = json.loads(result.stdout)
@@ -52,7 +56,9 @@ def test_cli_no_color_env():
     env["NO_COLOR"] = "1"
     result = subprocess.run(
         [sys.executable, "-m", "context_engineering.cli", "budget", "-t", "hello"],
-        capture_output=True, text=True, env=env,
+        capture_output=True,
+        text=True,
+        env=env,
         cwd=MONOREPO_ROOT,
     )
     assert result.returncode == 0
@@ -63,10 +69,12 @@ def test_cli_no_color_env():
 # New tests
 # ---------------------------------------------------------------------------
 
-ITEMS_JSON = json.dumps([
-    {"id": "a", "content": "hello world", "tokens": 10, "kind": "system", "priority": 10},
-    {"id": "b", "content": "foo bar", "tokens": 20, "kind": "retrieval", "priority": 5},
-])
+ITEMS_JSON = json.dumps(
+    [
+        {"id": "a", "content": "hello world", "tokens": 10, "kind": "system", "priority": 10},
+        {"id": "b", "content": "foo bar", "tokens": 20, "kind": "retrieval", "priority": 5},
+    ]
+)
 
 
 def test_cli_trace_stdin():
@@ -87,9 +95,7 @@ def test_cli_lint_valid():
 
 def test_cli_lint_invalid():
     """lint with invalid data returns non-zero."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
         json.dump({"not_valid": True}, tmp)
         tmp_path = tmp.name
     try:
@@ -101,9 +107,7 @@ def test_cli_lint_invalid():
 
 def test_cli_place_stdin():
     """place command with items from a temp file (pipe to avoid tty)."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
         tmp.write(ITEMS_JSON)
         tmp_path = tmp.name
     try:
@@ -149,7 +153,7 @@ def test_cli_handoff():
     result = run_cli("handoff", "-i", items_path, "-b", "100")
     assert result.returncode == 0, result.stderr
     # Output is JSONL -- each line should be valid JSON
-    lines = [l for l in result.stdout.strip().splitlines() if l.strip()]
+    lines = [line for line in result.stdout.strip().splitlines() if line.strip()]
     assert len(lines) > 0
     for line in lines:
         parsed = json.loads(line)
@@ -174,8 +178,13 @@ def test_cli_cost():
     """cost command with items, budget, model."""
     items_path = os.path.join(FIXTURES_DIR, "context-items.json")
     result = run_cli(
-        "cost", "-i", items_path, "-b", "200",
-        "-m", "claude-sonnet-4-6",
+        "cost",
+        "-i",
+        items_path,
+        "-b",
+        "200",
+        "-m",
+        "claude-sonnet-4-6",
     )
     assert result.returncode == 0, result.stderr
     data = json.loads(result.stdout)
@@ -231,9 +240,7 @@ def test_cli_lint_new_schemas():
         },
     }
     for schema_name, data in schema_data.items():
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
             json.dump(data, tmp)
             tmp_path = tmp.name
         try:
@@ -305,14 +312,10 @@ def test_cli_diff():
         "totalTokens": 25,
         "budget": {"maxTokens": 100},
     }
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False
-    ) as bf:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as bf:
         json.dump(before, bf)
         before_path = bf.name
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False
-    ) as af:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as af:
         json.dump(after, af)
         after_path = af.name
     try:

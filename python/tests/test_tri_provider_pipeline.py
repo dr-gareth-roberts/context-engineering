@@ -6,7 +6,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from context_framework import TriProviderPipeline, USE_CASES
+from context_framework import USE_CASES, TriProviderPipeline
 
 
 class TriProviderPipelineTests(unittest.TestCase):

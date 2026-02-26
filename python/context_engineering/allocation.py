@@ -11,15 +11,16 @@ Research: "Token-Budget-Aware LLM Reasoning" (ACL 2025) showed up to
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from .core import Budget, ContextItem, ContextPack, pack
+from .core import Budget, ContextItem, pack
 
 
 @dataclass
 class KindAllocation:
     """Budget constraint for a single item kind."""
+
     kind: str
     min_tokens: Optional[int] = None
     max_tokens: Optional[int] = None
@@ -30,6 +31,7 @@ class KindAllocation:
 @dataclass
 class KindResult:
     """Per-kind allocation result."""
+
     kind: str
     budget_allocated: int
     budget_used: int
@@ -40,6 +42,7 @@ class KindResult:
 @dataclass
 class AllocatedPack:
     """Result of kind-aware packing."""
+
     budget: Budget
     selected: List[ContextItem]
     dropped: List[ContextItem]
@@ -159,9 +162,7 @@ def pack_with_allocation(
                 continue
 
             max_extra = (
-                alloc.max_tokens - result["used"]
-                if alloc.max_tokens is not None
-                else total_surplus
+                alloc.max_tokens - result["used"] if alloc.max_tokens is not None else total_surplus
             )
             if max_extra <= 0:
                 continue
@@ -238,5 +239,7 @@ def pack_with_allocation(
             "remainingTokens": max(0, effective_budget - total_tokens),
         },
         allocations=alloc_result,
-        allocation_efficiency=round(efficiency_sum / efficiency_count, 3) if efficiency_count > 0 else 1.0,
+        allocation_efficiency=round(efficiency_sum / efficiency_count, 3)
+        if efficiency_count > 0
+        else 1.0,
     )

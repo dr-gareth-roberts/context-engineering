@@ -1,10 +1,10 @@
 """Tests for kind-aware budget allocation."""
-import pytest
-from context_engineering.core import Budget, ContextItem
+
 from context_engineering.allocation import (
     KindAllocation,
     pack_with_allocation,
 )
+from context_engineering.core import Budget, ContextItem
 
 
 def make_item(id: str, kind: str, priority: float, tokens: int) -> ContextItem:

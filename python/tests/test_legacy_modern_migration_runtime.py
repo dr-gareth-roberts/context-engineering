@@ -8,13 +8,13 @@ import unittest
 from pathlib import Path
 
 from context_framework import (
+    USE_CASE_INDEX,
     InMemoryDependencyGraphAdapter,
     InMemoryMigrationActionAdapter,
     InMemorySystemInventoryAdapter,
     LegacyMigrationExecutionPolicy,
     LegacyModernMigrationCommander,
     TriProviderPipeline,
-    USE_CASE_INDEX,
 )
 
 
@@ -259,7 +259,9 @@ class LegacyModernMigrationRuntimeTests(unittest.TestCase):
         report = commander.run(scenario=scenario, mode="dry")
         elapsed = time.perf_counter() - started
 
-        inventory_rows = [row for row in report.enrichments if row.integration == "system_inventory"]
+        inventory_rows = [
+            row for row in report.enrichments if row.integration == "system_inventory"
+        ]
         self.assertEqual(len(inventory_rows), 4)
         sequential = sleepy.delay_seconds * sleepy.calls
         self.assertLess(elapsed, sequential * 0.9)

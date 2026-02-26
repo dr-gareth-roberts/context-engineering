@@ -114,3 +114,6 @@ venv/
 .venv/
 .eggs/
 python/dist/
+
+# Husky
+.husky/_/

@@ -8,13 +8,13 @@ import unittest
 from pathlib import Path
 
 from context_framework import (
+    USE_CASE_INDEX,
     ClinicalExecutionPolicy,
     ClinicalOperationsCommander,
     InMemoryAcuityIntelAdapter,
     InMemoryBedCapacityAdapter,
     InMemoryClinicalActionAdapter,
     TriProviderPipeline,
-    USE_CASE_INDEX,
 )
 
 

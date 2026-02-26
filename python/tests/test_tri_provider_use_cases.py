@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from context_framework import USE_CASES, USE_CASE_INDEX, validate_use_case_catalog
+from context_framework import USE_CASE_INDEX, USE_CASES, validate_use_case_catalog
 
 
 class TriProviderUseCaseCatalogTests(unittest.TestCase):

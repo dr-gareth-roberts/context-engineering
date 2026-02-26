@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from context_framework import (  # noqa: E402
+    USE_CASE_INDEX,
     InMemoryFulfillmentActionAdapter,
     InMemoryLaneDelayAdapter,
     InMemorySupplierRiskAdapter,
@@ -18,7 +19,6 @@ from context_framework import (  # noqa: E402
     SupplyChainControlTowerCommander,
     SupplyChainExecutionPolicy,
     TriProviderPipeline,
-    USE_CASE_INDEX,
     build_fulfillment_action_adapter_from_env,
     build_lane_delay_adapter_from_env,
     build_supplier_risk_adapter_from_env,

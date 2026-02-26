@@ -5,7 +5,7 @@ Mirrors the TypeScript error types in @ce/core for cross-language parity.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 
 

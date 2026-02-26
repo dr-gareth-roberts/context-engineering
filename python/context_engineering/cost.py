@@ -8,8 +8,8 @@ dollar amounts saved by cache-topology-aware packing.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Dict, Optional
 
 from .cache_topology import CacheAwarePack
 from .errors import EstimationError
@@ -18,6 +18,7 @@ from .errors import EstimationError
 @dataclass
 class ModelPricing:
     """Pricing per million tokens for a model."""
+
     input_per_million: float
     cached_input_per_million: float
     output_per_million: float
@@ -26,6 +27,7 @@ class ModelPricing:
 @dataclass
 class CostEstimate:
     """Cost estimate for a single request."""
+
     model: str
     input_tokens: int
     cached_tokens: int
@@ -49,6 +51,7 @@ class MonthlyEstimate:
 @dataclass
 class CostProjection:
     """Cost projection over multiple requests."""
+
     per_request: CostEstimate
     request_count: int
     total_without_cache: float
@@ -93,15 +96,16 @@ def estimate_cost(
     price = pricing or MODEL_PRICING.get(model)
     if not price:
         models = ", ".join(MODEL_PRICING.keys())
-        raise EstimationError(f'Unknown model "{model}". Pass custom pricing or use one of: {models}')
+        raise EstimationError(
+            f'Unknown model "{model}". Pass custom pricing or use one of: {models}'
+        )
 
     cached = pack.cacheable_tokens
     uncached = pack.volatile_tokens
 
-    cost_without = (
-        (pack.total_tokens / 1_000_000) * price.input_per_million
-        + (output_tokens / 1_000_000) * price.output_per_million
-    )
+    cost_without = (pack.total_tokens / 1_000_000) * price.input_per_million + (
+        output_tokens / 1_000_000
+    ) * price.output_per_million
     cost_with = (
         (cached / 1_000_000) * price.cached_input_per_million
         + (uncached / 1_000_000) * price.input_per_million

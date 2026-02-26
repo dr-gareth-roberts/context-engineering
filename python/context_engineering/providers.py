@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import math
+import os
 from dataclasses import dataclass
 from typing import List, Optional
-import os
+
 import httpx
 
 
@@ -36,7 +38,13 @@ class OpenAIProvider:
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
-    def generate(self, messages: List[LLMMessage], model: str = "gpt-4o-mini", max_tokens: int = 512, temperature: float = 0.2) -> LLMResult:
+    def generate(
+        self,
+        messages: List[LLMMessage],
+        model: str = "gpt-4o-mini",
+        max_tokens: int = 512,
+        temperature: float = 0.2,
+    ) -> LLMResult:
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY is required")
 
@@ -86,9 +94,12 @@ class CerebrasProvider:
     Provider for Cerebras Cloud SDK.
     Supports high-speed inference and perplexity scoring.
     """
+
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
         self.api_key = api_key or os.environ.get("CEREBRAS_API_KEY")
-        self.base_url = base_url or os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1")
+        self.base_url = base_url or os.environ.get(
+            "CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"
+        )
 
     def score_perplexity(self, text: str, model: str = "llama3.1-8b") -> float:
         """
@@ -107,10 +118,7 @@ class CerebrasProvider:
             "max_tokens": 0,
         }
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
         with httpx.Client(base_url=self.base_url, headers=headers, timeout=30) as client:
             response = client.post("/completions", json=payload)
@@ -119,11 +127,12 @@ class CerebrasProvider:
 
         logprobs_data = data["choices"][0]["logprobs"]
         token_logprobs = logprobs_data["token_logprobs"]
-        
+
         # Filter out None values (usually the first token)
         values = [lp for lp in token_logprobs if lp is not None]
-        if not values: return 0.0
-        
+        if not values:
+            return 0.0
+
         avg_neg_logprob = -sum(values) / len(values)
         return math.exp(avg_neg_logprob)
 
@@ -131,9 +140,17 @@ class CerebrasProvider:
 class AnthropicProvider:
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        self.base_url = base_url or os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
+        self.base_url = base_url or os.environ.get(
+            "ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"
+        )
 
-    def generate(self, messages: List[LLMMessage], model: str = "claude-3-5-sonnet-20241022", max_tokens: int = 512, temperature: float = 0.2) -> LLMResult:
+    def generate(
+        self,
+        messages: List[LLMMessage],
+        model: str = "claude-3-5-sonnet-20241022",
+        max_tokens: int = 512,
+        temperature: float = 0.2,
+    ) -> LLMResult:
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY is required")
 

@@ -8,13 +8,13 @@ import unittest
 from pathlib import Path
 
 from context_framework import (
+    USE_CASE_INDEX,
     AMLExecutionPolicy,
     AMLKYCFincrimeCommander,
     InMemoryCaseActionAdapter,
     InMemorySanctionsScreenAdapter,
     InMemoryTransactionGraphAdapter,
     TriProviderPipeline,
-    USE_CASE_INDEX,
 )
 
 
@@ -156,7 +156,9 @@ class AMLRuntimeTests(unittest.TestCase):
         )
 
         self.assertEqual(flaky_graph.calls, 2)
-        graph_result = next(row for row in report.enrichments if row.integration == "transaction_graph")
+        graph_result = next(
+            row for row in report.enrichments if row.integration == "transaction_graph"
+        )
         self.assertTrue(graph_result.success)
         self.assertEqual(graph_result.retried, 1)
         self.assertEqual(graph_result.attempts, 2)

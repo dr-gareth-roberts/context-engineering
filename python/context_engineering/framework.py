@@ -1,19 +1,29 @@
 from __future__ import annotations
 
-from typing import List, Optional, Dict, Any, Callable
-from datetime import datetime
-import re
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Union
 
-from .core import ContextItem, Budget, pack, trace_pack, ContextTrace, ContextPack, ContextHandoff, estimate_tokens, ScoringWeights
-from .memory import MemoryStore, MemoryItem, InMemoryStore
-from .providers import LLMMessage, OpenAIProvider, AnthropicProvider
-from .segmentation import BaseSegmenter, StructuralSegmenter, Segment
+from .core import (
+    Budget,
+    ContextHandoff,
+    ContextItem,
+    ContextPack,
+    ContextTrace,
+    ScoringWeights,
+    estimate_tokens,
+    pack,
+    trace_pack,
+)
+from .memory import InMemoryStore, MemoryItem, MemoryStore
+from .providers import LLMMessage
+from .segmentation import BaseSegmenter, Segment, StructuralSegmenter
 
 
 class AdaptiveBudgetStrategy:
     """
     Logic for dynamically adjusting the token budget based on input complexity.
     """
+
     def __init__(self, min_budget: int = 512, max_budget: int = 8192):
         self.min_budget = min_budget
         self.max_budget = max_budget
@@ -21,10 +31,13 @@ class AdaptiveBudgetStrategy:
     def calculate_budget(self, input_text: str, metadata: Dict[str, Any] = None) -> int:
         budget = self.min_budget
         tokens = estimate_tokens(input_text)
-        if tokens > 500: budget += 1024
+        if tokens > 500:
+            budget += 1024
         complexity_keywords = ["analyze", "debug", "compare", "refactor", "summarize everything"]
-        if any(kw in input_text.lower() for kw in complexity_keywords): budget += 2048
-        if metadata and metadata.get("depth") == "exhaustive": budget = self.max_budget
+        if any(kw in input_text.lower() for kw in complexity_keywords):
+            budget += 2048
+        if metadata and metadata.get("depth") == "exhaustive":
+            budget = self.max_budget
         return min(budget, self.max_budget)
 
 
@@ -32,7 +45,7 @@ class AgentContextManager:
     """
     High-level framework for managing agent context across sessions.
     """
-    
+
     def __init__(
         self,
         memory_store: Optional[MemoryStore] = None,
@@ -41,7 +54,7 @@ class AgentContextManager:
         segmenter: Optional[BaseSegmenter] = None,
         agent_id: str = "agent_unnamed",
         adaptive_strategy: Optional[AdaptiveBudgetStrategy] = None,
-        scoring_weights: Optional[ScoringWeights] = None
+        scoring_weights: Optional[ScoringWeights] = None,
     ):
         self.agent_id = agent_id
         self.memory = memory_store or InMemoryStore()
@@ -67,56 +80,104 @@ class AgentContextManager:
             seg.priority = priority
             self.temporary_items.append(seg)
 
-    async def add_memory(self, content: str, id: Optional[str] = None, salience: float = 1.0, ttl: Optional[int] = None):
+    async def add_memory(
+        self,
+        content: str,
+        id: Optional[str] = None,
+        salience: float = 1.0,
+        ttl: Optional[int] = None,
+    ):
         item = MemoryItem(
             id=id or f"mem_{int(datetime.now(timezone.utc).timestamp())}",
             content=content,
             salience=salience,
             ttlSeconds=ttl,
-            createdAt=datetime.now(timezone.utc).isoformat()
+            createdAt=datetime.now(timezone.utc).isoformat(),
         )
         self.memory.put(item)
 
-    def add_temporary_context(self, content: str, id: str, priority: float = 5.0, compressions: List[Dict[str, Any]] = None, cost: float = 0.0, latency: float = 0.0):
-        item = ContextItem(id=id, content=content, priority=priority, compressions=compressions or [], cost=cost, latency=latency)
+    def add_temporary_context(
+        self,
+        content: str,
+        id: str,
+        priority: float = 5.0,
+        compressions: List[Dict[str, Any]] = None,
+        cost: float = 0.0,
+        latency: float = 0.0,
+    ):
+        item = ContextItem(
+            id=id,
+            content=content,
+            priority=priority,
+            compressions=compressions or [],
+            cost=cost,
+            latency=latency,
+        )
         self.temporary_items.append(item)
 
-    def build_context(self, budget: Optional[int] = None, trace: bool = False, weights: Optional[ScoringWeights] = None) -> Union[ContextPack, ContextTrace]:
+    def build_context(
+        self,
+        budget: Optional[int] = None,
+        trace: bool = False,
+        weights: Optional[ScoringWeights] = None,
+    ) -> Union[ContextPack, ContextTrace]:
         target_budget = Budget(maxTokens=budget or self.active_budget)
         w = weights or self.scoring_weights
-        
+
         memories = self.memory.query()
         context_items: List[ContextItem] = []
         for m in memories:
-            context_items.append(ContextItem(id=m.id, content=m.content, priority=m.salience or 1.0, metadata=m.metadata, embedding=m.embedding))
-            
+            context_items.append(
+                ContextItem(
+                    id=m.id,
+                    content=m.content,
+                    priority=m.salience or 1.0,
+                    metadata=m.metadata,
+                    embedding=m.embedding,
+                )
+            )
+
         context_items.extend(self.temporary_items)
-        if self.system_prompt: context_items.append(self.system_prompt)
-            
-        if trace: return trace_pack(context_items, target_budget, provider=self.provider, weights=w)
+        if self.system_prompt:
+            context_items.append(self.system_prompt)
+
+        if trace:
+            return trace_pack(context_items, target_budget, provider=self.provider, weights=w)
         return pack(context_items, target_budget, provider=self.provider, weights=w)
 
-    def export_handoff(self, target_agent_id: Optional[str] = None, budget: Optional[int] = None) -> ContextHandoff:
+    def export_handoff(
+        self, target_agent_id: Optional[str] = None, budget: Optional[int] = None
+    ) -> ContextHandoff:
         packed = self.build_context(budget=budget)
-        return ContextHandoff(sourceAgentId=self.agent_id, targetAgentId=target_agent_id, items=packed.selected, budget=packed.budget, metadata={"source_provider": self.provider})
+        return ContextHandoff(
+            sourceAgentId=self.agent_id,
+            targetAgentId=target_agent_id,
+            items=packed.selected,
+            budget=packed.budget,
+            metadata={"source_provider": self.provider},
+        )
 
     def import_handoff(self, handoff: ContextHandoff):
         self.temporary_items = handoff.items
         self.active_budget = handoff.budget.max_tokens
 
-    def build_messages(self, budget: Optional[int] = None, weights: Optional[ScoringWeights] = None) -> List[LLMMessage]:
+    def build_messages(
+        self, budget: Optional[int] = None, weights: Optional[ScoringWeights] = None
+    ) -> List[LLMMessage]:
         packed = self.build_context(budget=budget, weights=weights)
         messages: List[LLMMessage] = []
         selected = packed.selected
         system_items = [i for i in selected if i.id == "system" or (i.priority or 0) >= 10]
         other_items = [i for i in selected if i not in system_items]
-        for item in system_items: messages.append(LLMMessage(role="system", content=item.content))
+        for item in system_items:
+            messages.append(LLMMessage(role="system", content=item.content))
         if other_items:
             blocks = []
             for i in other_items:
                 content = i.to_context_text() if isinstance(i, Segment) else i.content
                 blocks.append(f"### {i.id}\n{content}")
-            messages.append(LLMMessage(role="user", content=f"Context:\n{context_block}" if 'context_block' in locals() else f"Context:\n{chr(10).join(blocks)}"))
+            context_block = chr(10).join(blocks)
+            messages.append(LLMMessage(role="user", content=f"Context:\n{context_block}"))
         return messages
 
     def clear_temporary(self):

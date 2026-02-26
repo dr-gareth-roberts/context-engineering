@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from context_framework import TriProviderPipeline, USE_CASE_INDEX
+from context_framework import USE_CASE_INDEX, TriProviderPipeline
 
 
 def parse_args(default_scenario: str) -> argparse.Namespace:
@@ -80,11 +80,7 @@ def run_use_case(
     if report.ranked_actions:
         for idx, row in enumerate(report.ranked_actions[:3], start=1):
             score = f"{row.score:.4f}"
-            ppl = (
-                f" perplexity={row.perplexity:.4f}"
-                if row.perplexity is not None
-                else ""
-            )
+            ppl = f" perplexity={row.perplexity:.4f}" if row.perplexity is not None else ""
             print(f"{idx}. score={score}{ppl} source={row.source}")
             print(f"   {row.action}")
             print(f"   rationale: {row.rationale}")

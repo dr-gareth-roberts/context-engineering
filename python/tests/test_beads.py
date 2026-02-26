@@ -1,23 +1,23 @@
 """Tests for BEADS JSONL format support."""
-import json
-import pytest
-from datetime import datetime, timezone, timedelta
 
-from context_engineering.core import Budget, ContextItem, ContextPack
+import json
+from datetime import datetime, timedelta, timezone
+
 from context_engineering.beads import (
-    BeadsIssue,
-    BeadsDependency,
     BeadsBridgeOptions,
+    BeadsDependency,
+    BeadsIssue,
     HandoffOptions,
+    beads_to_context_item,
+    context_item_to_beads,
+    create_handoff,
+    get_ready_issues,
+    merge_beads_jsonl,
+    pickup_handoff,
     read_beads_jsonl,
     write_beads_jsonl,
-    context_item_to_beads,
-    beads_to_context_item,
-    create_handoff,
-    pickup_handoff,
-    merge_beads_jsonl,
-    get_ready_issues,
 )
+from context_engineering.core import Budget, ContextItem, ContextPack
 
 
 def make_item(id: str, kind: str, priority: float, tokens: int) -> ContextItem:
@@ -50,42 +50,101 @@ def make_issue(**kwargs) -> BeadsIssue:
 
 # ─── readBeadsJSONL / writeBeadsJSONL ─────────────────────────────────
 
+
 class TestReadBeadsJSONL:
     def test_parses_valid_jsonl(self):
-        jsonl = "\n".join([
-            json.dumps({"id": "bd-1", "title": "A", "status": "open", "priority": 2, "issue_type": "task", "created_at": "2025-01-01", "updated_at": "2025-01-01"}),
-            json.dumps({"id": "bd-2", "title": "B", "status": "closed", "priority": 1, "issue_type": "bug", "created_at": "2025-01-01", "updated_at": "2025-01-01"}),
-        ])
+        jsonl = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "id": "bd-1",
+                        "title": "A",
+                        "status": "open",
+                        "priority": 2,
+                        "issue_type": "task",
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "id": "bd-2",
+                        "title": "B",
+                        "status": "closed",
+                        "priority": 1,
+                        "issue_type": "bug",
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                    }
+                ),
+            ]
+        )
         issues = read_beads_jsonl(jsonl)
         assert len(issues) == 2
         assert issues[0].id == "bd-1"
         assert issues[1].id == "bd-2"
 
     def test_skips_blank_lines_and_comments(self):
-        jsonl = "\n".join([
-            "# Comment",
-            "",
-            json.dumps({"id": "bd-1", "title": "A", "status": "open", "priority": 2, "issue_type": "task", "created_at": "2025-01-01", "updated_at": "2025-01-01"}),
-            "",
-            "# Another comment",
-        ])
+        jsonl = "\n".join(
+            [
+                "# Comment",
+                "",
+                json.dumps(
+                    {
+                        "id": "bd-1",
+                        "title": "A",
+                        "status": "open",
+                        "priority": 2,
+                        "issue_type": "task",
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                    }
+                ),
+                "",
+                "# Another comment",
+            ]
+        )
         issues = read_beads_jsonl(jsonl)
         assert len(issues) == 1
 
     def test_skips_malformed_lines(self):
-        jsonl = "\n".join([
-            "not json",
-            json.dumps({"id": "bd-1", "title": "A", "status": "open", "priority": 2, "issue_type": "task", "created_at": "2025-01-01", "updated_at": "2025-01-01"}),
-            "{bad",
-        ])
+        jsonl = "\n".join(
+            [
+                "not json",
+                json.dumps(
+                    {
+                        "id": "bd-1",
+                        "title": "A",
+                        "status": "open",
+                        "priority": 2,
+                        "issue_type": "task",
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                    }
+                ),
+                "{bad",
+            ]
+        )
         issues = read_beads_jsonl(jsonl)
         assert len(issues) == 1
 
     def test_skips_objects_without_id(self):
-        jsonl = "\n".join([
-            json.dumps({"title": "No ID"}),
-            json.dumps({"id": "bd-1", "title": "Has ID", "status": "open", "priority": 2, "issue_type": "task", "created_at": "2025-01-01", "updated_at": "2025-01-01"}),
-        ])
+        jsonl = "\n".join(
+            [
+                json.dumps({"title": "No ID"}),
+                json.dumps(
+                    {
+                        "id": "bd-1",
+                        "title": "Has ID",
+                        "status": "open",
+                        "priority": 2,
+                        "issue_type": "task",
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                    }
+                ),
+            ]
+        )
         issues = read_beads_jsonl(jsonl)
         assert len(issues) == 1
 
@@ -112,6 +171,7 @@ class TestWriteBeadsJSONL:
 
 # ─── ContextItem ↔ BeadsIssue Bridge ─────────────────────────────────
 
+
 class TestContextItemToBeads:
     def test_converts_item(self):
         item = make_item("sys-prompt", "system", 10, 100)
@@ -132,8 +192,13 @@ class TestContextItemToBeads:
 
     def test_stores_ce_metadata(self):
         item = ContextItem(
-            id="test", content="hello", kind="memory",
-            priority=7, recency=0.8, tokens=50, score=6.5,
+            id="test",
+            content="hello",
+            kind="memory",
+            priority=7,
+            recency=0.8,
+            tokens=50,
+            score=6.5,
         )
         issue = context_item_to_beads(item)
         ce = issue.metadata["_ce"]
@@ -146,11 +211,14 @@ class TestContextItemToBeads:
 
     def test_respects_bridge_options(self):
         item = make_item("a", "system", 5, 50)
-        issue = context_item_to_beads(item, BeadsBridgeOptions(
-            agent="agent-007",
-            source_system="my-app",
-            default_status="pinned",
-        ))
+        issue = context_item_to_beads(
+            item,
+            BeadsBridgeOptions(
+                agent="agent-007",
+                source_system="my-app",
+                default_status="pinned",
+            ),
+        )
 
         assert issue.assignee == "agent-007"
         assert issue.source_system == "my-app"
@@ -171,8 +239,10 @@ class TestBeadsToContextItem:
 
     def test_infers_kind_from_labels(self):
         issue = make_issue(
-            id="bd-test", description="content",
-            issue_type="context", labels=["kind:retrieval"],
+            id="bd-test",
+            description="content",
+            issue_type="context",
+            labels=["kind:retrieval"],
         )
         item = beads_to_context_item(issue)
         assert item.kind == "retrieval"
@@ -184,8 +254,12 @@ class TestBeadsToContextItem:
 
     def test_roundtrips(self):
         original = ContextItem(
-            id="my-item", content="important context",
-            kind="memory", priority=7, recency=0.9, tokens=42,
+            id="my-item",
+            content="important context",
+            kind="memory",
+            priority=7,
+            recency=0.9,
+            tokens=42,
         )
         issue = context_item_to_beads(original)
         recovered = beads_to_context_item(issue)
@@ -200,12 +274,15 @@ class TestBeadsToContextItem:
 
 # ─── Agent Handoff / Pickup ───────────────────────────────────────────
 
+
 class TestCreateHandoff:
     def test_creates_jsonl(self):
-        pack = make_pack([
-            make_item("sys", "system", 10, 100),
-            make_item("doc", "retrieval", 7, 50),
-        ])
+        pack = make_pack(
+            [
+                make_item("sys", "system", 10, 100),
+                make_item("doc", "retrieval", 7, 50),
+            ]
+        )
         result = create_handoff(pack)
 
         assert len(result.issues) == 3  # manifest + 2 items
@@ -226,11 +303,14 @@ class TestCreateHandoff:
 
     def test_includes_manifest_metadata(self):
         pack = make_pack([make_item("a", "system", 10, 100)])
-        result = create_handoff(pack, HandoffOptions(
-            agent="agent-1",
-            session_id="session-xyz",
-            handoff_notes="Completed phase 1",
-        ))
+        result = create_handoff(
+            pack,
+            HandoffOptions(
+                agent="agent-1",
+                session_id="session-xyz",
+                handoff_notes="Completed phase 1",
+            ),
+        )
 
         manifest = result.issues[0]
         assert manifest.id.startswith("ce-handoff-")
@@ -243,10 +323,12 @@ class TestCreateHandoff:
 
 class TestPickupHandoff:
     def test_recovers_items(self):
-        pack = make_pack([
-            make_item("sys", "system", 10, 100),
-            make_item("doc", "retrieval", 7, 50),
-        ])
+        pack = make_pack(
+            [
+                make_item("sys", "system", 10, 100),
+                make_item("doc", "retrieval", 7, 50),
+            ]
+        )
         handoff = create_handoff(pack, HandoffOptions(agent="agent-1"))
         pickup = pickup_handoff(handoff.jsonl)
 
@@ -269,27 +351,56 @@ class TestPickupHandoff:
         assert pickup.deferred[0].id == "deferred"
 
     def test_separates_work_items(self):
-        jsonl = "\n".join([
-            json.dumps({
-                "id": "ce-handoff-test", "title": "Handoff", "status": "pinned",
-                "priority": 0, "issue_type": "message", "labels": ["handoff"],
-                "created_at": "2025-01-01", "updated_at": "2025-01-01",
-                "metadata": {"_ce_handoff": {"sessionId": "s1"}},
-            }),
-            json.dumps({
-                "id": "ce-sys", "title": "sys", "description": "System prompt",
-                "status": "open", "priority": 0, "issue_type": "context",
-                "source_system": "context-engineering",
-                "labels": ["context-engineering", "kind:system"],
-                "created_at": "2025-01-01", "updated_at": "2025-01-01",
-                "metadata": {"_ce": {"originalId": "sys", "kind": "system", "priority": 10, "tokens": 50}},
-            }),
-            json.dumps({
-                "id": "bd-task-1", "title": "Fix the bug", "status": "open",
-                "priority": 1, "issue_type": "bug",
-                "created_at": "2025-01-01", "updated_at": "2025-01-01",
-            }),
-        ])
+        jsonl = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "id": "ce-handoff-test",
+                        "title": "Handoff",
+                        "status": "pinned",
+                        "priority": 0,
+                        "issue_type": "message",
+                        "labels": ["handoff"],
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                        "metadata": {"_ce_handoff": {"sessionId": "s1"}},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "id": "ce-sys",
+                        "title": "sys",
+                        "description": "System prompt",
+                        "status": "open",
+                        "priority": 0,
+                        "issue_type": "context",
+                        "source_system": "context-engineering",
+                        "labels": ["context-engineering", "kind:system"],
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                        "metadata": {
+                            "_ce": {
+                                "originalId": "sys",
+                                "kind": "system",
+                                "priority": 10,
+                                "tokens": 50,
+                            }
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "id": "bd-task-1",
+                        "title": "Fix the bug",
+                        "status": "open",
+                        "priority": 1,
+                        "issue_type": "bug",
+                        "created_at": "2025-01-01",
+                        "updated_at": "2025-01-01",
+                    }
+                ),
+            ]
+        )
 
         pickup = pickup_handoff(jsonl)
         assert len(pickup.items) == 1
@@ -305,9 +416,13 @@ class TestPickupHandoff:
             make_item("query", "query", 8, 50),
         ]
         pack = make_pack(original)
-        handoff = create_handoff(pack, HandoffOptions(
-            agent="agent-1", session_id="roundtrip",
-        ))
+        handoff = create_handoff(
+            pack,
+            HandoffOptions(
+                agent="agent-1",
+                session_id="roundtrip",
+            ),
+        )
         pickup = pickup_handoff(handoff.jsonl)
 
         assert len(pickup.items) == 3
@@ -326,6 +441,7 @@ class TestPickupHandoff:
 
 
 # ─── Incremental Operations ──────────────────────────────────────────
+
 
 class TestMergeBeadsJSONL:
     def test_merges_new_issues(self):
@@ -362,8 +478,11 @@ class TestGetReadyIssues:
         issues = [
             make_issue(id="bd-1", status="open"),
             make_issue(
-                id="bd-2", status="open",
-                dependencies=[BeadsDependency(issue_id="bd-2", depends_on_id="bd-1", type="blocks")],
+                id="bd-2",
+                status="open",
+                dependencies=[
+                    BeadsDependency(issue_id="bd-2", depends_on_id="bd-1", type="blocks")
+                ],
             ),
         ]
         ready = get_ready_issues(issues)
@@ -374,8 +493,11 @@ class TestGetReadyIssues:
         issues = [
             make_issue(id="bd-1", status="closed"),
             make_issue(
-                id="bd-2", status="open",
-                dependencies=[BeadsDependency(issue_id="bd-2", depends_on_id="bd-1", type="blocks")],
+                id="bd-2",
+                status="open",
+                dependencies=[
+                    BeadsDependency(issue_id="bd-2", depends_on_id="bd-1", type="blocks")
+                ],
             ),
         ]
         ready = get_ready_issues(issues)

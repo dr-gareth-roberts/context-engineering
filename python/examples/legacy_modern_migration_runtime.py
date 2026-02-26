@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from context_framework import (  # noqa: E402
+    USE_CASE_INDEX,
     InMemoryDependencyGraphAdapter,
     InMemoryMigrationActionAdapter,
     InMemorySystemInventoryAdapter,
@@ -18,7 +19,6 @@ from context_framework import (  # noqa: E402
     LegacyMigrationExecutionPolicy,
     LegacyModernMigrationCommander,
     TriProviderPipeline,
-    USE_CASE_INDEX,
     build_dependency_graph_adapter_from_env,
     build_migration_action_adapter_from_env,
     build_system_inventory_adapter_from_env,
