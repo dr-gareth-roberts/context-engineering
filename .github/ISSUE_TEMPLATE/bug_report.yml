@@ -1,0 +1,47 @@
+name: Bug Report
+description: Report a bug
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal code or steps to reproduce the issue.
+      render: ts
+
+  - type: dropdown
+    id: sdk
+    attributes:
+      label: SDK
+      options:
+        - TypeScript
+        - Python
+        - CLI
+        - Both
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        - OS:
+        - Node.js / Python version:
+        - Package version:
+      render: text
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error Output
+      description: Stack traces, error messages, etc.
+      render: text

@@ -4,10 +4,15 @@
   "type": "module",
   "description": "Core context engineering algorithms — pack, diff, trace, placement, quality, cache-topology, allocation, sessions, pipelines, cost estimation, and BEADS agent handoff",
   "license": "MIT",
+  "author": "Dr Gareth Roberts <gareth@zmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/context-engineering/toolkit",
+    "url": "https://github.com/dr-gareth-roberts/context-engineering.git",
     "directory": "packages/ce-core"
+  },
+  "homepage": "https://github.com/dr-gareth-roberts/context-engineering/tree/main/packages/ce-core",
+  "bugs": {
+    "url": "https://github.com/dr-gareth-roberts/context-engineering/issues"
   },
   "keywords": [
     "context-engineering",
