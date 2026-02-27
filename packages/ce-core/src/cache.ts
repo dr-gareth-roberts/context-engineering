@@ -31,8 +31,12 @@ export function createCachedEstimator(
   const cache = new Map<string, number>();
 
   return (text: string, opts?: { model?: string; provider?: string }) => {
-    if (cache.has(text)) {
-      return cache.get(text)!;
+    const key =
+      opts?.model || opts?.provider
+        ? `${text}\0${opts.model ?? ""}\0${opts.provider ?? ""}`
+        : text;
+    if (cache.has(key)) {
+      return cache.get(key)!;
     }
 
     const result = estimator(text, opts);
@@ -44,7 +48,7 @@ export function createCachedEstimator(
       }
     }
 
-    cache.set(text, result);
+    cache.set(key, result);
     return result;
   };
 }

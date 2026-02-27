@@ -164,6 +164,9 @@ class AgentContextManager:
     def build_messages(
         self, budget: Optional[int] = None, weights: Optional[ScoringWeights] = None
     ) -> List[LLMMessage]:
+        # Save segment map before packing (pack's model_copy loses Segment subclass)
+        segment_map = {i.id: i for i in self.temporary_items if isinstance(i, Segment)}
+
         packed = self.build_context(budget=budget, weights=weights)
         messages: List[LLMMessage] = []
         selected = packed.selected
@@ -174,7 +177,10 @@ class AgentContextManager:
         if other_items:
             blocks = []
             for i in other_items:
-                content = i.to_context_text() if isinstance(i, Segment) else i.content
+                if i.id in segment_map:
+                    content = segment_map[i.id].to_context_text()
+                else:
+                    content = i.content
                 blocks.append(f"### {i.id}\n{content}")
             context_block = chr(10).join(blocks)
             messages.append(LLMMessage(role="user", content=f"Context:\n{context_block}"))

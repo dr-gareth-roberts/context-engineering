@@ -295,13 +295,21 @@ export class ContextPipeline {
         quality.overall < this.qualityConfig.minOverall &&
         selected.length > 1
       ) {
-        // Drop items with lowest individual contribution until quality improves
-        // Simple approach: remove items one at a time from the end
         while (
           selected.length > 1 &&
           quality.overall < this.qualityConfig.minOverall
         ) {
-          const removed = selected.pop()!;
+          // Drop lowest-scored item, not last positional item
+          let minIdx = 0;
+          let minScore = selected[0].score ?? 0;
+          for (let i = 1; i < selected.length; i++) {
+            const s = selected[i].score ?? 0;
+            if (s < minScore) {
+              minScore = s;
+              minIdx = i;
+            }
+          }
+          const [removed] = selected.splice(minIdx, 1);
           dropped.push(removed);
           totalTokens -= removed.tokens ?? 0;
           quality = analyzeContext(selected);

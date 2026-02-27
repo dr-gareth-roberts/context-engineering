@@ -122,8 +122,9 @@ export function createContextManager(
     let availableTokens = effectiveBudget - systemTokens;
 
     // Phase 1: Always preserve recent turns
-    const recentTurns = turns.slice(-preserveRecent);
-    const olderTurns = turns.slice(0, -preserveRecent || turns.length);
+    const recentTurns = preserveRecent > 0 ? turns.slice(-preserveRecent) : [];
+    const olderTurns =
+      preserveRecent > 0 ? turns.slice(0, -preserveRecent) : turns;
 
     const recentTokens = recentTurns.reduce(
       (sum, t) => sum + (t.tokens ?? 0),
