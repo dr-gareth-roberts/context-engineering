@@ -106,8 +106,46 @@ export class SqliteStore implements MemoryStore {
   }
 
   async query(query: MemoryQuery = {}): Promise<MemoryItem[]> {
-    const stmt = this.db.prepare(`SELECT * FROM ${this.tableName}`);
-    const rows = stmt.all() as Array<{
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    // Push TTL expiry filter into SQL (exclude expired unless includeExpired)
+    if (!query.includeExpired) {
+      const now = query.now ?? Date.now();
+      conditions.push(
+        "(ttl_seconds IS NULL OR (CAST(strftime('%s', created_at) AS INTEGER) * 1000 + ttl_seconds * 1000) > ?)"
+      );
+      params.push(now);
+    }
+
+    // Push text filter into SQL
+    if (query.text) {
+      conditions.push("content LIKE ?");
+      params.push(`%${query.text}%`);
+    }
+
+    // Push minSalience filter into SQL (only when no halfLife decay is needed)
+    if (
+      query.minSalience !== undefined &&
+      query.halfLifeSeconds === undefined
+    ) {
+      conditions.push("salience >= ?");
+      params.push(query.minSalience);
+    }
+
+    let sql = `SELECT * FROM ${this.tableName}`;
+    if (conditions.length > 0) {
+      sql += ` WHERE ${conditions.join(" AND ")}`;
+    }
+    // Sort by salience descending to match applyQueryFilter behavior
+    sql += " ORDER BY salience DESC";
+    if (query.limit !== undefined) {
+      sql += " LIMIT ?";
+      params.push(query.limit);
+    }
+
+    const stmt = this.db.prepare(sql);
+    const rows = stmt.all(...params) as Array<{
       id: string;
       content: string;
       created_at: string;
@@ -127,6 +165,8 @@ export class SqliteStore implements MemoryStore {
       metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
     }));
 
+    // Fall back to JS filtering for fields that can't be fully pushed to SQL
+    // (e.g., halfLifeSeconds decay, case-insensitive text matching)
     return applyQueryFilter(items, query);
   }
 

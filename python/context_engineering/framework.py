@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 from .core import (
     Budget,
@@ -148,7 +148,7 @@ class AgentContextManager:
     def export_handoff(
         self, target_agent_id: Optional[str] = None, budget: Optional[int] = None
     ) -> ContextHandoff:
-        packed = self.build_context(budget=budget)
+        packed = cast(ContextPack, self.build_context(budget=budget))
         return ContextHandoff(
             sourceAgentId=self.agent_id,
             targetAgentId=target_agent_id,
@@ -167,7 +167,7 @@ class AgentContextManager:
         # Save segment map before packing (pack's model_copy loses Segment subclass)
         segment_map = {i.id: i for i in self.temporary_items if isinstance(i, Segment)}
 
-        packed = self.build_context(budget=budget, weights=weights)
+        packed = cast(ContextPack, self.build_context(budget=budget, weights=weights))
         messages: List[LLMMessage] = []
         selected = packed.selected
         system_items = [i for i in selected if i.id == "system" or (i.priority or 0) >= 10]

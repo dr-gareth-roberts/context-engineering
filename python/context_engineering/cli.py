@@ -491,10 +491,11 @@ def cmd_cost(args: argparse.Namespace) -> None:
                 requests_per_day=args.requests_per_day,
             )
             m = proj.monthly_estimate
-            print(f"\n  {_fmt.bold('Monthly Projection')} ({args.requests_per_day} req/day)")
-            print(f"  Without cache:   ${m.monthly_cost_without_cache:.2f}")
-            print(f"  With cache:      ${m.monthly_cost_with_cache:.2f}")
-            print(f"  {_fmt.bold(f'Monthly savings:   ${m.monthly_savings:.2f}')}")
+            if m is not None:
+                print(f"\n  {_fmt.bold('Monthly Projection')} ({args.requests_per_day} req/day)")
+                print(f"  Without cache:   ${m.monthly_cost_without_cache:.2f}")
+                print(f"  With cache:      ${m.monthly_cost_with_cache:.2f}")
+                print(f"  {_fmt.bold(f'Monthly savings:   ${m.monthly_savings:.2f}')}")
 
 
 def main() -> None:

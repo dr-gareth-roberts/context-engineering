@@ -110,7 +110,7 @@ class ContextSession:
     def compile(self) -> SessionPack:
         """Compile the current context, computing delta from previous."""
         # Pack current items
-        packed = pack(self._current_items, self._budget)
+        packed = pack(self._current_items, self._budget, **self._pack_options)
 
         # Build manifest for current compile
         current_manifest: List[ManifestEntry] = []
@@ -141,16 +141,19 @@ class ContextSession:
             changed_tokens = 0
             reusable_tokens = 0
 
+            # Build a map from id -> item for O(1) lookups
+            selected_map = {i.id: i for i in packed.selected}
+
             # Find added and changed
             for entry in current_manifest:
                 prev = prev_map.get(entry.id)
                 if prev is None:
-                    item = next((i for i in packed.selected if i.id == entry.id), None)
+                    item = selected_map.get(entry.id)
                     if item:
                         added.append(item)
                     added_tokens += entry.tokens
                 elif prev.content_hash != entry.content_hash:
-                    item = next((i for i in packed.selected if i.id == entry.id), None)
+                    item = selected_map.get(entry.id)
                     if item:
                         changed.append(item)
                     changed_tokens += entry.tokens
@@ -178,14 +181,13 @@ class ContextSession:
             )
 
         # Generate cache key from unchanged items
+        prev_map_for_cache = {e.id: e for e in self._previous_manifest}
         unchanged_ids = sorted(
             [
                 e.id
                 for e in current_manifest
-                if any(
-                    p.id == e.id and p.content_hash == e.content_hash
-                    for p in self._previous_manifest
-                )
+                if e.id in prev_map_for_cache
+                and prev_map_for_cache[e.id].content_hash == e.content_hash
             ]
         )
         cache_key = _quick_hash(",".join(unchanged_ids) or "empty")

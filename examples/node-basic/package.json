@@ -1,0 +1,10 @@
+{
+  "name": "ce-node-basic-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ce/core": "workspace:*",
+    "@ce/memory": "workspace:*",
+    "@ce/providers": "workspace:*"
+  }
+}

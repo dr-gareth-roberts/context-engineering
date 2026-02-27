@@ -40,6 +40,7 @@ from .core import (
     ContextTrace,
     ScoringWeights,
     create_context_item,
+    create_scorer,
     diff,
     estimate_tokens,
     pack,
@@ -110,6 +111,7 @@ __all__ = [
     "ScoringWeights",
     # Core functions
     "create_context_item",
+    "create_scorer",
     "pack",
     "trace_pack",
     "diff",

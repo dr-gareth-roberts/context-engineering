@@ -147,6 +147,7 @@ def _apply_query(items: List[MemoryItem], query: MemoryQuery) -> List[MemoryItem
 class InMemoryStore(MemoryStore):
     def __init__(self) -> None:
         self._items: Dict[str, MemoryItem] = {}
+        self._lock = threading.Lock()
 
     def put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
         items = item if isinstance(item, list) else [item]
@@ -170,19 +171,30 @@ class InMemoryStore(MemoryStore):
     async def consolidate(
         self, summarizer: Callable[[str], Awaitable[str]], salience_threshold: float = 0.3
     ) -> int:
-        cold_ids = [
-            id
-            for id, i in self._items.items()
-            if (i.salience or 1.0) < salience_threshold and not i.is_summary
-        ]
-        for item_id in cold_ids:
-            item = self._items[item_id]
-            summary = await summarizer(item.content)
-            item.content = f"[Flashcard] {summary}"
-            item.is_summary = True
-            item.salience = salience_threshold + 0.1
-            item.updated_at = _now_iso()
-        return len(cold_ids)
+        # Read cold items under the lock, copy out what we need
+        with self._lock:
+            cold_items = [
+                (item_id, self._items[item_id].content)
+                for item_id, i in self._items.items()
+                if (i.salience or 1.0) < salience_threshold and not i.is_summary
+            ]
+
+        # Perform async summarizer work outside the lock
+        results = []
+        for item_id, content in cold_items:
+            summary = await summarizer(content)
+            results.append((item_id, summary))
+
+        # Write results back under the lock
+        with self._lock:
+            for item_id, summary in results:
+                if item_id in self._items:
+                    item = self._items[item_id]
+                    item.content = f"[Flashcard] {summary}"
+                    item.is_summary = True
+                    item.salience = salience_threshold + 0.1
+                    item.updated_at = _now_iso()
+        return len(cold_items)
 
 
 class FileStore(MemoryStore):
@@ -254,24 +266,40 @@ class FileStore(MemoryStore):
             return removed
 
     async def consolidate(self, summarizer, threshold=0.3):
+        # Read cold items under the lock, copy out what we need
         with self._lock:
             self._load()
-            count = 0
-            for i in self._items.values():
-                if (i.salience or 1.0) < threshold and not i.is_summary:
-                    i.content = f"[Flashcard] {await summarizer(i.content)}"
-                    i.is_summary = True
-                    i.salience = threshold + 0.1
-                    i.updated_at = _now_iso()
-                    count += 1
-            if count:
+            cold_items = [
+                (item_id, item.content)
+                for item_id, item in self._items.items()
+                if (item.salience or 1.0) < threshold and not item.is_summary
+            ]
+
+        # Perform async summarizer work outside the lock
+        results = []
+        for item_id, content in cold_items:
+            summary = await summarizer(content)
+            results.append((item_id, summary))
+
+        # Write results back under the lock
+        with self._lock:
+            for item_id, summary in results:
+                if item_id in self._items:
+                    item = self._items[item_id]
+                    item.content = f"[Flashcard] {summary}"
+                    item.is_summary = True
+                    item.salience = threshold + 0.1
+                    item.updated_at = _now_iso()
+            if results:
                 self._persist()
-            return count
+        return len(cold_items)
 
 
 class SqliteStore(MemoryStore):
     def __init__(self, database_path: str) -> None:
-        self.conn = sqlite3.connect(database_path)
+        self.conn = sqlite3.connect(database_path, check_same_thread=False)
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self._lock = threading.Lock()
         self._init()
 
     def _init(self):
@@ -285,63 +313,47 @@ class SqliteStore(MemoryStore):
         self.conn.commit()
 
     def put(self, item: MemoryItem | List[MemoryItem]):
-        items = item if isinstance(item, list) else [item]
-        normalized = [_normalize(e) for e in items]
-        with self.conn:
-            for e in normalized:
-                self.conn.execute(
-                    """
-                    INSERT INTO memory_items (id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET content=excluded.content, updated_at=excluded.updated_at,
-                    last_accessed_at=excluded.last_accessed_at, salience=excluded.salience, ttl_seconds=excluded.ttl_seconds,
-                    is_summary=excluded.is_summary, embedding_json=excluded.embedding_json, metadata_json=excluded.metadata_json
-                """,
-                    (
-                        e.id,
-                        e.content,
-                        e.created_at,
-                        e.updated_at or e.created_at,
-                        e.last_accessed_at or e.created_at,
-                        e.salience,
-                        e.ttl_seconds,
-                        1 if e.is_summary else 0,
-                        json.dumps(e.embedding) if e.embedding else None,
-                        json.dumps(e.metadata or {}),
-                    ),
-                )
-        return normalized
+        with self._lock:
+            items = item if isinstance(item, list) else [item]
+            normalized = [_normalize(e) for e in items]
+            with self.conn:
+                for e in normalized:
+                    self.conn.execute(
+                        """
+                        INSERT INTO memory_items (id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET content=excluded.content, updated_at=excluded.updated_at,
+                        last_accessed_at=excluded.last_accessed_at, salience=excluded.salience, ttl_seconds=excluded.ttl_seconds,
+                        is_summary=excluded.is_summary, embedding_json=excluded.embedding_json, metadata_json=excluded.metadata_json
+                    """,
+                        (
+                            e.id,
+                            e.content,
+                            e.created_at,
+                            e.updated_at or e.created_at,
+                            e.last_accessed_at or e.created_at,
+                            e.salience,
+                            e.ttl_seconds,
+                            1 if e.is_summary else 0,
+                            json.dumps(e.embedding) if e.embedding else None,
+                            json.dumps(e.metadata or {}),
+                        ),
+                    )
+            return normalized
 
     def get(self, item_id: str):
-        self.conn.execute(
-            "UPDATE memory_items SET last_accessed_at = ? WHERE id = ?", (_now_iso(), item_id)
-        )
-        self.conn.commit()
-        r = self.conn.execute(
-            "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json FROM memory_items WHERE id = ?",
-            (item_id,),
-        ).fetchone()
-        if not r:
-            return None
-        return MemoryItem(
-            id=r[0],
-            content=r[1],
-            createdAt=r[2],
-            updatedAt=r[3],
-            lastAccessedAt=r[4],
-            salience=r[5],
-            ttlSeconds=r[6],
-            isSummary=bool(r[7]),
-            embedding=json.loads(r[8]) if r[8] else None,
-            metadata=json.loads(r[9]) if r[9] else {},
-        )
-
-    def query(self, query: Optional[MemoryQuery] = None):
-        cursor = self.conn.execute(
-            "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json FROM memory_items"
-        )
-        items = [
-            MemoryItem(
+        with self._lock:
+            self.conn.execute(
+                "UPDATE memory_items SET last_accessed_at = ? WHERE id = ?", (_now_iso(), item_id)
+            )
+            self.conn.commit()
+            r = self.conn.execute(
+                "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json FROM memory_items WHERE id = ?",
+                (item_id,),
+            ).fetchone()
+            if not r:
+                return None
+            return MemoryItem(
                 id=r[0],
                 content=r[1],
                 createdAt=r[2],
@@ -353,25 +365,59 @@ class SqliteStore(MemoryStore):
                 embedding=json.loads(r[8]) if r[8] else None,
                 metadata=json.loads(r[9]) if r[9] else {},
             )
-            for r in cursor.fetchall()
-        ]
-        return _apply_query(items, query or MemoryQuery())
+
+    def query(self, query: Optional[MemoryQuery] = None):
+        with self._lock:
+            cursor = self.conn.execute(
+                "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json FROM memory_items"
+            )
+            items = [
+                MemoryItem(
+                    id=r[0],
+                    content=r[1],
+                    createdAt=r[2],
+                    updatedAt=r[3],
+                    lastAccessedAt=r[4],
+                    salience=r[5],
+                    ttlSeconds=r[6],
+                    isSummary=bool(r[7]),
+                    embedding=json.loads(r[8]) if r[8] else None,
+                    metadata=json.loads(r[9]) if r[9] else {},
+                )
+                for r in cursor.fetchall()
+            ]
+            return _apply_query(items, query or MemoryQuery())
 
     def forget(self, item_id: str):
-        c = self.conn.execute("DELETE FROM memory_items WHERE id = ?", (item_id,))
-        self.conn.commit()
-        return c.rowcount > 0
+        with self._lock:
+            c = self.conn.execute("DELETE FROM memory_items WHERE id = ?", (item_id,))
+            self.conn.commit()
+            return c.rowcount > 0
+
+    def close(self):
+        with self._lock:
+            self.conn.close()
 
     async def consolidate(self, summarizer, threshold=0.3):
-        cold = self.conn.execute(
-            "SELECT id, content FROM memory_items WHERE salience < ? AND is_summary = 0",
-            (threshold,),
-        ).fetchall()
+        # Read cold items under the lock, then release before async work
+        with self._lock:
+            cold = self.conn.execute(
+                "SELECT id, content FROM memory_items WHERE salience < ? AND is_summary = 0",
+                (threshold,),
+            ).fetchall()
+
+        # Perform async summarizer work outside the lock
+        results = []
         for i_id, content in cold:
             s = await summarizer(content)
-            with self.conn:
-                self.conn.execute(
-                    "UPDATE memory_items SET content = ?, is_summary = 1, salience = ?, updated_at = ? WHERE id = ?",
-                    (f"[Flashcard] {s}", threshold + 0.1, _now_iso(), i_id),
-                )
+            results.append((i_id, s))
+
+        # Write results back under the lock
+        with self._lock:
+            for i_id, s in results:
+                with self.conn:
+                    self.conn.execute(
+                        "UPDATE memory_items SET content = ?, is_summary = 1, salience = ?, updated_at = ? WHERE id = ?",
+                        (f"[Flashcard] {s}", threshold + 0.1, _now_iso(), i_id),
+                    )
         return len(cold)
