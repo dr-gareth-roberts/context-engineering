@@ -184,17 +184,20 @@ export function createSession(options: SessionOptions): ContextSession {
       let changedTokens = 0;
       let reusableTokens = 0;
 
+      // Build a map from id -> item for O(1) lookups
+      const selectedMap = new Map(packed.selected.map(i => [i.id, i]));
+
       // Find added and changed
       for (const entry of currentManifest) {
         const prev = prevMap.get(entry.id);
         if (!prev) {
           // New item
-          const item = packed.selected.find(i => i.id === entry.id);
+          const item = selectedMap.get(entry.id);
           if (item) added.push(item);
           addedTokens += entry.tokens;
         } else if (prev.contentHash !== entry.contentHash) {
           // Content changed
-          const item = packed.selected.find(i => i.id === entry.id);
+          const item = selectedMap.get(entry.id);
           if (item) changed.push(item);
           changedTokens += entry.tokens;
         } else {
@@ -230,9 +233,13 @@ export function createSession(options: SessionOptions): ContextSession {
     }
 
     // Generate cache key from unchanged items
+    const prevMapForCache =
+      compileCount > 0
+        ? new Map(previousManifest.map(e => [e.id, e]))
+        : new Map<string, ManifestEntry>();
     const unchangedIds = currentManifest
       .filter(e => {
-        const prev = previousManifest.find(p => p.id === e.id);
+        const prev = prevMapForCache.get(e.id);
         return prev && prev.contentHash === e.contentHash;
       })
       .map(e => e.id)

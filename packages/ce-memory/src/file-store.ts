@@ -6,16 +6,22 @@ import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";
 
 export class FileStore implements MemoryStore {
   private filePath: string;
-  private loaded = false;
   private items = new Map<string, MemoryItem>();
   private writeQueue: Promise<void> = Promise.resolve();
+  private loadPromise: Promise<void> | null = null;
 
   constructor(filePath: string) {
     this.filePath = filePath;
   }
 
-  private async ensureLoaded() {
-    if (this.loaded) return;
+  private ensureLoaded(): Promise<void> {
+    if (!this.loadPromise) {
+      this.loadPromise = this.doLoad();
+    }
+    return this.loadPromise;
+  }
+
+  private async doLoad(): Promise<void> {
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
 
     try {
@@ -30,8 +36,6 @@ export class FileStore implements MemoryStore {
         throw error;
       }
     }
-
-    this.loaded = true;
   }
 
   private persist(): Promise<void> {

@@ -18,11 +18,8 @@ import {
   effectiveBudget,
   packWithCacheTopology,
   createSession,
-} from "../packages/ce-core/src/index.js";
-import type {
-  ContextItem,
-  KindAllocation,
-} from "../packages/ce-core/src/index.js";
+} from "@ce/core";
+import type { ContextItem, KindAllocation } from "@ce/core";
 
 // ─── 1. Define Context Items ──────────────────────────────────────────
 

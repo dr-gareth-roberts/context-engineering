@@ -1,0 +1,10 @@
+{
+  "typeCheckingMode": "basic",
+  "include": ["context_engineering"],
+  "exclude": ["tests", "examples"],
+  "pythonVersion": "3.10",
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportCallIssue": false,
+  "reportArgumentType": false
+}

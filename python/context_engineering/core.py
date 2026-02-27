@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union, cast
 
 import tiktoken
 from pydantic import BaseModel, ConfigDict, Field
@@ -113,6 +113,41 @@ class ScoringWeights:
     cost: float = -0.3
     latency: float = -0.2
     relation_boost: float = 2.0
+
+
+DEFAULT_SCORING_WEIGHTS = ScoringWeights()
+
+
+def create_scorer(weights: Optional[ScoringWeights] = None):
+    """Create an item scorer with custom weights.
+
+    Returns a callable that takes a ContextItem and returns a float score.
+    If the item already has a score set, that value is returned as-is.
+
+    Args:
+        weights: Custom scoring weights. Uses defaults if None
+                 (priority=1.0, recency=0.7, salience=0.5).
+
+    Returns:
+        A callable ``(ContextItem) -> float``.
+
+    Example::
+
+        scorer = create_scorer(ScoringWeights(priority=2.0, recency=0.0))
+        score = scorer(item)
+    """
+    w = weights or DEFAULT_SCORING_WEIGHTS
+
+    def scorer(item: ContextItem) -> float:
+        if item.score is not None:
+            return item.score
+
+        p = item.priority or 0.0
+        r = item.recency or 0.0
+        s = float(item.metadata.get("salience", 0.0))
+        return (p * w.priority) + (r * w.recency) + (s * w.salience)
+
+    return scorer
 
 
 def calculate_weighted_score(item: ContextItem, weights: ScoringWeights = None) -> float:
@@ -232,14 +267,17 @@ def pack(
             f"reserveTokens ({budget.reserve_tokens}) must be less than "
             f"maxTokens ({budget.max_tokens})"
         )
-    return internal_pack(
-        items,
-        budget,
-        trace=False,
-        allow_compression=allow_compression,
-        provider=provider,
-        weights=weights,
-        redundancy_threshold=redundancy_threshold,
+    return cast(
+        ContextPack,
+        internal_pack(
+            items,
+            budget,
+            trace=False,
+            allow_compression=allow_compression,
+            provider=provider,
+            weights=weights,
+            redundancy_threshold=redundancy_threshold,
+        ),
     )
 
 
@@ -467,14 +505,17 @@ def trace_pack(
     Returns:
         ContextTrace with pack result and per-item step decisions.
     """
-    return internal_pack(
-        items,
-        budget,
-        trace=True,
-        allow_compression=allow_compression,
-        provider=provider,
-        weights=weights,
-        redundancy_threshold=redundancy_threshold,
+    return cast(
+        ContextTrace,
+        internal_pack(
+            items,
+            budget,
+            trace=True,
+            allow_compression=allow_compression,
+            provider=provider,
+            weights=weights,
+            redundancy_threshold=redundancy_threshold,
+        ),
     )
 
 
