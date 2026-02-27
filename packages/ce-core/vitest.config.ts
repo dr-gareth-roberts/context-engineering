@@ -14,7 +14,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@ce/core": path.resolve(__dirname, "./src"),
+      "@context-engineering/core": path.resolve(__dirname, "./src"),
     },
   },
 });

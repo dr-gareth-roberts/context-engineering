@@ -3,7 +3,7 @@
  *
  * @example
  * ```ts
- * import { pack } from "@ce/core";
+ * import { pack } from "@context-engineering/core";
  *
  * const result = pack(items, budget, { logger: console });
  * ```

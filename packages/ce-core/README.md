@@ -1,17 +1,17 @@
-# @ce/core
+# @context-engineering/core
 
 Core context engineering algorithms — pack, diff, trace, place, quality analysis, cache-topology-aware packing, budget allocation, differential sessions, composable pipelines, cost estimation, and BEADS agent handoff.
 
 ## Installation
 
 ```bash
-npm install @ce/core
+npm install @context-engineering/core
 ```
 
 ## Quick Start
 
 ```ts
-import { pack } from "@ce/core";
+import { pack } from "@context-engineering/core";
 
 const result = pack(
   [
@@ -30,7 +30,7 @@ console.log(result.totalTokens); // tokens used
 Chain operations in a fluent API:
 
 ```ts
-import { pipeline } from "@ce/core";
+import { pipeline } from "@context-engineering/core";
 
 const result = pipeline(8000)
   .add(systemPrompt, tools, documents, query)
@@ -51,7 +51,11 @@ const result = pipeline(8000)
 See what prefix caching saves you:
 
 ```ts
-import { packWithCacheTopology, estimateCost, projectCosts } from "@ce/core";
+import {
+  packWithCacheTopology,
+  estimateCost,
+  projectCosts,
+} from "@context-engineering/core";
 
 const pack = packWithCacheTopology(items, { maxTokens: 8000 });
 const cost = estimateCost(pack, "claude-sonnet-4-6");
@@ -70,7 +74,7 @@ console.log(`Monthly savings: $${monthly.monthlyEstimate.monthlySavings}/mo`);
 Serialize context for agent-to-agent handoff via git:
 
 ```ts
-import { createHandoff, pickupHandoff } from "@ce/core";
+import { createHandoff, pickupHandoff } from "@context-engineering/core";
 
 // Agent A: hand off context
 const handoff = createHandoff(pack, { agent: "agent-a", includeDropped: true });

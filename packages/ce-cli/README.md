@@ -1,17 +1,17 @@
-# @ce/cli
+# @context-engineering/cli
 
 CLI for context packing, tracing, diffing, placement, quality analysis, cost estimation, agent handoff, linting, and token budgets.
 
 ## Installation
 
 ```bash
-npm install -g @ce/cli
+npm install -g @context-engineering/cli
 ```
 
 Or run via npx:
 
 ```bash
-npx @ce/cli pack -i items.json -b 4096
+npx @context-engineering/cli pack -i items.json -b 4096
 ```
 
 ## Commands

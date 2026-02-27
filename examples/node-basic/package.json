@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@ce/core": "workspace:*",
-    "@ce/memory": "workspace:*",
-    "@ce/providers": "workspace:*"
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/memory": "workspace:*",
+    "@context-engineering/providers": "workspace:*"
   }
 }

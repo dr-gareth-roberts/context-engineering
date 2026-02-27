@@ -13,7 +13,7 @@ Provide developers with a visual debugging suite to inspect the "Context Packing
 
 ## Technical Implementation (React/TypeScript)
 
-- **Data Source:** Consumes the `ContextTrace` JSON schema already defined in `@ce/core`.
+- **Data Source:** Consumes the `ContextTrace` JSON schema already defined in `@context-engineering/core`.
 - **Components:**
   - `TraceTimeline`: A vertical list of steps from the `ContextTrace`.
   - `TokenBar`: A visual representation of the `maxTokens` vs `totalTokens` used.

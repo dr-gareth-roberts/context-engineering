@@ -1,11 +1,11 @@
-# @ce/providers
+# @context-engineering/providers
 
 OpenAI and Anthropic provider adapters with token estimators for context engineering.
 
 ## Installation
 
 ```bash
-npm install @ce/providers
+npm install @context-engineering/providers
 ```
 
 Provider SDKs are optional peer dependencies -- install only what you use:
@@ -18,8 +18,8 @@ npm install @anthropic-ai/sdk  # for AnthropicProvider
 ## Quick Start
 
 ```ts
-import { pack } from "@ce/core";
-import { presets, OpenAIProvider } from "@ce/providers";
+import { pack } from "@context-engineering/core";
+import { presets, OpenAIProvider } from "@context-engineering/providers";
 
 // Use accurate token estimation with packing
 const result = pack(items, budget, {
@@ -38,12 +38,12 @@ const response = await llm.generate([{ role: "user", content: "Hello" }]);
 | `openaiTokenEstimator`    | tiktoken (`cl100k_base`)       | Exact for GPT models |
 | `anthropicTokenEstimator` | Word heuristic (`words * 1.4`) | Approximate          |
 
-Both implement `TokenEstimator` from `@ce/core` and work with `pack()`.
+Both implement `TokenEstimator` from `@context-engineering/core` and work with `pack()`.
 
 ## Presets
 
 ```ts
-import { presets } from "@ce/providers";
+import { presets } from "@context-engineering/providers";
 
 presets.openai.estimator; // openaiTokenEstimator
 presets.anthropic.estimator; // anthropicTokenEstimator
@@ -87,7 +87,7 @@ interface EmbeddingProvider {
 ## Model Metadata
 
 ```ts
-import { MODEL_METADATA } from "@ce/providers";
+import { MODEL_METADATA } from "@context-engineering/providers";
 
 MODEL_METADATA.openai["gpt-4o"].maxTokens; // 128000
 MODEL_METADATA.anthropic["claude-3-5-sonnet-20241022"].maxTokens; // 200000

@@ -1,4 +1,4 @@
-import type { MemoryItem } from "@ce/core";
+import type { MemoryItem } from "@context-engineering/core";
 import type { MemoryQuery, MemoryStore } from "./types.js";
 import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";
 

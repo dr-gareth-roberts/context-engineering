@@ -16,8 +16,8 @@ interface CacheOptions {
  *
  * @example
  * ```ts
- * import { createCachedEstimator } from "@ce/core";
- * import { openaiTokenEstimator } from "@ce/providers";
+ * import { createCachedEstimator } from "@context-engineering/core";
+ * import { openaiTokenEstimator } from "@context-engineering/providers";
  *
  * const cached = createCachedEstimator(openaiTokenEstimator, { maxSize: 500 });
  * pack(items, budget, { tokenEstimator: cached });

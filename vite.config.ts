@@ -165,19 +165,19 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
-      "@ce/core": path.resolve(
+      "@context-engineering/core": path.resolve(
         import.meta.dirname,
         "packages",
         "ce-core",
         "src"
       ),
-      "@ce/memory": path.resolve(
+      "@context-engineering/memory": path.resolve(
         import.meta.dirname,
         "packages",
         "ce-memory",
         "src"
       ),
-      "@ce/providers": path.resolve(
+      "@context-engineering/providers": path.resolve(
         import.meta.dirname,
         "packages",
         "ce-providers",

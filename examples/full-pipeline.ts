@@ -18,8 +18,8 @@ import {
   effectiveBudget,
   packWithCacheTopology,
   createSession,
-} from "@ce/core";
-import type { ContextItem, KindAllocation } from "@ce/core";
+} from "@context-engineering/core";
+import type { ContextItem, KindAllocation } from "@context-engineering/core";
 
 // ─── 1. Define Context Items ──────────────────────────────────────────
 

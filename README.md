@@ -1,7 +1,7 @@
 # Context Engineering Toolkit
 
 [![CI](https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@ce/core)](https://www.npmjs.com/package/@ce/core)
+[![npm](https://img.shields.io/npm/v/@context-engineering/core)](https://www.npmjs.com/package/@context-engineering/core)
 [![PyPI](https://img.shields.io/pypi/v/context-engineering)](https://pypi.org/project/context-engineering/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](https://www.typescriptlang.org/)
@@ -17,11 +17,11 @@ When you're building with LLMs, you need to decide **what context fits** in your
 ### TypeScript
 
 ```bash
-npm install @ce/core
+npm install @context-engineering/core
 ```
 
 ```ts
-import { pack, estimateTokens } from "@ce/core";
+import { pack, estimateTokens } from "@context-engineering/core";
 
 const result = pack(
   [
@@ -62,7 +62,7 @@ print(result.total_tokens)  # tokens used
 
 ```bash
 # TypeScript
-npx @ce/cli pack -i items.json -b 4096
+npx @context-engineering/cli pack -i items.json -b 4096
 
 # Python
 ce pack -i items.json -b 4096
@@ -103,7 +103,7 @@ Each extends the core pack/item model. Use when needed, ignore when not.
 ### Pipeline Example
 
 ```ts
-import { pipeline } from "@ce/core";
+import { pipeline } from "@context-engineering/core";
 
 const result = pipeline(8000)
   .add(systemPrompt, tools, documents, query)
@@ -121,7 +121,7 @@ const result = pipeline(8000)
 ### Cost Estimation
 
 ```ts
-import { packWithCacheTopology, estimateCost } from "@ce/core";
+import { packWithCacheTopology, estimateCost } from "@context-engineering/core";
 
 const packed = packWithCacheTopology(items, { maxTokens: 8000 });
 const cost = estimateCost(packed, "claude-sonnet-4-6");
@@ -153,7 +153,7 @@ ce-memory → ce-core
 ### Memory Stores
 
 ```ts
-import { createMemoryStore } from "@ce/memory";
+import { createMemoryStore } from "@context-engineering/memory";
 
 const mem = createMemoryStore("memory"); // In-memory
 const file = createMemoryStore("file", { path: "mem.jsonl" }); // JSONL with atomic writes

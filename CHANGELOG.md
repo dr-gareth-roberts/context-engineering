@@ -20,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BEADS handoff**: `createHandoff()` / `pickupHandoff()` for agent-to-agent context serialization
 - **Compaction**: `createContextManager()` for auto-summarization across conversation turns
 - **Stream**: `packStream()` async generator variant
-- **Memory stores** (`@ce/memory`): InMemory, File (JSONL with atomic writes), SQLite
-- **Provider adapters** (`@ce/providers`): OpenAI (tiktoken) and Anthropic token estimators
-- **CLI** (`@ce/cli`): 11 commands — pack, trace, diff, budget, lint, place, quality, effective-budget, handoff, pickup, cost
+- **Memory stores** (`@context-engineering/memory`): InMemory, File (JSONL with atomic writes), SQLite
+- **Provider adapters** (`@context-engineering/providers`): OpenAI (tiktoken) and Anthropic token estimators
+- **CLI** (`@context-engineering/cli`): 11 commands — pack, trace, diff, budget, lint, place, quality, effective-budget, handoff, pickup, cost
 - **Python SDK**: Full API parity with TypeScript plus advanced features (negation/supersession, hierarchical inclusion, semantic redundancy, AgentContextManager, segmenters)
 - **Error hierarchy**: `ValidationError`, `BudgetExceededError`, `EstimationError` with structured details
 - **Shared JSON Schemas** for cross-language validation
