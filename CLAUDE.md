@@ -101,7 +101,7 @@ Each extends the core pack/item model. Use when needed, ignore when not.
 | **Bridge**         | `toContextItem()`                     | Convert MemoryItems to ContextItems                                 |
 | **Caching**        | `createCachedEstimator()`             | LRU cache for token estimators                                      |
 
-### Memory Stores (`@ce/memory`)
+### Memory Stores (`@context-engineering/memory`)
 
 ```ts
 createMemoryStore("memory"); // In-memory
@@ -140,8 +140,8 @@ Python CLI: `python -m context_engineering <command>` — full parity.
 ## Path Aliases
 
 ```
-@ce/core      → packages/ce-core/src/
-@ce/memory    → packages/ce-memory/src/
-@ce/providers → packages/ce-providers/src/
+@context-engineering/core      → packages/ce-core/src/
+@context-engineering/memory    → packages/ce-memory/src/
+@context-engineering/providers → packages/ce-providers/src/
 @/*           → client/src/*
 ```

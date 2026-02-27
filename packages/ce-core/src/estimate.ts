@@ -13,7 +13,7 @@ export const defaultTokenEstimator: TokenEstimator = (text: string) => {
  * Estimate the token count for a text string.
  *
  * Uses a pluggable estimator — defaults to heuristic (words * 1.3).
- * For accurate counts, use openaiTokenEstimator from @ce/providers.
+ * For accurate counts, use openaiTokenEstimator from @context-engineering/providers.
  *
  * @param text - The text to estimate tokens for
  * @param options - Optional model, provider, or custom estimator

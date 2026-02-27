@@ -1,6 +1,6 @@
-import { pack } from "@ce/core";
-import { InMemoryStore } from "@ce/memory";
-import { OpenAIProvider } from "@ce/providers";
+import { pack } from "@context-engineering/core";
+import { InMemoryStore } from "@context-engineering/memory";
+import { OpenAIProvider } from "@context-engineering/providers";
 
 const items = [
   {

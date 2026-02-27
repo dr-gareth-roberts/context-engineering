@@ -11,8 +11,8 @@ import {
   createContextManager,
   createScorer,
   effectiveBudget,
-} from "@ce/core";
-import { createMemoryStore } from "@ce/memory";
+} from "@context-engineering/core";
+import { createMemoryStore } from "@context-engineering/memory";
 
 // -- 1. Store and retrieve memories --
 

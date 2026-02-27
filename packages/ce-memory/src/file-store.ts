@@ -1,4 +1,4 @@
-import type { MemoryItem } from "@ce/core";
+import type { MemoryItem } from "@context-engineering/core";
 import { promises as fs } from "fs";
 import path from "path";
 import type { MemoryQuery, MemoryStore } from "./types.js";

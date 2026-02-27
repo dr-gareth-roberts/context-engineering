@@ -1,4 +1,4 @@
-import type { MemoryItem } from "@ce/core";
+import type { MemoryItem } from "@context-engineering/core";
 import { nanoid } from "nanoid";
 import type { MemoryQuery } from "./types.js";
 

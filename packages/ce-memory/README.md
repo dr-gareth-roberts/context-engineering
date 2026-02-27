@@ -1,19 +1,19 @@
-# @ce/memory
+# @context-engineering/memory
 
 Pluggable memory stores (in-memory, JSONL file, SQLite) for context engineering agents.
 
 ## Installation
 
 ```bash
-npm install @ce/memory
+npm install @context-engineering/memory
 ```
 
-Requires `@ce/core` as a peer. The SQLite store uses `better-sqlite3` (included).
+Requires `@context-engineering/core` as a peer. The SQLite store uses `better-sqlite3` (included).
 
 ## Quick Start
 
 ```ts
-import { createMemoryStore } from "@ce/memory";
+import { createMemoryStore } from "@context-engineering/memory";
 
 const store = createMemoryStore("sqlite", { path: "./memory.db" });
 

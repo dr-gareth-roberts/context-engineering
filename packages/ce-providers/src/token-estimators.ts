@@ -1,5 +1,5 @@
 import { getEncoding, type Tiktoken } from "js-tiktoken";
-import type { TokenEstimator } from "@ce/core";
+import type { TokenEstimator } from "@context-engineering/core";
 
 let cachedEncoding: Tiktoken | null = null;
 

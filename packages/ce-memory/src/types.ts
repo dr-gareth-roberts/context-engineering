@@ -1,4 +1,4 @@
-import type { MemoryItem } from "@ce/core";
+import type { MemoryItem } from "@context-engineering/core";
 
 export interface MemoryQuery {
   text?: string;

@@ -1,5 +1,5 @@
 {
-  "name": "@ce/providers",
+  "name": "@context-engineering/providers",
   "version": "0.1.0",
   "type": "module",
   "description": "OpenAI and Anthropic provider adapters with token estimators for context engineering",
@@ -42,7 +42,7 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ce/core": "workspace:*",
+    "@context-engineering/core": "workspace:*",
     "js-tiktoken": "^1.0.13"
   },
   "peerDependencies": {

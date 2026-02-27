@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { promises as fs } from "fs";
-import type { ContextItem } from "@ce/core";
+import type { ContextItem } from "@context-engineering/core";
 import {
   loadItemsFromFile,
   runPack,

@@ -979,7 +979,7 @@ For `estimateTokens()`:
  * Estimate the token count for a text string.
  *
  * Uses a pluggable estimator — defaults to heuristic (words * 1.3).
- * For accurate counts, use openaiTokenEstimator from @ce/providers.
+ * For accurate counts, use openaiTokenEstimator from @context-engineering/providers.
  *
  * @param text - The text to estimate tokens for
  * @param options - Optional model, provider, or custom estimator
@@ -1557,7 +1557,7 @@ import {
   openaiTokenEstimator,
   anthropicTokenEstimator,
 } from "./token-estimators";
-import type { TokenEstimator } from "@ce/core";
+import type { TokenEstimator } from "@context-engineering/core";
 
 interface ProviderPreset {
   estimator: TokenEstimator;
@@ -1568,8 +1568,8 @@ interface ProviderPreset {
  *
  * @example
  * ```ts
- * import { presets } from "@ce/providers";
- * import { pack } from "@ce/core";
+ * import { presets } from "@context-engineering/providers";
+ * import { pack } from "@context-engineering/core";
  *
  * const result = pack(items, budget, {
  *   tokenEstimator: presets.openai.estimator,
@@ -2748,8 +2748,8 @@ interface CacheOptions {
  *
  * @example
  * ```ts
- * import { createCachedEstimator } from "@ce/core";
- * import { openaiTokenEstimator } from "@ce/providers";
+ * import { createCachedEstimator } from "@context-engineering/core";
+ * import { openaiTokenEstimator } from "@context-engineering/providers";
  *
  * const cached = createCachedEstimator(openaiTokenEstimator, { maxSize: 500 });
  * pack(items, budget, { tokenEstimator: cached });

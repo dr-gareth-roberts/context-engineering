@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@ce/core": "workspace:*",
-    "@ce/memory": "workspace:*"
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/memory": "workspace:*"
   }
 }

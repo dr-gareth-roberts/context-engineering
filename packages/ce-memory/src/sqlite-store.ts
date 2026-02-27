@@ -1,4 +1,4 @@
-import type { MemoryItem } from "@ce/core";
+import type { MemoryItem } from "@context-engineering/core";
 import Database from "better-sqlite3";
 import type { MemoryQuery, MemoryStore } from "./types.js";
 import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";

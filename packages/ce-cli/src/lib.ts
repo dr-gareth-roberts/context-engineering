@@ -21,7 +21,7 @@ import {
   readBeadsJSONL,
   estimateCost,
   projectCosts,
-} from "@ce/core";
+} from "@context-engineering/core";
 import type {
   ContextItem,
   ContextPack,
@@ -34,8 +34,11 @@ import type {
   PickupResult,
   CostEstimate,
   CostProjection,
-} from "@ce/core";
-import { openaiTokenEstimator, anthropicTokenEstimator } from "@ce/providers";
+} from "@context-engineering/core";
+import {
+  openaiTokenEstimator,
+  anthropicTokenEstimator,
+} from "@context-engineering/providers";
 
 export type SchemaName =
   | "context-item"

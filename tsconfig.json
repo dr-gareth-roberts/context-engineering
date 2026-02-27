@@ -18,9 +18,9 @@
     "paths": {
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"],
-      "@ce/core": ["./packages/ce-core/src/index.ts"],
-      "@ce/memory": ["./packages/ce-memory/src/index.ts"],
-      "@ce/providers": ["./packages/ce-providers/src/index.ts"]
+      "@context-engineering/core": ["./packages/ce-core/src/index.ts"],
+      "@context-engineering/memory": ["./packages/ce-memory/src/index.ts"],
+      "@context-engineering/providers": ["./packages/ce-providers/src/index.ts"]
     }
   }
 }

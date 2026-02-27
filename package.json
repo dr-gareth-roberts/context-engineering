@@ -46,9 +46,9 @@
     ]
   },
   "dependencies": {
-    "@ce/core": "workspace:*",
-    "@ce/memory": "workspace:*",
-    "@ce/providers": "workspace:*",
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/memory": "workspace:*",
+    "@context-engineering/providers": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

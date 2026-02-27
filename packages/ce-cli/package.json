@@ -1,5 +1,5 @@
 {
-  "name": "@ce/cli",
+  "name": "@context-engineering/cli",
   "version": "0.1.0",
   "type": "module",
   "description": "CLI for context packing, placement, quality analysis, cost estimation, agent handoff, linting, and budgets",
@@ -50,8 +50,8 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ce/core": "workspace:*",
-    "@ce/providers": "workspace:*",
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/providers": "workspace:*",
     "ajv": "^8.17.1",
     "commander": "^12.1.0"
   },

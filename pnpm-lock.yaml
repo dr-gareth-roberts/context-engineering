@@ -16,13 +16,13 @@ importers:
 
   .:
     dependencies:
-      '@ce/core':
+      '@context-engineering/core':
         specifier: workspace:*
         version: link:packages/ce-core
-      '@ce/memory':
+      '@context-engineering/memory':
         specifier: workspace:*
         version: link:packages/ce-memory
-      '@ce/providers':
+      '@context-engineering/providers':
         specifier: workspace:*
         version: link:packages/ce-providers
       '@hookform/resolvers':
@@ -264,12 +264,33 @@ importers:
         specifier: ^2.1.4
         version: 2.1.9(@types/node@24.7.0)(lightningcss@1.30.1)
 
+  examples/full-pipeline:
+    dependencies:
+      '@context-engineering/core':
+        specifier: workspace:*
+        version: link:../../packages/ce-core
+      '@context-engineering/memory':
+        specifier: workspace:*
+        version: link:../../packages/ce-memory
+
+  examples/node-basic:
+    dependencies:
+      '@context-engineering/core':
+        specifier: workspace:*
+        version: link:../../packages/ce-core
+      '@context-engineering/memory':
+        specifier: workspace:*
+        version: link:../../packages/ce-memory
+      '@context-engineering/providers':
+        specifier: workspace:*
+        version: link:../../packages/ce-providers
+
   packages/ce-cli:
     dependencies:
-      '@ce/core':
+      '@context-engineering/core':
         specifier: workspace:*
         version: link:../ce-core
-      '@ce/providers':
+      '@context-engineering/providers':
         specifier: workspace:*
         version: link:../ce-providers
       ajv:
@@ -310,7 +331,7 @@ importers:
 
   packages/ce-memory:
     dependencies:
-      '@ce/core':
+      '@context-engineering/core':
         specifier: workspace:*
         version: link:../ce-core
       better-sqlite3:
@@ -341,7 +362,7 @@ importers:
       '@anthropic-ai/sdk':
         specifier: '>=0.39.0'
         version: 0.39.0
-      '@ce/core':
+      '@context-engineering/core':
         specifier: workspace:*
         version: link:../ce-core
       js-tiktoken:

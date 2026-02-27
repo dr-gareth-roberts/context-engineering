@@ -16,7 +16,7 @@ import {
   Zap,
   Box,
 } from "lucide-react";
-import { pack, diff, type ContextItem } from "@ce/core";
+import { pack, diff, type ContextItem } from "@context-engineering/core";
 import { CodeBlock, codeExamples } from "@/components/CodeBlock";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -265,7 +265,7 @@ export default function Home() {
               </div>
               <CodeBlock
                 language="typescript"
-                code={`import { pack } from "@ce/core";\n\nconst items = [\n  { id: "sys", content: "...", priority: 10 },\n  { id: "mem", content: "...", priority: 5 }\n];\n\nconst result = pack(items, { maxTokens: 512 });\n// result.selected now contains exactly what fits.`}
+                code={`import { pack } from "@context-engineering/core";\n\nconst items = [\n  { id: "sys", content: "...", priority: 10 },\n  { id: "mem", content: "...", priority: 5 }\n];\n\nconst result = pack(items, { maxTokens: 512 });\n// result.selected now contains exactly what fits.`}
               />
             </Card>
           </motion.div>

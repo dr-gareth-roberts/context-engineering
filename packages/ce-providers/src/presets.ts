@@ -2,7 +2,7 @@ import {
   openaiTokenEstimator,
   anthropicTokenEstimator,
 } from "./token-estimators.js";
-import type { TokenEstimator } from "@ce/core";
+import type { TokenEstimator } from "@context-engineering/core";
 
 interface ProviderPreset {
   estimator: TokenEstimator;
@@ -13,8 +13,8 @@ interface ProviderPreset {
  *
  * @example
  * ```ts
- * import { presets } from "@ce/providers";
- * import { pack } from "@ce/core";
+ * import { presets } from "@context-engineering/providers";
+ * import { pack } from "@context-engineering/core";
  *
  * const result = pack(items, budget, {
  *   tokenEstimator: presets.openai.estimator,
