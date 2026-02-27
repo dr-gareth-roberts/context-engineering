@@ -220,8 +220,9 @@ export function packWithCacheTopology(
     ...requestPack.selected,
   ];
 
+  const selectedStaticIds = new Set(selectedStatic.map(i => i.id));
   const dropped = [
-    ...staticItems.filter(i => !selectedStatic.includes(i)),
+    ...staticItems.filter(i => !selectedStaticIds.has(i.id)),
     ...sessionPack.dropped,
     ...requestPack.dropped,
   ];

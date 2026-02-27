@@ -226,7 +226,10 @@ def pack_with_allocation(
         if alloc.target_ratio is not None and total_tokens > 0:
             actual_ratio = (alloc_result[alloc.kind].budget_used) / total_tokens
             diff = abs(actual_ratio - alloc.target_ratio)
-            efficiency_sum += 1 - min(diff / alloc.target_ratio, 1)
+            if alloc.target_ratio > 0:
+                efficiency_sum += 1 - min(diff / alloc.target_ratio, 1)
+            else:
+                efficiency_sum += 1.0  # perfect efficiency if no target
             efficiency_count += 1
 
     return AllocatedPack(

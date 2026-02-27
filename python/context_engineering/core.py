@@ -146,6 +146,8 @@ def estimate_tokens(text: str, provider: Optional[str] = None, model: Optional[s
             return len(encoding.encode(text))
         except Exception:
             return _heuristic_tokens(text, 1.3)
+    if provider == "anthropic":
+        return _heuristic_tokens(text, 1.4)
     return _heuristic_tokens(text, 1.3)
 
 
