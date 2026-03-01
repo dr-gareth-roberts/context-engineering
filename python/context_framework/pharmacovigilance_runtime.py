@@ -37,9 +37,7 @@ _SYMPTOM_KEYWORDS = (
     "death",
 )
 _SYMPTOM_RE = re.compile(
-    r"\b(?:"
-    + "|".join(re.escape(keyword) for keyword in _SYMPTOM_KEYWORDS)
-    + r")\b",
+    r"\b(?:" + "|".join(re.escape(keyword) for keyword in _SYMPTOM_KEYWORDS) + r")\b",
     re.IGNORECASE,
 )
 
@@ -61,24 +59,19 @@ def _normalize(value: str) -> str:
 
 
 class FAERSAdapter(Protocol):
-    def lookup_signal(self, compound: str, symptom: str) -> dict[str, Any]:
-        ...
+    def lookup_signal(self, compound: str, symptom: str) -> dict[str, Any]: ...
 
 
 class LotTraceabilityAdapter(Protocol):
-    def lookup_lot(self, lot_id: str) -> dict[str, Any]:
-        ...
+    def lookup_lot(self, lot_id: str) -> dict[str, Any]: ...
 
 
 class SafetyActionAdapter(Protocol):
-    def queue_medical_review(self, signal_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def queue_medical_review(self, signal_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def hold_lot(self, lot_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def hold_lot(self, lot_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def submit_regulatory_alert(self, signal_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def submit_regulatory_alert(self, signal_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpFAERSAdapter:
@@ -507,7 +500,9 @@ class PharmacovigilanceCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -682,7 +677,9 @@ class PharmacovigilanceCommander:
                 keys=("serious_event_rate", "serious_rate", "risk_score"),
                 default=0.25,
             )
-            fatal_count = int(self._as_float(faers, keys=("fatal_case_count",), default=0, cap_1=False))
+            fatal_count = int(
+                self._as_float(faers, keys=("fatal_case_count",), default=0, cap_1=False)
+            )
             lot_deviation = self._as_float(
                 lot,
                 keys=("deviation_rate", "defect_rate", "quality_signal"),
@@ -843,9 +840,11 @@ class PharmacovigilanceCommander:
                             target=row.signal_id,
                             request_payload={"signal_id": row.signal_id, "reason": reason},
                             idempotency_key=alert_key,
-                            call=lambda row=row, reason=reason: self.safety_action_adapter.submit_regulatory_alert(
-                                row.signal_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.safety_action_adapter.submit_regulatory_alert(
+                                    row.signal_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -873,9 +872,11 @@ class PharmacovigilanceCommander:
                             target=row.signal_id,
                             request_payload={"signal_id": row.signal_id, "reason": reason},
                             idempotency_key=review_key,
-                            call=lambda row=row, reason=reason: self.safety_action_adapter.queue_medical_review(
-                                row.signal_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.safety_action_adapter.queue_medical_review(
+                                    row.signal_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -919,9 +920,11 @@ class PharmacovigilanceCommander:
                         target=row.signal_id,
                         request_payload={"signal_id": row.signal_id, "reason": reason},
                         idempotency_key=review_key,
-                        call=lambda row=row, reason=reason: self.safety_action_adapter.queue_medical_review(
-                            row.signal_id,
-                            reason=reason,
+                        call=lambda row=row, reason=reason: (
+                            self.safety_action_adapter.queue_medical_review(
+                                row.signal_id,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -984,7 +987,9 @@ class PharmacovigilanceCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1211,7 +1216,9 @@ class PharmacovigilanceCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; route affected signals to manual safety review queue.")
+            recs.append(
+                "At least one integration failed; route affected signals to manual safety review queue."
+            )
 
         top = decisions[:3]
         if top:

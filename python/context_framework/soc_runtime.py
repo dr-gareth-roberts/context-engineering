@@ -16,9 +16,7 @@ from urllib.error import HTTPError, URLError
 
 from .tri_provider_pipeline import TriProviderPipeline, UseCaseExecutionReport
 
-_IP_RE = re.compile(
-    r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b"
-)
+_IP_RE = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b")
 _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 _HOST_RE = re.compile(r"\b[a-zA-Z0-9][a-zA-Z0-9.-]{2,63}\b")
 _USER_ID_RE = re.compile(r"\b(?:user|uid|acct)[-_]?[A-Za-z0-9._-]{2,}\b", re.IGNORECASE)
@@ -37,31 +35,25 @@ def _unique_preserve(values: list[str]) -> list[str]:
 
 
 class SIEMAdapter(Protocol):
-    def query(self, query: str, *, limit: int = 100) -> dict[str, Any]:
-        ...
+    def query(self, query: str, *, limit: int = 100) -> dict[str, Any]: ...
 
 
 class EDRAdapter(Protocol):
-    def isolate_host(self, hostname: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def isolate_host(self, hostname: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class IAMAdapter(Protocol):
-    def suspend_user(self, user_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def suspend_user(self, user_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class AuditLogger(Protocol):
-    def log(self, event: dict[str, Any]) -> None:
-        ...
+    def log(self, event: dict[str, Any]) -> None: ...
 
 
 class IdempotencyStore(Protocol):
-    def seen(self, key: str) -> bool:
-        ...
+    def seen(self, key: str) -> bool: ...
 
-    def mark(self, key: str, *, ttl_seconds: int | None = None) -> None:
-        ...
+    def mark(self, key: str, *, ttl_seconds: int | None = None) -> None: ...
 
 
 class NoOpAuditLogger:
@@ -489,9 +481,7 @@ class SOCIncidentCommander:
     def extract_indicators(text: str) -> SOCIndicators:
         ips = _unique_preserve([match.group(0) for match in _IP_RE.finditer(text)])
         emails = _unique_preserve([match.group(0) for match in _EMAIL_RE.finditer(text)])
-        users = _unique_preserve(
-            [match.group(0) for match in _USER_ID_RE.finditer(text)] + emails
-        )
+        users = _unique_preserve([match.group(0) for match in _USER_ID_RE.finditer(text)] + emails)
         hosts = _unique_preserve(
             [
                 value
@@ -648,7 +638,9 @@ class SOCIncidentCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
 
         return result
 
@@ -792,7 +784,9 @@ class SOCIncidentCommander:
         elif high_risk:
             plan.append("High-risk signals present; request human approval to execute containment.")
         else:
-            plan.append("Maintain enhanced monitoring until risk is elevated or confidence improves.")
+            plan.append(
+                "Maintain enhanced monitoring until risk is elevated or confidence improves."
+            )
 
         plan.append("Document timeline, preservation actions, and post-incident detection gaps.")
         return plan
@@ -857,7 +851,9 @@ class SOCIncidentCommander:
             )
 
         if indicators.ips:
-            recommendations.append("Correlate east-west and egress telemetry for extracted IP indicators.")
+            recommendations.append(
+                "Correlate east-west and egress telemetry for extracted IP indicators."
+            )
         if indicators.users:
             recommendations.append("Review privileged operations for extracted user indicators.")
 
@@ -867,7 +863,9 @@ class SOCIncidentCommander:
                 f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}"
             )
         else:
-            recommendations.append("Primary tri-provider action unavailable; escalate for manual triage.")
+            recommendations.append(
+                "Primary tri-provider action unavailable; escalate for manual triage."
+            )
 
         if siem_results and all(not row.success for row in siem_results):
             recommendations.append(

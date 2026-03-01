@@ -45,24 +45,19 @@ def _normalize(value: str) -> str:
 
 
 class TransactionGraphAdapter(Protocol):
-    def lookup_account_graph(self, account_id: str) -> dict[str, Any]:
-        ...
+    def lookup_account_graph(self, account_id: str) -> dict[str, Any]: ...
 
 
 class SanctionsScreenAdapter(Protocol):
-    def screen_entity(self, entity_id: str) -> dict[str, Any]:
-        ...
+    def screen_entity(self, entity_id: str) -> dict[str, Any]: ...
 
 
 class CaseActionAdapter(Protocol):
-    def freeze_account(self, account_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def freeze_account(self, account_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def create_sar(self, case_id: str, *, priority: str, reason: str) -> dict[str, Any]:
-        ...
+    def create_sar(self, case_id: str, *, priority: str, reason: str) -> dict[str, Any]: ...
 
-    def queue_edd(self, case_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def queue_edd(self, case_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpTransactionGraphAdapter:
@@ -485,7 +480,9 @@ class AMLKYCFincrimeCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -572,8 +569,8 @@ class AMLKYCFincrimeCommander:
                     target=account_id,
                     request_payload={"account_id": account_id},
                     idempotency_key=None,
-                    call=lambda account_id=account_id: self.transaction_graph_adapter.lookup_account_graph(
-                        account_id
+                    call=lambda account_id=account_id: (
+                        self.transaction_graph_adapter.lookup_account_graph(account_id)
                     ),
                 )
             )
@@ -628,8 +625,7 @@ class AMLKYCFincrimeCommander:
                 cap_1=True,
             )
             watchlist_hit = bool(
-                sanction.get("watchlist_hit", False)
-                or sanction.get("sanctions_hit", False)
+                sanction.get("watchlist_hit", False) or sanction.get("sanctions_hit", False)
             )
             high_risk_jurisdictions = list(graph.get("high_risk_jurisdictions", []) or [])
 
@@ -740,9 +736,11 @@ class AMLKYCFincrimeCommander:
                             target=row.account_id,
                             request_payload={"account_id": row.account_id, "reason": reason},
                             idempotency_key=freeze_key,
-                            call=lambda account_id=row.account_id, reason=reason: self.case_action_adapter.freeze_account(
-                                account_id,
-                                reason=reason,
+                            call=lambda account_id=row.account_id, reason=reason: (
+                                self.case_action_adapter.freeze_account(
+                                    account_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -774,10 +772,12 @@ class AMLKYCFincrimeCommander:
                                 "reason": reason,
                             },
                             idempotency_key=sar_key,
-                            call=lambda case_id=row.case_id, priority=row.priority, reason=reason: self.case_action_adapter.create_sar(
-                                case_id,
-                                priority=priority,
-                                reason=reason,
+                            call=lambda case_id=row.case_id, priority=row.priority, reason=reason: (
+                                self.case_action_adapter.create_sar(
+                                    case_id,
+                                    priority=priority,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -825,10 +825,12 @@ class AMLKYCFincrimeCommander:
                             "reason": reason,
                         },
                         idempotency_key=sar_key,
-                        call=lambda case_id=row.case_id, priority=row.priority, reason=reason: self.case_action_adapter.create_sar(
-                            case_id,
-                            priority=priority,
-                            reason=reason,
+                        call=lambda case_id=row.case_id, priority=row.priority, reason=reason: (
+                            self.case_action_adapter.create_sar(
+                                case_id,
+                                priority=priority,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -858,9 +860,11 @@ class AMLKYCFincrimeCommander:
                         target=row.case_id,
                         request_payload={"case_id": row.case_id, "reason": reason},
                         idempotency_key=edd_key,
-                        call=lambda case_id=row.case_id, reason=reason: self.case_action_adapter.queue_edd(
-                            case_id,
-                            reason=reason,
+                        call=lambda case_id=row.case_id, reason=reason: (
+                            self.case_action_adapter.queue_edd(
+                                case_id,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -907,7 +911,9 @@ class AMLKYCFincrimeCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1134,7 +1140,9 @@ class AMLKYCFincrimeCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; route affected cases to manual AML escalation queue.")
+            recs.append(
+                "At least one integration failed; route affected cases to manual AML escalation queue."
+            )
 
         top = decisions[:3]
         if top:

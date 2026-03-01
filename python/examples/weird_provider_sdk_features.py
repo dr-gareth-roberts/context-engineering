@@ -207,9 +207,7 @@ def main() -> None:
                 prompt="Regenerate with one extra warning section.",
                 max_tokens=320,
             )
-            metrics = cerebras_bridge.extract_speculative_decoding_metrics(
-                speculative_response
-            )
+            metrics = cerebras_bridge.extract_speculative_decoding_metrics(speculative_response)
             if metrics is not None:
                 print(
                     "Cerebras speculative metrics:",

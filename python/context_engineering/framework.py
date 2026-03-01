@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union, cast
+
+import structlog
 
 from .core import (
     Budget,
@@ -17,6 +20,8 @@ from .core import (
 from .memory import InMemoryStore, MemoryItem, MemoryStore
 from .providers import LLMMessage
 from .segmentation import BaseSegmenter, Segment, StructuralSegmenter
+
+logger = structlog.get_logger(__name__)
 
 
 class AdaptiveBudgetStrategy:
@@ -55,6 +60,8 @@ class AgentContextManager:
         agent_id: str = "agent_unnamed",
         adaptive_strategy: Optional[AdaptiveBudgetStrategy] = None,
         scoring_weights: Optional[ScoringWeights] = None,
+        abstain_on_low_confidence: bool = True,
+        min_confidence_threshold: float = 0.4,
     ):
         self.agent_id = agent_id
         self.memory = memory_store or InMemoryStore()
@@ -64,6 +71,8 @@ class AgentContextManager:
         self.segmenter = segmenter or StructuralSegmenter()
         self.adaptive_strategy = adaptive_strategy or AdaptiveBudgetStrategy()
         self.scoring_weights = scoring_weights or ScoringWeights()
+        self.abstain_on_low_confidence = abstain_on_low_confidence
+        self.min_confidence_threshold = min_confidence_threshold
         self.system_prompt: Optional[ContextItem] = None
         self.temporary_items: List[ContextItem] = []
 
@@ -80,13 +89,13 @@ class AgentContextManager:
             seg.priority = priority
             self.temporary_items.append(seg)
 
-    async def add_memory(
+    def add_memory(
         self,
         content: str,
         id: Optional[str] = None,
         salience: float = 1.0,
         ttl: Optional[int] = None,
-    ):
+    ) -> MemoryItem:
         item = MemoryItem(
             id=id or f"mem_{int(datetime.now(timezone.utc).timestamp())}",
             content=content,
@@ -95,6 +104,24 @@ class AgentContextManager:
             createdAt=datetime.now(timezone.utc).isoformat(),
         )
         self.memory.put(item)
+        return item
+
+    async def add_memory_async(
+        self,
+        content: str,
+        id: Optional[str] = None,
+        salience: float = 1.0,
+        ttl: Optional[int] = None,
+    ) -> MemoryItem:
+        item = MemoryItem(
+            id=id or f"mem_{int(datetime.now(timezone.utc).timestamp())}",
+            content=content,
+            salience=salience,
+            ttlSeconds=ttl,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+        )
+        await self.memory.aput(item)
+        return item
 
     def add_temporary_context(
         self,
@@ -145,6 +172,17 @@ class AgentContextManager:
             return trace_pack(context_items, target_budget, provider=self.provider, weights=w)
         return pack(context_items, target_budget, provider=self.provider, weights=w)
 
+    async def build_context_async(
+        self,
+        budget: Optional[int] = None,
+        trace: bool = False,
+        weights: Optional[ScoringWeights] = None,
+    ) -> Union[ContextPack, ContextTrace]:
+        # pack/trace_pack are CPU-only; run them in a thread to avoid blocking an async server.
+        return await asyncio.to_thread(
+            self.build_context, budget=budget, trace=trace, weights=weights
+        )
+
     def export_handoff(
         self, target_agent_id: Optional[str] = None, budget: Optional[int] = None
     ) -> ContextHandoff:
@@ -155,6 +193,13 @@ class AgentContextManager:
             items=packed.selected,
             budget=packed.budget,
             metadata={"source_provider": self.provider},
+        )
+
+    async def export_handoff_async(
+        self, target_agent_id: Optional[str] = None, budget: Optional[int] = None
+    ) -> ContextHandoff:
+        return await asyncio.to_thread(
+            self.export_handoff, target_agent_id=target_agent_id, budget=budget
         )
 
     def import_handoff(self, handoff: ContextHandoff):
@@ -170,10 +215,28 @@ class AgentContextManager:
         packed = cast(ContextPack, self.build_context(budget=budget, weights=weights))
         messages: List[LLMMessage] = []
         selected = packed.selected
+
+        # Abstention Logic
+        if self.abstain_on_low_confidence:
+            max_confidence = max([getattr(i, "priority", 0.0) for i in selected] + [0.0])
+            if max_confidence < self.min_confidence_threshold:
+                logger.warning(
+                    "abstaining_due_to_low_confidence",
+                    agent_id=self.agent_id,
+                    max_confidence=max_confidence,
+                    threshold=self.min_confidence_threshold,
+                )
+                messages.append(
+                    LLMMessage(role="system", content="I abstain: insufficient evidence to answer.")
+                )
+                return messages
+
         system_items = [i for i in selected if i.id == "system" or (i.priority or 0) >= 10]
         other_items = [i for i in selected if i not in system_items]
+
         for item in system_items:
             messages.append(LLMMessage(role="system", content=item.content))
+
         if other_items:
             blocks = []
             for i in other_items:
@@ -185,6 +248,11 @@ class AgentContextManager:
             context_block = chr(10).join(blocks)
             messages.append(LLMMessage(role="user", content=f"Context:\n{context_block}"))
         return messages
+
+    async def build_messages_async(
+        self, budget: Optional[int] = None, weights: Optional[ScoringWeights] = None
+    ) -> List[LLMMessage]:
+        return await asyncio.to_thread(self.build_messages, budget=budget, weights=weights)
 
     def clear_temporary(self):
         self.temporary_items = []

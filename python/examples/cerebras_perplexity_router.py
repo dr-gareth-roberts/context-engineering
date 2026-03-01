@@ -79,9 +79,7 @@ def _run_live(bridge: CerebrasSDKBridge, packet: Any, candidates: list[str]) -> 
         client,
         packet,
         predicted_output=best_candidate,
-        prompt=(
-            "Refine this draft for production, add one caveat and one rollback checkpoint."
-        ),
+        prompt=("Refine this draft for production, add one caveat and one rollback checkpoint."),
         max_completion_tokens=260,
         temperature=0.1,
     )

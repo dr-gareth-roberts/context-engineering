@@ -49,7 +49,9 @@ _ACUITY_HINT_KEYWORDS = (
     "icu overflow",
     "diversion",
 )
-_ACUITY_HINT_RE = re.compile("|".join(re.escape(keyword) for keyword in _ACUITY_HINT_KEYWORDS), re.IGNORECASE)
+_ACUITY_HINT_RE = re.compile(
+    "|".join(re.escape(keyword) for keyword in _ACUITY_HINT_KEYWORDS), re.IGNORECASE
+)
 _HIGH_ACUITY_RE = re.compile(
     r"(?:high acuity|critical patients|code blue|rapid response)",
     re.IGNORECASE,
@@ -77,30 +79,23 @@ def _normalize(value: str) -> str:
 
 
 class BedCapacityAdapter(Protocol):
-    def lookup_unit(self, unit_id: str) -> dict[str, Any]:
-        ...
+    def lookup_unit(self, unit_id: str) -> dict[str, Any]: ...
 
 
 class AcuityIntelAdapter(Protocol):
-    def lookup_unit(self, unit_id: str) -> dict[str, Any]:
-        ...
+    def lookup_unit(self, unit_id: str) -> dict[str, Any]: ...
 
 
 class ClinicalActionAdapter(Protocol):
-    def activate_surge_staffing(self, unit_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def activate_surge_staffing(self, unit_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def prioritize_discharge_huddle(self, unit_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def prioritize_discharge_huddle(self, unit_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def open_transfer_coordination(self, unit_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def open_transfer_coordination(self, unit_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def escalate_hospital_command(self, unit_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def escalate_hospital_command(self, unit_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def rebalance_clinician_coverage(self, team_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def rebalance_clinician_coverage(self, team_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpBedCapacityAdapter:
@@ -614,7 +609,9 @@ class ClinicalOperationsCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -746,7 +743,9 @@ class ClinicalOperationsCommander:
 
     @staticmethod
     def _build_batch_id(scenario: str, started_at: datetime) -> str:
-        digest = hashlib.sha256(f"{started_at.isoformat()}::{scenario}".encode("utf-8")).hexdigest()[:16]
+        digest = hashlib.sha256(
+            f"{started_at.isoformat()}::{scenario}".encode("utf-8")
+        ).hexdigest()[:16]
         return f"clinical-{started_at.strftime('%Y%m%d%H%M%S')}-{digest}"
 
     def _run_enrichment(self, signals: list[ClinicalSignal]) -> list[ClinicalActionResult]:
@@ -803,7 +802,9 @@ class ClinicalOperationsCommander:
             diversion_risk = self._as_float(capacity, keys=("diversion_risk",), default=0.44)
 
             high_acuity_ratio = self._as_float(acuity, keys=("high_acuity_ratio",), default=0.42)
-            deteriorating_patients = self._as_int(acuity, keys=("deteriorating_patients",), default=7)
+            deteriorating_patients = self._as_int(
+                acuity, keys=("deteriorating_patients",), default=7
+            )
             transfer_blockers = self._as_float(acuity, keys=("transfer_blockers",), default=0.46)
             surge_probability = self._as_float(acuity, keys=("surge_probability",), default=0.48)
 
@@ -818,7 +819,13 @@ class ClinicalOperationsCommander:
             waiting_risk = min(1.0, waiting_patients / 120.0)
             deterioration_risk = min(1.0, deteriorating_patients / 30.0)
             hint_risk = 0.0
-            if signal.acuity_hint in {"sepsis", "stroke", "trauma surge", "respiratory failure", "diversion"}:
+            if signal.acuity_hint in {
+                "sepsis",
+                "stroke",
+                "trauma surge",
+                "respiratory failure",
+                "diversion",
+            }:
                 hint_risk = 0.05
 
             risk_score = min(
@@ -840,15 +847,14 @@ class ClinicalOperationsCommander:
 
             route: ClinicalRoute = "monitor"
             rationale: list[str] = []
-            if (
-                risk_score >= self.execution_policy.critical_risk_threshold
-                or (
-                    occupancy_pct >= self.execution_policy.high_occupancy_threshold
-                    and (signal.high_acuity_indicator or signal.diversion_risk_indicator)
-                )
+            if risk_score >= self.execution_policy.critical_risk_threshold or (
+                occupancy_pct >= self.execution_policy.high_occupancy_threshold
+                and (signal.high_acuity_indicator or signal.diversion_risk_indicator)
             ):
                 route = "critical_capacity_command"
-                rationale.append("Capacity and acuity profile requires hospital-level command activation.")
+                rationale.append(
+                    "Capacity and acuity profile requires hospital-level command activation."
+                )
             elif (
                 risk_score >= self.execution_policy.surge_risk_threshold
                 or boarding_hours >= self.execution_policy.high_boarding_hours_threshold
@@ -859,7 +865,9 @@ class ClinicalOperationsCommander:
                 route = "flow_optimization"
                 rationale.append("Unit risk supports focused throughput and coverage optimization.")
             else:
-                rationale.append("Current unit risk supports monitoring with incremental improvements.")
+                rationale.append(
+                    "Current unit risk supports monitoring with incremental improvements."
+                )
 
             if not capacity:
                 rationale.append("Bed-capacity enrichment missing; confidence reduced.")
@@ -960,9 +968,11 @@ class ClinicalOperationsCommander:
                             target=row.unit_id,
                             request_payload={"unit_id": row.unit_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.activate_surge_staffing(
-                                row.unit_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.activate_surge_staffing(
+                                    row.unit_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -995,9 +1005,11 @@ class ClinicalOperationsCommander:
                             target=row.unit_id,
                             request_payload={"unit_id": row.unit_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.prioritize_discharge_huddle(
-                                row.unit_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.prioritize_discharge_huddle(
+                                    row.unit_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1026,9 +1038,11 @@ class ClinicalOperationsCommander:
                             target=row.unit_id,
                             request_payload={"unit_id": row.unit_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.open_transfer_coordination(
-                                row.unit_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.open_transfer_coordination(
+                                    row.unit_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1057,9 +1071,11 @@ class ClinicalOperationsCommander:
                             target=row.unit_id,
                             request_payload={"unit_id": row.unit_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.escalate_hospital_command(
-                                row.unit_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.escalate_hospital_command(
+                                    row.unit_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1092,9 +1108,11 @@ class ClinicalOperationsCommander:
                             target=row.team_id,
                             request_payload={"team_id": row.team_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.rebalance_clinician_coverage(
-                                row.team_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.rebalance_clinician_coverage(
+                                    row.team_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1155,7 +1173,9 @@ class ClinicalOperationsCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1396,7 +1416,9 @@ class ClinicalOperationsCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; escalate impacted units to manual bed management review.")
+            recs.append(
+                "At least one integration failed; escalate impacted units to manual bed management review."
+            )
 
         top = decisions[:3]
         if top:

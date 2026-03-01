@@ -2,6 +2,7 @@
 
 Computes density, diversity, freshness, and redundancy without LLM calls.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -71,9 +72,7 @@ def analyze_context(items: List[ContextItem]) -> ContextQuality:
     freshness = fresh_count / len(items)
 
     # Redundancy: pairwise Jaccard similarity
-    item_word_sets = [
-        set(w for w in item.content.lower().split() if len(w) > 2) for item in items
-    ]
+    item_word_sets = [set(w for w in item.content.lower().split() if len(w) > 2) for item in items]
     total_overlap = 0.0
     pair_count = 0
     for i in range(len(item_word_sets)):

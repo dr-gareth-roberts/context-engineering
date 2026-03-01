@@ -162,13 +162,19 @@ class LiveIntegrationHarness:
             node_output = node(
                 {
                     "scenario": "Potential endpoint compromise and unusual outbound traffic.",
-                    "evidence_documents": ["SIEM and EDR indicators corroborate suspicious activity."],
+                    "evidence_documents": [
+                        "SIEM and EDR indicators corroborate suspicious activity."
+                    ],
                     "mode": "dry",
                 }
             )
 
             deep_result = DeepAgentsBridge.run(
-                type("_DeepAgent", (), {"run": lambda self, task, **kwargs: {"task": task, "kwargs": kwargs}})(),
+                type(
+                    "_DeepAgent",
+                    (),
+                    {"run": lambda self, task, **kwargs: {"task": task, "kwargs": kwargs}},
+                )(),
                 "Create a response checklist",
                 trace=True,
             )
@@ -176,7 +182,12 @@ class LiveIntegrationHarness:
                 type(
                     "_PydAgent",
                     (),
-                    {"run_sync": lambda self, prompt, **kwargs: {"prompt": prompt, "kwargs": kwargs}},
+                    {
+                        "run_sync": lambda self, prompt, **kwargs: {
+                            "prompt": prompt,
+                            "kwargs": kwargs,
+                        }
+                    },
                 )(),
                 "Summarize containment actions",
             )

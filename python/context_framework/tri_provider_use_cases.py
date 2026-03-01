@@ -532,9 +532,7 @@ USE_CASES: tuple[TriProviderUseCaseSpec, ...] = (
 )
 
 
-USE_CASE_INDEX: dict[str, TriProviderUseCaseSpec] = {
-    spec.use_case_id: spec for spec in USE_CASES
-}
+USE_CASE_INDEX: dict[str, TriProviderUseCaseSpec] = {spec.use_case_id: spec for spec in USE_CASES}
 
 
 def validate_use_case_catalog(
@@ -549,9 +547,7 @@ def validate_use_case_catalog(
         if not spec.openai.json_schema.get("required"):
             raise ValueError(f"{spec.use_case_id} must define required json schema fields")
         if spec.anthropic.max_tokens < 300:
-            raise ValueError(
-                f"{spec.use_case_id} anthropic max_tokens must be at least 300"
-            )
+            raise ValueError(f"{spec.use_case_id} anthropic max_tokens must be at least 300")
         if spec.cerebras.max_completion_tokens < 200:
             raise ValueError(
                 f"{spec.use_case_id} cerebras max_completion_tokens must be at least 200"

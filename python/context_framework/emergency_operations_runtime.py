@@ -89,21 +89,17 @@ def _normalize(value: str) -> str:
 
 
 class HazardIntelAdapter(Protocol):
-    def lookup_zone(self, zone_id: str) -> dict[str, Any]:
-        ...
+    def lookup_zone(self, zone_id: str) -> dict[str, Any]: ...
 
 
 class LogisticsCapacityAdapter(Protocol):
-    def lookup_zone(self, zone_id: str) -> dict[str, Any]:
-        ...
+    def lookup_zone(self, zone_id: str) -> dict[str, Any]: ...
 
 
 class EOCActionAdapter(Protocol):
-    def activate_evacuation(self, zone_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def activate_evacuation(self, zone_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def open_shelter(self, zone_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def open_shelter(self, zone_id: str, *, reason: str) -> dict[str, Any]: ...
 
     def preposition_resources(
         self,
@@ -111,11 +107,9 @@ class EOCActionAdapter(Protocol):
         *,
         zone_id: str,
         reason: str,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
-    def issue_public_alert(self, incident_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def issue_public_alert(self, incident_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpHazardIntelAdapter:
@@ -625,7 +619,9 @@ class EmergencyOperationsCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -717,7 +713,9 @@ class EmergencyOperationsCommander:
 
             segment_index = len(rows)
             start = match.start()
-            end = incident_matches[idx + 1].start() if idx + 1 < len(incident_matches) else len(text)
+            end = (
+                incident_matches[idx + 1].start() if idx + 1 < len(incident_matches) else len(text)
+            )
             segment = text[start:end]
 
             zone_match = _ZONE_RE.search(segment)
@@ -892,39 +890,41 @@ class EmergencyOperationsCommander:
             route: EOCRoute = "monitor"
             rationale: list[str] = []
 
-            if (
-                risk_score >= self.execution_policy.full_evacuation_risk_threshold
-                or (
-                    signal.mandatory_evacuation_hint
-                    and (
-                        hazard_severity >= 0.55
-                        or vulnerable_sites >= 2
-                        or population_exposed >= self.execution_policy.major_population_threshold
-                    )
+            if risk_score >= self.execution_policy.full_evacuation_risk_threshold or (
+                signal.mandatory_evacuation_hint
+                and (
+                    hazard_severity >= 0.55
+                    or vulnerable_sites >= 2
+                    or population_exposed >= self.execution_policy.major_population_threshold
                 )
             ):
                 route = "full_evacuation_activation"
-                rationale.append("Severe life-safety risk supports immediate full evacuation activation.")
-            elif (
-                risk_score >= self.execution_policy.staged_evacuation_risk_threshold
-                or (
-                    population_exposed >= self.execution_policy.major_population_threshold
-                    and (
-                        shelter_capacity <= self.execution_policy.low_shelter_capacity_threshold
-                        or route_access <= self.execution_policy.low_route_access_threshold
-                    )
+                rationale.append(
+                    "Severe life-safety risk supports immediate full evacuation activation."
+                )
+            elif risk_score >= self.execution_policy.staged_evacuation_risk_threshold or (
+                population_exposed >= self.execution_policy.major_population_threshold
+                and (
+                    shelter_capacity <= self.execution_policy.low_shelter_capacity_threshold
+                    or route_access <= self.execution_policy.low_route_access_threshold
                 )
             ):
                 route = "staged_evacuation_and_shelter"
-                rationale.append("Elevated risk and logistics constraints require staged evacuation and shelters.")
+                rationale.append(
+                    "Elevated risk and logistics constraints require staged evacuation and shelters."
+                )
             elif (
                 risk_score >= self.execution_policy.targeted_alert_risk_threshold
                 or hazard_severity >= self.execution_policy.preposition_hazard_threshold
             ):
                 route = "targeted_alert_and_preposition"
-                rationale.append("Moderate risk requires targeted public alerting and resource prepositioning.")
+                rationale.append(
+                    "Moderate risk requires targeted public alerting and resource prepositioning."
+                )
             else:
-                rationale.append("Current conditions support active monitoring and readiness posture.")
+                rationale.append(
+                    "Current conditions support active monitoring and readiness posture."
+                )
 
             if not hazard:
                 rationale.append("Hazard intelligence enrichment missing; confidence reduced.")
@@ -1057,10 +1057,12 @@ class EmergencyOperationsCommander:
                                 "reason": reason,
                             },
                             idempotency_key=preposition_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.preposition_resources(
-                                row.resource_unit_id,
-                                zone_id=row.zone_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.preposition_resources(
+                                    row.resource_unit_id,
+                                    zone_id=row.zone_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1072,7 +1074,10 @@ class EmergencyOperationsCommander:
                             target=row.resource_unit_id,
                             success=True,
                             latency_ms=0,
-                            request={"resource_unit_id": row.resource_unit_id, "zone_id": row.zone_id},
+                            request={
+                                "resource_unit_id": row.resource_unit_id,
+                                "zone_id": row.zone_id,
+                            },
                             status="skipped",
                             attempts=0,
                             notes=("auto prepositioning disabled by policy",),
@@ -1089,9 +1094,11 @@ class EmergencyOperationsCommander:
                                 target=row.zone_id,
                                 request_payload={"zone_id": row.zone_id, "reason": reason},
                                 idempotency_key=evac_key,
-                                call=lambda row=row, reason=reason: self.action_adapter.activate_evacuation(
-                                    row.zone_id,
-                                    reason=reason,
+                                call=lambda row=row, reason=reason: (
+                                    self.action_adapter.activate_evacuation(
+                                        row.zone_id,
+                                        reason=reason,
+                                    )
                                 ),
                             )
                         )
@@ -1119,9 +1126,11 @@ class EmergencyOperationsCommander:
                             target=row.incident_id,
                             request_payload={"incident_id": row.incident_id, "reason": reason},
                             idempotency_key=alert_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.issue_public_alert(
-                                row.incident_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.issue_public_alert(
+                                    row.incident_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1155,10 +1164,12 @@ class EmergencyOperationsCommander:
                                 "reason": reason,
                             },
                             idempotency_key=preposition_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.preposition_resources(
-                                row.resource_unit_id,
-                                zone_id=row.zone_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.preposition_resources(
+                                    row.resource_unit_id,
+                                    zone_id=row.zone_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1170,7 +1181,10 @@ class EmergencyOperationsCommander:
                             target=row.resource_unit_id,
                             success=True,
                             latency_ms=0,
-                            request={"resource_unit_id": row.resource_unit_id, "zone_id": row.zone_id},
+                            request={
+                                "resource_unit_id": row.resource_unit_id,
+                                "zone_id": row.zone_id,
+                            },
                             status="skipped",
                             attempts=0,
                             notes=("auto prepositioning disabled by policy",),
@@ -1186,9 +1200,11 @@ class EmergencyOperationsCommander:
                             target=row.incident_id,
                             request_payload={"incident_id": row.incident_id, "reason": reason},
                             idempotency_key=alert_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.issue_public_alert(
-                                row.incident_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.issue_public_alert(
+                                    row.incident_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1250,7 +1266,9 @@ class EmergencyOperationsCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1480,7 +1498,9 @@ class EmergencyOperationsCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; escalate to human incident command for manual coordination.")
+            recs.append(
+                "At least one integration failed; escalate to human incident command for manual coordination."
+            )
 
         top = decisions[:3]
         if top:

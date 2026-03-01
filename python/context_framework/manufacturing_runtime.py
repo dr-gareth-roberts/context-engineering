@@ -54,7 +54,9 @@ _ROOT_CAUSE_HINTS = (
     "sensor drift",
     "coolant",
 )
-_ROOT_CAUSE_RE = re.compile("|".join(re.escape(keyword) for keyword in _ROOT_CAUSE_HINTS), re.IGNORECASE)
+_ROOT_CAUSE_RE = re.compile(
+    "|".join(re.escape(keyword) for keyword in _ROOT_CAUSE_HINTS), re.IGNORECASE
+)
 _SAFETY_RE = re.compile(
     r"(?:safety interlock|near miss|operator injury|emergency stop|lockout)",
     re.IGNORECASE,
@@ -78,27 +80,21 @@ def _normalize(value: str) -> str:
 
 
 class LineTelemetryAdapter(Protocol):
-    def lookup_line(self, line_id: str) -> dict[str, Any]:
-        ...
+    def lookup_line(self, line_id: str) -> dict[str, Any]: ...
 
 
 class MaintenanceHistoryAdapter(Protocol):
-    def lookup_asset(self, asset_id: str) -> dict[str, Any]:
-        ...
+    def lookup_asset(self, asset_id: str) -> dict[str, Any]: ...
 
 
 class ManufacturingActionAdapter(Protocol):
-    def pause_line(self, line_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def pause_line(self, line_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def rollback_firmware(self, line_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def rollback_firmware(self, line_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def dispatch_reliability_engineer(self, asset_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def dispatch_reliability_engineer(self, asset_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def increase_quality_inspection(self, line_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def increase_quality_inspection(self, line_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpLineTelemetryAdapter:
@@ -516,7 +512,9 @@ class ManufacturingRootCauseCommander:
     line_telemetry_adapter: LineTelemetryAdapter
     maintenance_history_adapter: MaintenanceHistoryAdapter
     action_adapter: ManufacturingActionAdapter
-    execution_policy: ManufacturingExecutionPolicy = field(default_factory=ManufacturingExecutionPolicy)
+    execution_policy: ManufacturingExecutionPolicy = field(
+        default_factory=ManufacturingExecutionPolicy
+    )
     idempotency_store: IdempotencyStore = field(default_factory=InMemoryIdempotencyStore)
     audit_logger: AuditLogger = field(default_factory=NoOpAuditLogger)
     retry_attempts: int = 2
@@ -572,7 +570,9 @@ class ManufacturingRootCauseCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -711,7 +711,9 @@ class ManufacturingRootCauseCommander:
         ).hexdigest()[:16]
         return f"mfg-{started_at.strftime('%Y%m%d%H%M%S')}-{digest}"
 
-    def _run_enrichment(self, signals: list[ManufacturingSignal]) -> list[ManufacturingActionResult]:
+    def _run_enrichment(
+        self, signals: list[ManufacturingSignal]
+    ) -> list[ManufacturingActionResult]:
         tasks: list[_ExecutionTask] = []
 
         line_ids = _unique_preserve([signal.line_id for signal in signals])
@@ -736,7 +738,9 @@ class ManufacturingRootCauseCommander:
                     target=asset_id,
                     request_payload={"asset_id": asset_id},
                     idempotency_key=None,
-                    call=lambda asset_id=asset_id: self.maintenance_history_adapter.lookup_asset(asset_id),
+                    call=lambda asset_id=asset_id: self.maintenance_history_adapter.lookup_asset(
+                        asset_id
+                    ),
                 )
             )
 
@@ -824,24 +828,32 @@ class ManufacturingRootCauseCommander:
             if (
                 risk_score >= self.execution_policy.containment_risk_threshold
                 or signal.safety_indicator
-                or (firmware_recent and yield_loss >= self.execution_policy.high_yield_loss_threshold)
+                or (
+                    firmware_recent
+                    and yield_loss >= self.execution_policy.high_yield_loss_threshold
+                )
             ):
                 route = "contain_and_rollback"
-                rationale.append("High process risk/safety concern requires containment and rollback.")
+                rationale.append(
+                    "High process risk/safety concern requires containment and rollback."
+                )
             elif (
                 risk_score >= self.execution_policy.diagnostic_risk_threshold
                 or fault_rate >= self.execution_policy.high_fault_rate_threshold
             ):
                 route = "targeted_diagnostics"
                 rationale.append("Elevated anomaly/failure profile requires targeted diagnostics.")
-            elif (
-                risk_score >= self.execution_policy.quality_gate_risk_threshold
-                or yield_loss >= (self.execution_policy.high_yield_loss_threshold * 0.75)
+            elif risk_score >= self.execution_policy.quality_gate_risk_threshold or yield_loss >= (
+                self.execution_policy.high_yield_loss_threshold * 0.75
             ):
                 route = "enhanced_quality_gate"
-                rationale.append("Moderate risk requires enhanced quality gating and intensified inspection.")
+                rationale.append(
+                    "Moderate risk requires enhanced quality gating and intensified inspection."
+                )
             else:
-                rationale.append("Current signal strength supports monitoring with standard controls.")
+                rationale.append(
+                    "Current signal strength supports monitoring with standard controls."
+                )
 
             if not line:
                 rationale.append("Line telemetry enrichment missing; confidence reduced.")
@@ -970,9 +982,11 @@ class ManufacturingRootCauseCommander:
                             target=row.line_id,
                             request_payload={"line_id": row.line_id, "reason": reason},
                             idempotency_key=rollback_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.rollback_firmware(
-                                row.line_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.rollback_firmware(
+                                    row.line_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1000,9 +1014,11 @@ class ManufacturingRootCauseCommander:
                             target=row.asset_id,
                             request_payload={"asset_id": row.asset_id, "reason": reason},
                             idempotency_key=dispatch_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.dispatch_reliability_engineer(
-                                row.asset_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.dispatch_reliability_engineer(
+                                    row.asset_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1032,9 +1048,11 @@ class ManufacturingRootCauseCommander:
                             target=row.asset_id,
                             request_payload={"asset_id": row.asset_id, "reason": reason},
                             idempotency_key=dispatch_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.dispatch_reliability_engineer(
-                                row.asset_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.dispatch_reliability_engineer(
+                                    row.asset_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1062,9 +1080,11 @@ class ManufacturingRootCauseCommander:
                             target=row.line_id,
                             request_payload={"line_id": row.line_id, "reason": reason},
                             idempotency_key=inspect_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.increase_quality_inspection(
-                                row.line_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.increase_quality_inspection(
+                                    row.line_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1094,9 +1114,11 @@ class ManufacturingRootCauseCommander:
                             target=row.line_id,
                             request_payload={"line_id": row.line_id, "reason": reason},
                             idempotency_key=inspect_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.increase_quality_inspection(
-                                row.line_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.increase_quality_inspection(
+                                    row.line_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1158,7 +1180,9 @@ class ManufacturingRootCauseCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1388,7 +1412,9 @@ class ManufacturingRootCauseCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; escalate affected anomalies for manual reliability review.")
+            recs.append(
+                "At least one integration failed; escalate affected anomalies for manual reliability review."
+            )
 
         top = decisions[:3]
         if top:

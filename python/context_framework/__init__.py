@@ -300,6 +300,7 @@ from .regulatory_change_runtime import (
     build_control_coverage_adapter_from_env,
     build_regulation_intel_adapter_from_env,
 )
+from .hybrid_retrieval import HybridInMemoryRetriever
 from .retrieval import (
     ChromaRetriever,
     InMemoryVectorRetriever,
@@ -308,6 +309,16 @@ from .retrieval import (
     Retriever,
 )
 from .scoring import EmbeddingScorer, KeywordOverlapScorer, RelevanceScorer
+from .quality import (
+    FaithfulnessJudge,
+    FaithfulnessVerdict,
+    QuoteOnlyFaithfulnessJudge,
+    average_precision,
+    mrr,
+    ndcg_at_k,
+    precision_at_k,
+    recall_at_k,
+)
 from .soc_runtime import (
     EDRAdapter,
     ExecutionPolicy,

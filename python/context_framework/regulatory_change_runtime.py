@@ -51,7 +51,9 @@ _OBLIGATION_KEYWORDS = (
     "monitoring",
     "transparency",
 )
-_OBLIGATION_RE = re.compile("|".join(re.escape(keyword) for keyword in _OBLIGATION_KEYWORDS), re.IGNORECASE)
+_OBLIGATION_RE = re.compile(
+    "|".join(re.escape(keyword) for keyword in _OBLIGATION_KEYWORDS), re.IGNORECASE
+)
 _ENFORCEMENT_RE = re.compile(
     r"(?:mandatory|required|must comply|enforcement|fine|penalty|non-compliance)",
     re.IGNORECASE,
@@ -75,30 +77,23 @@ def _normalize(value: str) -> str:
 
 
 class RegulationIntelAdapter(Protocol):
-    def lookup_requirement(self, requirement_id: str) -> dict[str, Any]:
-        ...
+    def lookup_requirement(self, requirement_id: str) -> dict[str, Any]: ...
 
 
 class ControlCoverageAdapter(Protocol):
-    def lookup_domain(self, domain_id: str) -> dict[str, Any]:
-        ...
+    def lookup_domain(self, domain_id: str) -> dict[str, Any]: ...
 
 
 class ComplianceActionAdapter(Protocol):
-    def open_remediation_program(self, requirement_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def open_remediation_program(self, requirement_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def create_control_gap_tasks(self, domain_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def create_control_gap_tasks(self, domain_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def publish_policy_update(self, domain_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def publish_policy_update(self, domain_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def schedule_attestation(self, requirement_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def schedule_attestation(self, requirement_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def assign_training(self, owner_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def assign_training(self, owner_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpRegulationIntelAdapter:
@@ -622,7 +617,9 @@ class RegulatoryChangeCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -707,7 +704,11 @@ class RegulatoryChangeCommander:
 
             segment_index = len(rows)
             start = match.start()
-            end = requirement_matches[idx + 1].start() if idx + 1 < len(requirement_matches) else len(text)
+            end = (
+                requirement_matches[idx + 1].start()
+                if idx + 1 < len(requirement_matches)
+                else len(text)
+            )
             segment = text[start:end]
 
             domain_match = _DOMAIN_RE.search(segment)
@@ -760,8 +761,8 @@ class RegulatoryChangeCommander:
                     target=requirement_id,
                     request_payload={"requirement_id": requirement_id},
                     idempotency_key=None,
-                    call=lambda requirement_id=requirement_id: self.regulation_intel_adapter.lookup_requirement(
-                        requirement_id
+                    call=lambda requirement_id=requirement_id: (
+                        self.regulation_intel_adapter.lookup_requirement(requirement_id)
                     ),
                 )
             )
@@ -867,7 +868,8 @@ class RegulatoryChangeCommander:
                 + (0.08 if signal.enforcement_indicator else 0.0)
                 + (
                     0.05
-                    if evidence_freshness_days >= self.execution_policy.stale_evidence_days_threshold
+                    if evidence_freshness_days
+                    >= self.execution_policy.stale_evidence_days_threshold
                     else 0.0
                 ),
             )
@@ -884,19 +886,27 @@ class RegulatoryChangeCommander:
                 or (signal.enforcement_indicator and coverage_pct < 0.50)
             ):
                 route = "immediate_remediation_program"
-                rationale.append("High compliance risk/deadline pressure requires immediate remediation program.")
+                rationale.append(
+                    "High compliance risk/deadline pressure requires immediate remediation program."
+                )
             elif (
                 risk_score >= self.execution_policy.accelerated_gap_closure_risk_threshold
                 or coverage_pct < 0.70
                 or evidence_freshness_days >= self.execution_policy.stale_evidence_days_threshold
             ):
                 route = "accelerated_control_gap_closure"
-                rationale.append("Control coverage gaps require accelerated closure and evidence refresh.")
+                rationale.append(
+                    "Control coverage gaps require accelerated closure and evidence refresh."
+                )
             elif risk_score >= self.execution_policy.policy_update_risk_threshold:
                 route = "policy_update_and_training"
-                rationale.append("Moderate compliance impact requires policy update and training rollout.")
+                rationale.append(
+                    "Moderate compliance impact requires policy update and training rollout."
+                )
             else:
-                rationale.append("Current regulatory delta can be tracked through standard monitoring.")
+                rationale.append(
+                    "Current regulatory delta can be tracked through standard monitoring."
+                )
 
             if not intel:
                 rationale.append("Regulation-intel enrichment missing; confidence reduced.")
@@ -992,11 +1002,16 @@ class RegulatoryChangeCommander:
                             integration="compliance_actions",
                             operation="open_remediation_program",
                             target=row.requirement_id,
-                            request_payload={"requirement_id": row.requirement_id, "reason": reason},
+                            request_payload={
+                                "requirement_id": row.requirement_id,
+                                "reason": reason,
+                            },
                             idempotency_key=remediation_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.open_remediation_program(
-                                row.requirement_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.open_remediation_program(
+                                    row.requirement_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1024,9 +1039,11 @@ class RegulatoryChangeCommander:
                             target=row.domain_id,
                             request_payload={"domain_id": row.domain_id, "reason": reason},
                             idempotency_key=control_gap_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.create_control_gap_tasks(
-                                row.domain_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.create_control_gap_tasks(
+                                    row.domain_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1054,9 +1071,11 @@ class RegulatoryChangeCommander:
                             target=row.domain_id,
                             request_payload={"domain_id": row.domain_id, "reason": reason},
                             idempotency_key=policy_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.publish_policy_update(
-                                row.domain_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.publish_policy_update(
+                                    row.domain_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1082,11 +1101,16 @@ class RegulatoryChangeCommander:
                             integration="compliance_actions",
                             operation="schedule_attestation",
                             target=row.requirement_id,
-                            request_payload={"requirement_id": row.requirement_id, "reason": reason},
+                            request_payload={
+                                "requirement_id": row.requirement_id,
+                                "reason": reason,
+                            },
                             idempotency_key=attestation_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.schedule_attestation(
-                                row.requirement_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.schedule_attestation(
+                                    row.requirement_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1114,9 +1138,11 @@ class RegulatoryChangeCommander:
                             target=row.owner_id,
                             request_payload={"owner_id": row.owner_id, "reason": reason},
                             idempotency_key=training_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.assign_training(
-                                row.owner_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.assign_training(
+                                    row.owner_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1146,9 +1172,11 @@ class RegulatoryChangeCommander:
                             target=row.domain_id,
                             request_payload={"domain_id": row.domain_id, "reason": reason},
                             idempotency_key=control_gap_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.create_control_gap_tasks(
-                                row.domain_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.create_control_gap_tasks(
+                                    row.domain_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1176,9 +1204,11 @@ class RegulatoryChangeCommander:
                             target=row.domain_id,
                             request_payload={"domain_id": row.domain_id, "reason": reason},
                             idempotency_key=policy_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.publish_policy_update(
-                                row.domain_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.publish_policy_update(
+                                    row.domain_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1206,9 +1236,11 @@ class RegulatoryChangeCommander:
                             target=row.owner_id,
                             request_payload={"owner_id": row.owner_id, "reason": reason},
                             idempotency_key=training_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.assign_training(
-                                row.owner_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.assign_training(
+                                    row.owner_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1238,9 +1270,11 @@ class RegulatoryChangeCommander:
                             target=row.domain_id,
                             request_payload={"domain_id": row.domain_id, "reason": reason},
                             idempotency_key=policy_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.publish_policy_update(
-                                row.domain_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.publish_policy_update(
+                                    row.domain_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1268,9 +1302,11 @@ class RegulatoryChangeCommander:
                             target=row.owner_id,
                             request_payload={"owner_id": row.owner_id, "reason": reason},
                             idempotency_key=training_key,
-                            call=lambda row=row, reason=reason: self.compliance_action_adapter.assign_training(
-                                row.owner_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.compliance_action_adapter.assign_training(
+                                    row.owner_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1332,7 +1368,9 @@ class RegulatoryChangeCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1561,7 +1599,9 @@ class RegulatoryChangeCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; escalate impacted requirements to manual compliance review.")
+            recs.append(
+                "At least one integration failed; escalate impacted requirements to manual compliance review."
+            )
 
         top = decisions[:3]
         if top:

@@ -51,7 +51,9 @@ _RISK_HINT_KEYWORDS = (
     "single point of failure",
     "vendor lock-in",
 )
-_RISK_HINT_RE = re.compile("|".join(re.escape(keyword) for keyword in _RISK_HINT_KEYWORDS), re.IGNORECASE)
+_RISK_HINT_RE = re.compile(
+    "|".join(re.escape(keyword) for keyword in _RISK_HINT_KEYWORDS), re.IGNORECASE
+)
 _UNSUPPORTED_RE = re.compile(
     r"(?:eol|end of support|unsupported|out[- ]of[- ]support)",
     re.IGNORECASE,
@@ -79,21 +81,17 @@ def _normalize(value: str) -> str:
 
 
 class SystemInventoryAdapter(Protocol):
-    def lookup_system(self, system_id: str) -> dict[str, Any]:
-        ...
+    def lookup_system(self, system_id: str) -> dict[str, Any]: ...
 
 
 class DependencyGraphAdapter(Protocol):
-    def lookup_system(self, system_id: str) -> dict[str, Any]:
-        ...
+    def lookup_system(self, system_id: str) -> dict[str, Any]: ...
 
 
 class MigrationActionAdapter(Protocol):
-    def open_modernization_program(self, system_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def open_modernization_program(self, system_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def create_migration_wave(self, system_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def create_migration_wave(self, system_id: str, *, reason: str) -> dict[str, Any]: ...
 
     def schedule_parallel_run(
         self,
@@ -101,14 +99,11 @@ class MigrationActionAdapter(Protocol):
         *,
         target_platform: str,
         reason: str,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
-    def register_rollback_plan(self, system_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def register_rollback_plan(self, system_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def assign_transformation_owner(self, owner_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def assign_transformation_owner(self, owner_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpSystemInventoryAdapter:
@@ -591,7 +586,9 @@ class LegacyModernMigrationCommander:
     system_inventory_adapter: SystemInventoryAdapter
     dependency_graph_adapter: DependencyGraphAdapter
     action_adapter: MigrationActionAdapter
-    execution_policy: LegacyMigrationExecutionPolicy = field(default_factory=LegacyMigrationExecutionPolicy)
+    execution_policy: LegacyMigrationExecutionPolicy = field(
+        default_factory=LegacyMigrationExecutionPolicy
+    )
     idempotency_store: IdempotencyStore = field(default_factory=InMemoryIdempotencyStore)
     audit_logger: AuditLogger = field(default_factory=NoOpAuditLogger)
     retry_attempts: int = 2
@@ -647,7 +644,9 @@ class LegacyModernMigrationCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -779,10 +778,14 @@ class LegacyModernMigrationCommander:
 
     @staticmethod
     def _build_batch_id(scenario: str, started_at: datetime) -> str:
-        digest = hashlib.sha256(f"{started_at.isoformat()}::{scenario}".encode("utf-8")).hexdigest()[:16]
+        digest = hashlib.sha256(
+            f"{started_at.isoformat()}::{scenario}".encode("utf-8")
+        ).hexdigest()[:16]
         return f"migration-{started_at.strftime('%Y%m%d%H%M%S')}-{digest}"
 
-    def _run_enrichment(self, signals: list[LegacyMigrationSignal]) -> list[LegacyMigrationActionResult]:
+    def _run_enrichment(
+        self, signals: list[LegacyMigrationSignal]
+    ) -> list[LegacyMigrationActionResult]:
         tasks: list[_ExecutionTask] = []
 
         system_ids = _unique_preserve([signal.system_id for signal in signals])
@@ -794,7 +797,9 @@ class LegacyModernMigrationCommander:
                     target=system_id,
                     request_payload={"system_id": system_id},
                     idempotency_key=None,
-                    call=lambda system_id=system_id: self.system_inventory_adapter.lookup_system(system_id),
+                    call=lambda system_id=system_id: self.system_inventory_adapter.lookup_system(
+                        system_id
+                    ),
                 )
             )
             tasks.append(
@@ -804,7 +809,9 @@ class LegacyModernMigrationCommander:
                     target=system_id,
                     request_payload={"system_id": system_id},
                     idempotency_key=None,
-                    call=lambda system_id=system_id: self.dependency_graph_adapter.lookup_system(system_id),
+                    call=lambda system_id=system_id: self.dependency_graph_adapter.lookup_system(
+                        system_id
+                    ),
                 )
             )
         return self._execute_tasks(tasks)
@@ -836,16 +843,22 @@ class LegacyModernMigrationCommander:
                 keys=("modernization_blocker_score", "blocker_score"),
                 default=0.35,
             )
-            criticality = self._as_float(sys_row, keys=("criticality", "business_criticality"), default=0.50)
+            criticality = self._as_float(
+                sys_row, keys=("criticality", "business_criticality"), default=0.50
+            )
             change_failure = self._as_float(
                 sys_row,
                 keys=("change_failure_rate", "deployment_failure_rate"),
                 default=0.32,
             )
 
-            dependency_count = self._as_int(dep_row, keys=("dependency_count", "integration_count"), default=30)
+            dependency_count = self._as_int(
+                dep_row, keys=("dependency_count", "integration_count"), default=30
+            )
             coupling = self._as_float(dep_row, keys=("coupling_score", "coupling"), default=0.42)
-            blast_radius = self._as_float(dep_row, keys=("blast_radius", "impact_radius"), default=0.44)
+            blast_radius = self._as_float(
+                dep_row, keys=("blast_radius", "impact_radius"), default=0.44
+            )
             parallel_readiness = self._as_float(
                 dep_row,
                 keys=("parallel_run_readiness", "parallel_readiness"),
@@ -861,7 +874,12 @@ class LegacyModernMigrationCommander:
             age_risk = min(1.0, age_years / 15.0)
             outage_risk = min(1.0, outage_hours / 72.0)
             hint_risk = 0.0
-            if signal.risk_hint in {"mainframe", "eol runtime", "shared database", "single point of failure"}:
+            if signal.risk_hint in {
+                "mainframe",
+                "eol runtime",
+                "shared database",
+                "single point of failure",
+            }:
                 hint_risk = 0.06
 
             risk_score = min(
@@ -889,19 +907,27 @@ class LegacyModernMigrationCommander:
                 or (criticality >= 0.85 and outage_hours >= 24)
             ):
                 route = "immediate_replatform_program"
-                rationale.append("Risk profile requires immediate modernization program and controlled replatforming.")
+                rationale.append(
+                    "Risk profile requires immediate modernization program and controlled replatforming."
+                )
             elif (
                 risk_score >= self.execution_policy.phased_risk_threshold
                 or dependency_count >= self.execution_policy.high_dependency_threshold
                 or age_years >= self.execution_policy.long_age_years_threshold
             ):
                 route = "phased_strangler_with_parallel_run"
-                rationale.append("Risk profile supports phased strangler migration with parallel-run safety checks.")
+                rationale.append(
+                    "Risk profile supports phased strangler migration with parallel-run safety checks."
+                )
             elif risk_score >= self.execution_policy.targeted_risk_threshold:
                 route = "targeted_refactor_wave"
-                rationale.append("Risk profile supports targeted refactor and migration wave execution.")
+                rationale.append(
+                    "Risk profile supports targeted refactor and migration wave execution."
+                )
             else:
-                rationale.append("Current modernization risk supports monitoring and incremental hardening.")
+                rationale.append(
+                    "Current modernization risk supports monitoring and incremental hardening."
+                )
 
             if not sys_row:
                 rationale.append("System-inventory enrichment missing; confidence reduced.")
@@ -1003,9 +1029,11 @@ class LegacyModernMigrationCommander:
                             target=row.system_id,
                             request_payload={"system_id": row.system_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.open_modernization_program(
-                                row.system_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.open_modernization_program(
+                                    row.system_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1038,9 +1066,11 @@ class LegacyModernMigrationCommander:
                             target=row.system_id,
                             request_payload={"system_id": row.system_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.create_migration_wave(
-                                row.system_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.create_migration_wave(
+                                    row.system_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1073,10 +1103,12 @@ class LegacyModernMigrationCommander:
                                 "reason": reason,
                             },
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.schedule_parallel_run(
-                                row.system_id,
-                                target_platform=row.target_platform,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.schedule_parallel_run(
+                                    row.system_id,
+                                    target_platform=row.target_platform,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1088,7 +1120,10 @@ class LegacyModernMigrationCommander:
                             target=row.system_id,
                             success=True,
                             latency_ms=0,
-                            request={"system_id": row.system_id, "target_platform": row.target_platform},
+                            request={
+                                "system_id": row.system_id,
+                                "target_platform": row.target_platform,
+                            },
                             status="skipped",
                             attempts=0,
                             notes=("auto parallel-run scheduling disabled by policy",),
@@ -1105,9 +1140,11 @@ class LegacyModernMigrationCommander:
                             target=row.system_id,
                             request_payload={"system_id": row.system_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.register_rollback_plan(
-                                row.system_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.register_rollback_plan(
+                                    row.system_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1140,9 +1177,11 @@ class LegacyModernMigrationCommander:
                             target=row.owner_id,
                             request_payload={"owner_id": row.owner_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.assign_transformation_owner(
-                                row.owner_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.assign_transformation_owner(
+                                    row.owner_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1203,7 +1242,9 @@ class LegacyModernMigrationCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1444,7 +1485,9 @@ class LegacyModernMigrationCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; route affected systems to manual architecture review.")
+            recs.append(
+                "At least one integration failed; route affected systems to manual architecture review."
+            )
 
         top = decisions[:3]
         if top:

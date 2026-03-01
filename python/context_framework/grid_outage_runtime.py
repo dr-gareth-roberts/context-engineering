@@ -47,7 +47,9 @@ _CRITICAL_KEYWORDS = (
     "airport",
     "nursing home",
 )
-_CRITICAL_RE = re.compile("|".join(re.escape(keyword) for keyword in _CRITICAL_KEYWORDS), re.IGNORECASE)
+_CRITICAL_RE = re.compile(
+    "|".join(re.escape(keyword) for keyword in _CRITICAL_KEYWORDS), re.IGNORECASE
+)
 _CASCADE_RE = re.compile(r"\bcascad(?:e|ing)\b", re.IGNORECASE)
 
 
@@ -68,27 +70,21 @@ def _normalize(value: str) -> str:
 
 
 class GridTelemetryAdapter(Protocol):
-    def lookup_substation(self, substation_id: str) -> dict[str, Any]:
-        ...
+    def lookup_substation(self, substation_id: str) -> dict[str, Any]: ...
 
 
 class CriticalLoadAdapter(Protocol):
-    def lookup_feeder(self, feeder_id: str) -> dict[str, Any]:
-        ...
+    def lookup_feeder(self, feeder_id: str) -> dict[str, Any]: ...
 
 
 class GridActionAdapter(Protocol):
-    def dispatch_repair_crew(self, substation_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def dispatch_repair_crew(self, substation_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def prioritize_feeder(self, feeder_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def prioritize_feeder(self, feeder_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def initiate_controlled_load_shed(self, feeder_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def initiate_controlled_load_shed(self, feeder_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def notify_emergency_ops(self, incident_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def notify_emergency_ops(self, incident_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpGridTelemetryAdapter:
@@ -353,7 +349,9 @@ def build_grid_action_adapter_from_env() -> GridActionAdapter:
     return NoOpGridActionAdapter()
 
 
-GridRoute = Literal["blackstart_escalation", "priority_restoration", "controlled_load_shed", "monitor"]
+GridRoute = Literal[
+    "blackstart_escalation", "priority_restoration", "controlled_load_shed", "monitor"
+]
 
 
 @dataclass(slots=True, frozen=True)
@@ -558,7 +556,9 @@ class GridOutageCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -648,7 +648,9 @@ class GridOutageCommander:
 
             segment_index = len(rows)
             start = match.start()
-            end = incident_matches[idx + 1].start() if idx + 1 < len(incident_matches) else len(text)
+            end = (
+                incident_matches[idx + 1].start() if idx + 1 < len(incident_matches) else len(text)
+            )
             segment = text[start:end]
 
             substation_match = _SUBSTATION_RE.search(segment)
@@ -707,8 +709,8 @@ class GridOutageCommander:
                     target=substation_id,
                     request_payload={"substation_id": substation_id},
                     idempotency_key=None,
-                    call=lambda substation_id=substation_id: self.telemetry_adapter.lookup_substation(
-                        substation_id
+                    call=lambda substation_id=substation_id: (
+                        self.telemetry_adapter.lookup_substation(substation_id)
                     ),
                 )
             )
@@ -722,7 +724,9 @@ class GridOutageCommander:
                     target=feeder_id,
                     request_payload={"feeder_id": feeder_id},
                     idempotency_key=None,
-                    call=lambda feeder_id=feeder_id: self.critical_load_adapter.lookup_feeder(feeder_id),
+                    call=lambda feeder_id=feeder_id: self.critical_load_adapter.lookup_feeder(
+                        feeder_id
+                    ),
                 )
             )
 
@@ -815,29 +819,34 @@ class GridOutageCommander:
                 or risk_score >= self.execution_policy.emergency_risk_threshold
             ):
                 route = "blackstart_escalation"
-                rationale.append("Instability/emergency risk threshold crossed; activate blackstart escalation.")
+                rationale.append(
+                    "Instability/emergency risk threshold crossed; activate blackstart escalation."
+                )
             elif instability >= self.execution_policy.controlled_shed_instability_threshold and (
                 customers_affected >= self.execution_policy.major_outage_customers_threshold
                 or eta_minutes >= 180
                 or signal.cascading_indicator
             ):
                 route = "controlled_load_shed"
-                rationale.append("Grid instability indicates controlled load-shed to contain outage spread.")
-            elif (
-                risk_score >= self.execution_policy.priority_restore_risk_threshold
-                or (
-                    customers_affected >= self.execution_policy.major_outage_customers_threshold
-                    and (
-                        life_safety_load >= self.execution_policy.critical_load_mw_threshold
-                        or hospitals_impacted > 0
-                        or critical_sites >= 2
-                    )
+                rationale.append(
+                    "Grid instability indicates controlled load-shed to contain outage spread."
+                )
+            elif risk_score >= self.execution_policy.priority_restore_risk_threshold or (
+                customers_affected >= self.execution_policy.major_outage_customers_threshold
+                and (
+                    life_safety_load >= self.execution_policy.critical_load_mw_threshold
+                    or hospitals_impacted > 0
+                    or critical_sites >= 2
                 )
             ):
                 route = "priority_restoration"
-                rationale.append("High impact to critical services/customers; prioritize restoration sequence.")
+                rationale.append(
+                    "High impact to critical services/customers; prioritize restoration sequence."
+                )
             else:
-                rationale.append("Current signal supports monitoring and staged restoration readiness.")
+                rationale.append(
+                    "Current signal supports monitoring and staged restoration readiness."
+                )
 
             if not telemetry:
                 rationale.append("Telemetry enrichment missing; confidence reduced.")
@@ -872,7 +881,8 @@ class GridOutageCommander:
 
         decisions.sort(
             key=lambda row: (
-                row.route in {"blackstart_escalation", "controlled_load_shed", "priority_restoration"},
+                row.route
+                in {"blackstart_escalation", "controlled_load_shed", "priority_restoration"},
                 row.priority == "urgent",
                 row.risk_score,
             ),
@@ -934,9 +944,11 @@ class GridOutageCommander:
                             target=row.substation_id,
                             request_payload={"substation_id": row.substation_id, "reason": reason},
                             idempotency_key=dispatch_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.dispatch_repair_crew(
-                                row.substation_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.dispatch_repair_crew(
+                                    row.substation_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -964,9 +976,11 @@ class GridOutageCommander:
                             target=row.feeder_id,
                             request_payload={"feeder_id": row.feeder_id, "reason": reason},
                             idempotency_key=prioritize_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.prioritize_feeder(
-                                row.feeder_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.prioritize_feeder(
+                                    row.feeder_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -995,9 +1009,11 @@ class GridOutageCommander:
                                 target=row.incident_id,
                                 request_payload={"incident_id": row.incident_id, "reason": reason},
                                 idempotency_key=notify_key,
-                                call=lambda row=row, reason=reason: self.action_adapter.notify_emergency_ops(
-                                    row.incident_id,
-                                    reason=reason,
+                                call=lambda row=row, reason=reason: (
+                                    self.action_adapter.notify_emergency_ops(
+                                        row.incident_id,
+                                        reason=reason,
+                                    )
                                 ),
                             )
                         )
@@ -1027,9 +1043,11 @@ class GridOutageCommander:
                             target=row.feeder_id,
                             request_payload={"feeder_id": row.feeder_id, "reason": reason},
                             idempotency_key=shed_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.initiate_controlled_load_shed(
-                                row.feeder_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.initiate_controlled_load_shed(
+                                    row.feeder_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1057,9 +1075,11 @@ class GridOutageCommander:
                             target=row.incident_id,
                             request_payload={"incident_id": row.incident_id, "reason": reason},
                             idempotency_key=notify_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.notify_emergency_ops(
-                                row.incident_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.notify_emergency_ops(
+                                    row.incident_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1121,7 +1141,9 @@ class GridOutageCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(

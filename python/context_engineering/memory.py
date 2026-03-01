@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import asyncio
 import json
-import logging
 import math
 import os
 import sqlite3
@@ -10,9 +10,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
+import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _now_iso() -> str:
@@ -60,6 +61,18 @@ class MemoryStore:
 
     def forget(self, item_id: str) -> bool:
         raise NotImplementedError
+
+    async def aput(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
+        return await asyncio.to_thread(self.put, item)
+
+    async def aget(self, item_id: str) -> Optional[MemoryItem]:
+        return await asyncio.to_thread(self.get, item_id)
+
+    async def aquery(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
+        return await asyncio.to_thread(self.query, query)
+
+    async def aforget(self, item_id: str) -> bool:
+        return await asyncio.to_thread(self.forget, item_id)
 
     async def consolidate(
         self, summarizer: Callable[[str], Awaitable[str]], salience_threshold: float = 0.3
@@ -152,21 +165,27 @@ class InMemoryStore(MemoryStore):
     def put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
         items = item if isinstance(item, list) else [item]
         normalized = [_normalize(entry) for entry in items]
-        for entry in normalized:
-            self._items[entry.id] = entry
+        with self._lock:
+            for entry in normalized:
+                self._items[entry.id] = entry
         return normalized
 
     def get(self, item_id: str) -> Optional[MemoryItem]:
-        item = self._items.get(item_id)
-        if item:
-            item.last_accessed_at = _now_iso()
+        with self._lock:
+            item = self._items.get(item_id)
+            if item:
+                item.last_accessed_at = _now_iso()
         return item
 
     def query(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
-        return _apply_query(list(self._items.values()), query or MemoryQuery())
+        with self._lock:
+            items = list(self._items.values())
+        # Apply query is pure CPU, can run synchronously or in executor. It's fast enough.
+        return _apply_query(items, query or MemoryQuery())
 
     def forget(self, item_id: str) -> bool:
-        return self._items.pop(item_id, None) is not None
+        with self._lock:
+            return self._items.pop(item_id, None) is not None
 
     async def consolidate(
         self, summarizer: Callable[[str], Awaitable[str]], salience_threshold: float = 0.3
@@ -233,7 +252,7 @@ class FileStore(MemoryStore):
                 f.write(i.model_dump_json(by_alias=True) + "\n")
         os.replace(tmp_path, self.file_path)
 
-    def put(self, item: MemoryItem | List[MemoryItem]):
+    def _sync_put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
         with self._lock:
             self._load()
             items = item if isinstance(item, list) else [item]
@@ -243,7 +262,10 @@ class FileStore(MemoryStore):
             self._persist()
             return normalized
 
-    def get(self, item_id: str):
+    def put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
+        return self._sync_put(item)
+
+    def _sync_get(self, item_id: str) -> Optional[MemoryItem]:
         with self._lock:
             self._load()
             item = self._items.get(item_id)
@@ -252,18 +274,28 @@ class FileStore(MemoryStore):
                 self._persist()
             return item
 
-    def query(self, query: Optional[MemoryQuery] = None):
+    def get(self, item_id: str) -> Optional[MemoryItem]:
+        return self._sync_get(item_id)
+
+    def _sync_query(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
         with self._lock:
             self._load()
-            return _apply_query(list(self._items.values()), query or MemoryQuery())
+            items = list(self._items.values())
+        return _apply_query(items, query or MemoryQuery())
 
-    def forget(self, item_id: str):
+    def query(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
+        return self._sync_query(query)
+
+    def _sync_forget(self, item_id: str) -> bool:
         with self._lock:
             self._load()
             removed = self._items.pop(item_id, None) is not None
             if removed:
                 self._persist()
             return removed
+
+    def forget(self, item_id: str) -> bool:
+        return self._sync_forget(item_id)
 
     async def consolidate(self, summarizer, threshold=0.3):
         # Read cold items under the lock, copy out what we need
@@ -312,7 +344,7 @@ class SqliteStore(MemoryStore):
         """)
         self.conn.commit()
 
-    def put(self, item: MemoryItem | List[MemoryItem]):
+    def _sync_put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
         with self._lock:
             items = item if isinstance(item, list) else [item]
             normalized = [_normalize(e) for e in items]
@@ -341,7 +373,10 @@ class SqliteStore(MemoryStore):
                     )
             return normalized
 
-    def get(self, item_id: str):
+    def put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
+        return self._sync_put(item)
+
+    def _sync_get(self, item_id: str):
         with self._lock:
             self.conn.execute(
                 "UPDATE memory_items SET last_accessed_at = ? WHERE id = ?", (_now_iso(), item_id)
@@ -366,7 +401,10 @@ class SqliteStore(MemoryStore):
                 metadata=json.loads(r[9]) if r[9] else {},
             )
 
-    def query(self, query: Optional[MemoryQuery] = None):
+    def get(self, item_id: str) -> Optional[MemoryItem]:
+        return self._sync_get(item_id)
+
+    def _sync_query(self, query: Optional[MemoryQuery] = None):
         with self._lock:
             cursor = self.conn.execute(
                 "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json FROM memory_items"
@@ -386,13 +424,19 @@ class SqliteStore(MemoryStore):
                 )
                 for r in cursor.fetchall()
             ]
-            return _apply_query(items, query or MemoryQuery())
+        return _apply_query(items, query or MemoryQuery())
 
-    def forget(self, item_id: str):
+    def query(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
+        return self._sync_query(query)
+
+    def _sync_forget(self, item_id: str):
         with self._lock:
             c = self.conn.execute("DELETE FROM memory_items WHERE id = ?", (item_id,))
             self.conn.commit()
             return c.rowcount > 0
+
+    def forget(self, item_id: str) -> bool:
+        return bool(self._sync_forget(item_id))
 
     def close(self):
         with self._lock:

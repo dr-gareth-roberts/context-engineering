@@ -153,8 +153,7 @@ class DeepAgentsBridge:
         if hasattr(deepagents, "Agent"):
             return deepagents.Agent(*args, **kwargs)
         raise RuntimeError(
-            "Unsupported deepagents package shape: "
-            "missing create_deep_agent/create_agent/Agent"
+            "Unsupported deepagents package shape: missing create_deep_agent/create_agent/Agent"
         )
 
     @staticmethod
@@ -203,9 +202,7 @@ class DeepAgentsBridge:
                 metadata={"method": method_name},
             )
 
-        raise TypeError(
-            "Deep agent object must expose run/invoke/ainvoke/chat/respond"
-        )
+        raise TypeError("Deep agent object must expose run/invoke/ainvoke/chat/respond")
 
     @staticmethod
     def make_tri_provider_tool(

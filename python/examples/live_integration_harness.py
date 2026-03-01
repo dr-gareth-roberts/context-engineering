@@ -18,10 +18,7 @@ def parse_args() -> argparse.Namespace:
         "--check",
         action="append",
         default=[],
-        help=(
-            "Check name to run. Can be repeated. "
-            "Defaults to all checks."
-        ),
+        help=("Check name to run. Can be repeated. Defaults to all checks."),
     )
     parser.add_argument(
         "--strict",

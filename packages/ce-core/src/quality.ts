@@ -105,9 +105,9 @@ export function analyzeContext(items: ContextItem[]): ContextQuality {
       const a = itemWordSets[i];
       const b = itemWordSets[j];
       let intersection = 0;
-      for (const word of a) {
+      a.forEach(word => {
         if (b.has(word)) intersection++;
-      }
+      });
       const union = a.size + b.size - intersection;
       if (union > 0) {
         totalOverlap += intersection / union;
