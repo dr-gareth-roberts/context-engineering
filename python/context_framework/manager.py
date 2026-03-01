@@ -464,7 +464,7 @@ class ContextManager:
         token_budget: int | None = None,
         reserve_response_tokens: int | None = None,
         recent_message_limit: int = 12,
-        abstain_on_low_confidence: bool = False,
+        abstain_on_low_confidence: bool = True,
         min_confidence_threshold: float = 0.4,
     ) -> list[dict[str, str]]:
         log = logger.bind(query=query, action="build_messages")
