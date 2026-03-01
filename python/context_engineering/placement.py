@@ -5,6 +5,7 @@ the model pays most attention (typically start and end of context).
 
 Based on "Lost in the Middle" (Liu et al. 2023) and attention research.
 """
+
 from __future__ import annotations
 
 import math

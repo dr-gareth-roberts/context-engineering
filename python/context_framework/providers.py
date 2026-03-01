@@ -7,8 +7,7 @@ from .models import ContextItem, ContextKind, ContextPacket
 
 
 class MessageAdapter(Protocol):
-    def shape(self, packet: ContextPacket) -> dict[str, Any]:
-        ...
+    def shape(self, packet: ContextPacket) -> dict[str, Any]: ...
 
 
 def _format_context_item(item: ContextItem) -> str:
@@ -33,9 +32,7 @@ class OpenAIChatAdapter:
     def shape(self, packet: ContextPacket) -> dict[str, Any]:
         return {"messages": self.messages(packet)}
 
-    def request(
-        self, packet: ContextPacket, *, model: str, **extra: Any
-    ) -> dict[str, Any]:
+    def request(self, packet: ContextPacket, *, model: str, **extra: Any) -> dict[str, Any]:
         payload: dict[str, Any] = {"model": model, "messages": self.messages(packet)}
         payload.update(extra)
         return payload

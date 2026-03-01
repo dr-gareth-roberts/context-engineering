@@ -3,6 +3,7 @@
 Tracks token budgets across turns and compacts old content to stay in budget.
 Think of it as "malloc for context windows."
 """
+
 from __future__ import annotations
 
 import time
@@ -61,9 +62,7 @@ class ContextManager:
     def add_turn(self, role: str, content: str) -> None:
         """Add a conversation turn."""
         tokens = self._estimate(content)
-        self._turns.append(
-            Turn(role=role, content=content, tokens=tokens, timestamp=time.time())
-        )
+        self._turns.append(Turn(role=role, content=content, tokens=tokens, timestamp=time.time()))
 
     def add_items(self, items: List[ContextItem]) -> None:
         """Add context items (e.g., from memory queries)."""

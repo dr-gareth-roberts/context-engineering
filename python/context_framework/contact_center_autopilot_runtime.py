@@ -50,7 +50,9 @@ _RISK_HINT_KEYWORDS = (
     "data deletion request",
     "chargeback",
 )
-_RISK_HINT_RE = re.compile("|".join(re.escape(keyword) for keyword in _RISK_HINT_KEYWORDS), re.IGNORECASE)
+_RISK_HINT_RE = re.compile(
+    "|".join(re.escape(keyword) for keyword in _RISK_HINT_KEYWORDS), re.IGNORECASE
+)
 _SEVERE_SENTIMENT_RE = re.compile(
     r"(?:angry|frustrated|escalate now|cancel account|churn|formal complaint)",
     re.IGNORECASE,
@@ -78,18 +80,15 @@ def _normalize(value: str) -> str:
 
 
 class CustomerProfileAdapter(Protocol):
-    def lookup_customer(self, customer_id: str) -> dict[str, Any]:
-        ...
+    def lookup_customer(self, customer_id: str) -> dict[str, Any]: ...
 
 
 class PolicyGuardrailAdapter(Protocol):
-    def lookup_ticket(self, ticket_id: str) -> dict[str, Any]:
-        ...
+    def lookup_ticket(self, ticket_id: str) -> dict[str, Any]: ...
 
 
 class ContactResolutionActionAdapter(Protocol):
-    def create_supervisor_escalation(self, ticket_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def create_supervisor_escalation(self, ticket_id: str, *, reason: str) -> dict[str, Any]: ...
 
     def draft_compliant_response(
         self,
@@ -97,17 +96,13 @@ class ContactResolutionActionAdapter(Protocol):
         *,
         response_template: str,
         reason: str,
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
-    def issue_compensation_offer(self, ticket_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def issue_compensation_offer(self, ticket_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def schedule_priority_callback(self, customer_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def schedule_priority_callback(self, customer_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def open_quality_review(self, ticket_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def open_quality_review(self, ticket_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpCustomerProfileAdapter:
@@ -598,7 +593,9 @@ class ContactCenterAutopilotCommander:
     customer_profile_adapter: CustomerProfileAdapter
     policy_guardrail_adapter: PolicyGuardrailAdapter
     action_adapter: ContactResolutionActionAdapter
-    execution_policy: ContactCenterExecutionPolicy = field(default_factory=ContactCenterExecutionPolicy)
+    execution_policy: ContactCenterExecutionPolicy = field(
+        default_factory=ContactCenterExecutionPolicy
+    )
     idempotency_store: IdempotencyStore = field(default_factory=InMemoryIdempotencyStore)
     audit_logger: AuditLogger = field(default_factory=NoOpAuditLogger)
     retry_attempts: int = 2
@@ -654,7 +651,9 @@ class ContactCenterAutopilotCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -786,10 +785,14 @@ class ContactCenterAutopilotCommander:
 
     @staticmethod
     def _build_batch_id(scenario: str, started_at: datetime) -> str:
-        digest = hashlib.sha256(f"{started_at.isoformat()}::{scenario}".encode("utf-8")).hexdigest()[:16]
+        digest = hashlib.sha256(
+            f"{started_at.isoformat()}::{scenario}".encode("utf-8")
+        ).hexdigest()[:16]
         return f"contact-{started_at.strftime('%Y%m%d%H%M%S')}-{digest}"
 
-    def _run_enrichment(self, signals: list[ContactCenterSignal]) -> list[ContactCenterActionResult]:
+    def _run_enrichment(
+        self, signals: list[ContactCenterSignal]
+    ) -> list[ContactCenterActionResult]:
         tasks: list[_ExecutionTask] = []
 
         customer_ids = _unique_preserve([signal.customer_id for signal in signals])
@@ -801,7 +804,9 @@ class ContactCenterAutopilotCommander:
                     target=customer_id,
                     request_payload={"customer_id": customer_id},
                     idempotency_key=None,
-                    call=lambda customer_id=customer_id: self.customer_profile_adapter.lookup_customer(customer_id),
+                    call=lambda customer_id=customer_id: (
+                        self.customer_profile_adapter.lookup_customer(customer_id)
+                    ),
                 )
             )
 
@@ -814,7 +819,9 @@ class ContactCenterAutopilotCommander:
                     target=ticket_id,
                     request_payload={"ticket_id": ticket_id},
                     idempotency_key=None,
-                    call=lambda ticket_id=ticket_id: self.policy_guardrail_adapter.lookup_ticket(ticket_id),
+                    call=lambda ticket_id=ticket_id: self.policy_guardrail_adapter.lookup_ticket(
+                        ticket_id
+                    ),
                 )
             )
 
@@ -857,7 +864,9 @@ class ContactCenterAutopilotCommander:
 
             wait_minutes = signal.observed_wait_minutes or 12
             recontact_count = signal.observed_recontact_count or 1
-            csat_score = signal.observed_csat_score if signal.observed_csat_score is not None else 72
+            csat_score = (
+                signal.observed_csat_score if signal.observed_csat_score is not None else 72
+            )
 
             wait_risk = min(1.0, wait_minutes / 90.0)
             recontact_risk = min(1.0, recontact_count / 6.0)
@@ -909,7 +918,9 @@ class ContactCenterAutopilotCommander:
                 route = "autopilot_resolution"
                 rationale.append("Case risk supports autonomous compliant response handling.")
             else:
-                rationale.append("Current case risk supports monitoring and queue-level optimization.")
+                rationale.append(
+                    "Current case risk supports monitoring and queue-level optimization."
+                )
 
             if not profile:
                 rationale.append("Customer-profile enrichment missing; confidence reduced.")
@@ -949,7 +960,8 @@ class ContactCenterAutopilotCommander:
 
         decisions.sort(
             key=lambda row: (
-                row.route in {"immediate_supervisor_intervention", "supervised_autopilot_resolution"},
+                row.route
+                in {"immediate_supervisor_intervention", "supervised_autopilot_resolution"},
                 row.priority == "urgent",
                 row.risk_score,
             ),
@@ -1001,7 +1013,10 @@ class ContactCenterAutopilotCommander:
                 )
                 continue
 
-            if row.route in {"immediate_supervisor_intervention", "supervised_autopilot_resolution"}:
+            if row.route in {
+                "immediate_supervisor_intervention",
+                "supervised_autopilot_resolution",
+            }:
                 if self.execution_policy.allow_auto_escalation:
                     key = f"{batch_id}:escalation:{row.ticket_id}"
                     tasks.append(
@@ -1011,9 +1026,11 @@ class ContactCenterAutopilotCommander:
                             target=row.ticket_id,
                             request_payload={"ticket_id": row.ticket_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.create_supervisor_escalation(
-                                row.ticket_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.create_supervisor_escalation(
+                                    row.ticket_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1050,10 +1067,12 @@ class ContactCenterAutopilotCommander:
                                 "reason": reason,
                             },
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.draft_compliant_response(
-                                row.ticket_id,
-                                response_template=row.response_template,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.draft_compliant_response(
+                                    row.ticket_id,
+                                    response_template=row.response_template,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1072,7 +1091,10 @@ class ContactCenterAutopilotCommander:
                         )
                     )
 
-            if row.route in {"immediate_supervisor_intervention", "supervised_autopilot_resolution"}:
+            if row.route in {
+                "immediate_supervisor_intervention",
+                "supervised_autopilot_resolution",
+            }:
                 if self.execution_policy.allow_auto_callback:
                     key = f"{batch_id}:callback:{row.customer_id}"
                     tasks.append(
@@ -1082,9 +1104,11 @@ class ContactCenterAutopilotCommander:
                             target=row.customer_id,
                             request_payload={"customer_id": row.customer_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.schedule_priority_callback(
-                                row.customer_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.schedule_priority_callback(
+                                    row.customer_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1115,9 +1139,11 @@ class ContactCenterAutopilotCommander:
                             target=row.ticket_id,
                             request_payload={"ticket_id": row.ticket_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.issue_compensation_offer(
-                                row.ticket_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.issue_compensation_offer(
+                                    row.ticket_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1146,9 +1172,11 @@ class ContactCenterAutopilotCommander:
                             target=row.ticket_id,
                             request_payload={"ticket_id": row.ticket_id, "reason": reason},
                             idempotency_key=key,
-                            call=lambda row=row, reason=reason: self.action_adapter.open_quality_review(
-                                row.ticket_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.open_quality_review(
+                                    row.ticket_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1209,7 +1237,9 @@ class ContactCenterAutopilotCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1438,7 +1468,9 @@ class ContactCenterAutopilotCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; route impacted tickets to manual operations review.")
+            recs.append(
+                "At least one integration failed; route impacted tickets to manual operations review."
+            )
 
         top = decisions[:3]
         if top:

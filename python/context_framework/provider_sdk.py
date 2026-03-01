@@ -528,9 +528,7 @@ class CerebrasSDKBridge:
         )
 
     @staticmethod
-    def parse_perplexity_response(
-        response: Any, *, choice_index: int = 0
-    ) -> PerplexityResult:
+    def parse_perplexity_response(response: Any, *, choice_index: int = 0) -> PerplexityResult:
         choices = _get_attr_or_key(response, "choices", None) or []
         if not choices:
             raise ValueError("No completion choices available to compute perplexity")

@@ -146,7 +146,9 @@ class AnthropicAgenticTextSystemTests(unittest.TestCase):
         self.assertEqual(len(server["tools"]), 4)
         self.assertIn("mcp__text_ops__normalize_text", allowed_tools)
 
-        normalize = next(fn for fn in server["tools"] if getattr(fn, "tool_name", "") == "normalize_text")
+        normalize = next(
+            fn for fn in server["tools"] if getattr(fn, "tool_name", "") == "normalize_text"
+        )
         result = asyncio.run(normalize({"text": "A   B", "preserve_paragraphs": True}))
         self.assertEqual(result["content"][0]["text"], "A B")
 

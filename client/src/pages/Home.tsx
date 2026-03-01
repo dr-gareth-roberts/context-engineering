@@ -11,6 +11,7 @@ import {
   Github,
   CheckCircle2,
   AlertCircle,
+  Database,
   FileCode,
   Cpu,
   Zap,

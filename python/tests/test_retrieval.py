@@ -58,7 +58,9 @@ class RetrievalAdapterTests(unittest.TestCase):
         self.assertEqual(added[0].metadata["retrieved_for"], "retry failures")
 
         packet = manager.build_context("retry failures")
-        selected_sources = [item.source for item in packet.items if item.kind == ContextKind.DOCUMENT]
+        selected_sources = [
+            item.source for item in packet.items if item.kind == ContextKind.DOCUMENT
+        ]
         self.assertIn("retry-doc", selected_sources)
 
 

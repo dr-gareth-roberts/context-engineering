@@ -23,9 +23,7 @@ class ProviderAdapterTests(unittest.TestCase):
 
         self.assertTrue(any(message["role"] == "system" for message in messages))
         self.assertTrue(any(message["role"] == "user" for message in messages))
-        self.assertTrue(
-            any("[memory:profile]" in message["content"] for message in messages)
-        )
+        self.assertTrue(any("[memory:profile]" in message["content"] for message in messages))
 
     def test_anthropic_adapter_uses_system_and_message_roles(self) -> None:
         manager = ContextManager(default_token_budget=120, reserved_response_tokens=20)

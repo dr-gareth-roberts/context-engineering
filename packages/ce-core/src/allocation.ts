@@ -126,14 +126,14 @@ export function packWithAllocation(
   // Scale if over-allocated
   if (allocatedTotal > effectiveBudget) {
     const scale = effectiveBudget / allocatedTotal;
-    for (const [kind, tokens] of kindBudgets) {
+    kindBudgets.forEach((tokens, kind) => {
       const alloc = allocations.find(a => a.kind === kind);
       let scaled = Math.floor(tokens * scale);
       if (alloc?.minTokens !== undefined) {
         scaled = Math.max(scaled, alloc.minTokens);
       }
       kindBudgets.set(kind, scaled);
-    }
+    });
   }
 
   // Phase 2: Pack within each kind's allocation

@@ -143,9 +143,7 @@ def _run_live(bridge: CerebrasSDKBridge, packet: Any, experiments: list[dict[str
             message = _attr_or_key(choices[0], "message", {}) or {}
             content = _attr_or_key(message, "content", "")
             if isinstance(content, list):
-                text = " ".join(
-                    str(_attr_or_key(block, "text", "")) for block in content
-                ).strip()
+                text = " ".join(str(_attr_or_key(block, "text", "")) for block in content).strip()
             else:
                 text = str(content)
         else:

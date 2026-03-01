@@ -51,27 +51,21 @@ def _unique_preserve(values: list[str]) -> list[str]:
 
 
 class LaneDelayAdapter(Protocol):
-    def lookup_lane(self, lane_id: str) -> dict[str, Any]:
-        ...
+    def lookup_lane(self, lane_id: str) -> dict[str, Any]: ...
 
 
 class SupplierRiskAdapter(Protocol):
-    def lookup_supplier(self, supplier_id: str) -> dict[str, Any]:
-        ...
+    def lookup_supplier(self, supplier_id: str) -> dict[str, Any]: ...
 
 
 class FulfillmentActionAdapter(Protocol):
-    def reroute_order(self, order_id: str, *, lane_id: str, reason: str) -> dict[str, Any]:
-        ...
+    def reroute_order(self, order_id: str, *, lane_id: str, reason: str) -> dict[str, Any]: ...
 
-    def split_order(self, order_id: str, *, supplier_id: str, reason: str) -> dict[str, Any]:
-        ...
+    def split_order(self, order_id: str, *, supplier_id: str, reason: str) -> dict[str, Any]: ...
 
-    def expedite_order(self, order_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def expedite_order(self, order_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def hold_order(self, order_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def hold_order(self, order_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpLaneDelayAdapter:
@@ -528,7 +522,9 @@ class SupplyChainControlTowerCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -700,7 +696,9 @@ class SupplyChainControlTowerCommander:
             if not supplier:
                 rationale.append("Supplier enrichment missing; confidence reduced.")
 
-            priority = self._priority_for(route=route, lane_delay=lane_delay, supplier_risk=supplier_risk)
+            priority = self._priority_for(
+                route=route, lane_delay=lane_delay, supplier_risk=supplier_risk
+            )
             confidence = self._confidence_for(
                 route=route,
                 lane_enriched=bool(lane),
@@ -806,10 +804,12 @@ class SupplyChainControlTowerCommander:
                             "reason": reason,
                         },
                         idempotency_key=key,
-                        call=lambda order_id=row.order_id, lane_id=target_lane, reason=reason: self.fulfillment_action_adapter.reroute_order(
-                            order_id,
-                            lane_id=lane_id,
-                            reason=reason,
+                        call=lambda order_id=row.order_id, lane_id=target_lane, reason=reason: (
+                            self.fulfillment_action_adapter.reroute_order(
+                                order_id,
+                                lane_id=lane_id,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -844,10 +844,12 @@ class SupplyChainControlTowerCommander:
                             "reason": reason,
                         },
                         idempotency_key=key,
-                        call=lambda order_id=row.order_id, supplier_id=fallback_supplier, reason=reason: self.fulfillment_action_adapter.split_order(
-                            order_id,
-                            supplier_id=supplier_id,
-                            reason=reason,
+                        call=lambda order_id=row.order_id, supplier_id=fallback_supplier, reason=reason: (
+                            self.fulfillment_action_adapter.split_order(
+                                order_id,
+                                supplier_id=supplier_id,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -877,9 +879,11 @@ class SupplyChainControlTowerCommander:
                         target=row.order_id,
                         request_payload={"order_id": row.order_id, "reason": reason},
                         idempotency_key=key,
-                        call=lambda order_id=row.order_id, reason=reason: self.fulfillment_action_adapter.expedite_order(
-                            order_id,
-                            reason=reason,
+                        call=lambda order_id=row.order_id, reason=reason: (
+                            self.fulfillment_action_adapter.expedite_order(
+                                order_id,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -909,9 +913,11 @@ class SupplyChainControlTowerCommander:
                         target=row.order_id,
                         request_payload={"order_id": row.order_id, "reason": reason},
                         idempotency_key=key,
-                        call=lambda order_id=row.order_id, reason=reason: self.fulfillment_action_adapter.hold_order(
-                            order_id,
-                            reason=reason,
+                        call=lambda order_id=row.order_id, reason=reason: (
+                            self.fulfillment_action_adapter.hold_order(
+                                order_id,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -959,7 +965,9 @@ class SupplyChainControlTowerCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
 
         return result
 
@@ -1191,7 +1199,9 @@ class SupplyChainControlTowerCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; switch to manual control tower fallback workflow.")
+            recs.append(
+                "At least one integration failed; switch to manual control tower fallback workflow."
+            )
 
         top = decisions[:3]
         if top:

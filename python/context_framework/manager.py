@@ -4,6 +4,8 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Callable, Sequence
 
+import structlog
+
 from .models import ContextItem, ContextKind, ContextPacket
 from .retrieval import Retriever
 from .scoring import KeywordOverlapScorer, RelevanceScorer
@@ -13,6 +15,8 @@ from .summarization import (
     RollingSummaryConfig,
 )
 from .tokenizer import ApproxTokenCounter, TokenCounter
+
+logger = structlog.get_logger(__name__)
 
 SummaryBuilder = Callable[[Sequence[ContextItem], int], str]
 
@@ -183,10 +187,7 @@ class ContextManager:
         else:
             self._knowledge_items.append(item)
 
-        if (
-            item.kind == ContextKind.SUMMARY
-            and item.source == self._rolling_summary_config.source
-        ):
+        if item.kind == ContextKind.SUMMARY and item.source == self._rolling_summary_config.source:
             self._rolling_summary_item = item
         return item
 
@@ -244,9 +245,7 @@ class ContextManager:
             item = self.add_document(
                 chunk.text,
                 source=chunk.source,
-                importance=chunk.importance
-                if chunk.importance is not None
-                else default_importance,
+                importance=chunk.importance if chunk.importance is not None else default_importance,
                 pinned=False,
                 tags=merged_tags,
                 metadata=metadata,
@@ -312,9 +311,7 @@ class ContextManager:
         selected_ids: set[str] = set()
 
         system_items = sorted(self._system_items, key=lambda item: item.created_at)
-        conversation_items = sorted(
-            self._conversation_items, key=lambda item: item.created_at
-        )
+        conversation_items = sorted(self._conversation_items, key=lambda item: item.created_at)
         knowledge_items = sorted(self._knowledge_items, key=lambda item: item.created_at)
 
         selected_system: list[ContextItem] = []
@@ -396,19 +393,21 @@ class ContextManager:
             oldest = now
             newest = now
 
-        def combined_score(item: ContextItem) -> float:
+        item_scores = {}
+        for item in rank_pool:
             relevance = self._scorer.score(query, item) if query else 0.0
             importance = item.importance
             recency = self._recency_score(item.created_at, oldest, newest)
-            return (
+            score = (
                 (weight_relevance * relevance)
                 + (weight_importance * importance)
                 + (weight_recency * recency)
             )
+            item_scores[id(item)] = score
 
         ranked_items = sorted(
             rank_pool,
-            key=lambda item: (combined_score(item), item.created_at.timestamp()),
+            key=lambda item: (item_scores[id(item)], item.created_at.timestamp()),
             reverse=True,
         )
 
@@ -465,13 +464,34 @@ class ContextManager:
         token_budget: int | None = None,
         reserve_response_tokens: int | None = None,
         recent_message_limit: int = 12,
+        abstain_on_low_confidence: bool = False,
+        min_confidence_threshold: float = 0.4,
     ) -> list[dict[str, str]]:
+        log = logger.bind(query=query, action="build_messages")
+
         packet = self.build_context(
             query=query,
             token_budget=token_budget,
             reserve_response_tokens=reserve_response_tokens,
             recent_message_limit=recent_message_limit,
         )
+
+        # Abstention Logic
+        if abstain_on_low_confidence and packet.items:
+            max_importance = max(
+                [getattr(i, "importance", 0.0) or 0.0 for i in packet.items] + [0.0]
+            )
+            if max_importance < min_confidence_threshold:
+                log.warning(
+                    "abstaining_due_to_low_confidence",
+                    max_importance=max_importance,
+                    threshold=min_confidence_threshold,
+                )
+                return [
+                    {"role": "system", "content": "I abstain: insufficient evidence to answer."}
+                ]
+
+        log.info("messages_built", num_items=len(packet.items), budget=packet.token_budget)
         return packet.as_messages()
 
     def _push(
@@ -542,9 +562,7 @@ class ContextManager:
         if not to_summarize:
             return
 
-        existing_summary = (
-            self._rolling_summary_item.text if self._rolling_summary_item else ""
-        )
+        existing_summary = self._rolling_summary_item.text if self._rolling_summary_item else ""
         summary_text = self._conversation_summarizer.summarize(
             existing_summary=existing_summary,
             new_messages=to_summarize,
@@ -612,9 +630,7 @@ class ContextManager:
         return value
 
     @staticmethod
-    def _recency_score(
-        created_at: datetime, oldest: datetime, newest: datetime
-    ) -> float:
+    def _recency_score(created_at: datetime, oldest: datetime, newest: datetime) -> float:
         if newest <= oldest:
             return 1.0
 

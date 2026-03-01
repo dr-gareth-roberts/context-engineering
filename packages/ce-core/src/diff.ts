@@ -42,10 +42,10 @@ export function diff(
   const kept: ContextItem[] = [];
   const changed: Array<{ before: ContextItem; after: ContextItem }> = [];
 
-  for (const [id, item] of afterMap.entries()) {
+  afterMap.forEach((item, id) => {
     if (!beforeMap.has(id)) {
       added.push(item);
-      continue;
+      return;
     }
 
     const prev = beforeMap.get(id) as ContextItem;
@@ -54,13 +54,13 @@ export function diff(
     } else {
       kept.push(item);
     }
-  }
+  });
 
-  for (const [id, item] of beforeMap.entries()) {
+  beforeMap.forEach((item, id) => {
     if (!afterMap.has(id)) {
       removed.push(item);
     }
-  }
+  });
 
   return { added, removed, kept, changed };
 }

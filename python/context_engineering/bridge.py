@@ -3,6 +3,7 @@
 Maps memory salience to metadata, computes recency via exponential decay
 from createdAt. This bridges the memory -> pack pipeline gap.
 """
+
 from __future__ import annotations
 
 import math

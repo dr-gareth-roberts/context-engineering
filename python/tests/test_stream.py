@@ -1,4 +1,5 @@
 """Tests for the stream module: async generator pack variant."""
+
 import pytest
 
 from context_engineering.core import Budget, ContextItem

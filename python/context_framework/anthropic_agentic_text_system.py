@@ -186,8 +186,7 @@ class AnthropicAgenticTextSystem:
                 "or `claude-code-sdk`."
             ) from last_error
         raise ImportError(
-            "Anthropic agentic SDK not available. Install `claude-agent-sdk` "
-            "or `claude-code-sdk`."
+            "Anthropic agentic SDK not available. Install `claude-agent-sdk` or `claude-code-sdk`."
         )
 
     @staticmethod
@@ -198,8 +197,7 @@ class AnthropicAgenticTextSystem:
             return options_cls(**kwargs)
 
         accepts_var_kwargs = any(
-            param.kind == inspect.Parameter.VAR_KEYWORD
-            for param in signature.parameters.values()
+            param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()
         )
         if accepts_var_kwargs:
             return options_cls(**kwargs)
@@ -221,9 +219,7 @@ class AnthropicAgenticTextSystem:
         except RuntimeError:
             return asyncio.run(value)
 
-        raise RuntimeError(
-            "Cannot synchronously resolve coroutine while an event loop is running."
-        )
+        raise RuntimeError("Cannot synchronously resolve coroutine while an event loop is running.")
 
     def build_options(
         self,

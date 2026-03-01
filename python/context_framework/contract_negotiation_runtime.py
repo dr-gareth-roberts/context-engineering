@@ -49,7 +49,9 @@ _RISK_HINT_KEYWORDS = (
     "auto-renewal",
     "most favored nation",
 )
-_RISK_HINT_RE = re.compile("|".join(re.escape(keyword) for keyword in _RISK_HINT_KEYWORDS), re.IGNORECASE)
+_RISK_HINT_RE = re.compile(
+    "|".join(re.escape(keyword) for keyword in _RISK_HINT_KEYWORDS), re.IGNORECASE
+)
 _UNLIMITED_RE = re.compile(
     r"(?:unlimited liability|uncapped liability|no liability cap|without liability cap)",
     re.IGNORECASE,
@@ -77,27 +79,23 @@ def _normalize(value: str) -> str:
 
 
 class ClauseRiskAdapter(Protocol):
-    def lookup_clause(self, clause_id: str) -> dict[str, Any]:
-        ...
+    def lookup_clause(self, clause_id: str) -> dict[str, Any]: ...
 
 
 class NegotiationPrecedentAdapter(Protocol):
-    def lookup_clause(self, clause_id: str) -> dict[str, Any]:
-        ...
+    def lookup_clause(self, clause_id: str) -> dict[str, Any]: ...
 
 
 class ContractActionAdapter(Protocol):
-    def open_legal_review(self, contract_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def open_legal_review(self, contract_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def propose_redline(self, clause_id: str, *, fallback_text: str, reason: str) -> dict[str, Any]:
-        ...
+    def propose_redline(
+        self, clause_id: str, *, fallback_text: str, reason: str
+    ) -> dict[str, Any]: ...
 
-    def escalate_exec_approval(self, contract_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def escalate_exec_approval(self, contract_id: str, *, reason: str) -> dict[str, Any]: ...
 
-    def request_counterparty_revision(self, clause_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def request_counterparty_revision(self, clause_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class NoOpClauseRiskAdapter:
@@ -464,7 +462,10 @@ class ContractExecutionPolicy:
         for name, value in (
             ("hardline_risk_threshold", self.hardline_risk_threshold),
             ("legal_review_risk_threshold", self.legal_review_risk_threshold),
-            ("standard_counterproposal_risk_threshold", self.standard_counterproposal_risk_threshold),
+            (
+                "standard_counterproposal_risk_threshold",
+                self.standard_counterproposal_risk_threshold,
+            ),
         ):
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be between 0 and 1")
@@ -591,7 +592,9 @@ class ContractNegotiationCommander:
 
         for row in (*enrichments, *actions):
             if not row.success:
-                errors.append(f"{row.integration}.{row.operation} failed for {row.target}: {row.error}")
+                errors.append(
+                    f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
+                )
             self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
@@ -687,7 +690,9 @@ class ContractNegotiationCommander:
 
             segment_index = len(rows)
             start = match.start()
-            end = contract_matches[idx + 1].start() if idx + 1 < len(contract_matches) else len(text)
+            end = (
+                contract_matches[idx + 1].start() if idx + 1 < len(contract_matches) else len(text)
+            )
             segment = text[start:end]
 
             clause_match = _CLAUSE_RE.search(segment)
@@ -749,7 +754,9 @@ class ContractNegotiationCommander:
                     target=clause_id,
                     request_payload={"clause_id": clause_id},
                     idempotency_key=None,
-                    call=lambda clause_id=clause_id: self.clause_risk_adapter.lookup_clause(clause_id),
+                    call=lambda clause_id=clause_id: self.clause_risk_adapter.lookup_clause(
+                        clause_id
+                    ),
                 )
             )
             tasks.append(
@@ -759,7 +766,9 @@ class ContractNegotiationCommander:
                     target=clause_id,
                     request_payload={"clause_id": clause_id},
                     idempotency_key=None,
-                    call=lambda clause_id=clause_id: self.precedent_adapter.lookup_clause(clause_id),
+                    call=lambda clause_id=clause_id: self.precedent_adapter.lookup_clause(
+                        clause_id
+                    ),
                 )
             )
         return self._execute_tasks(tasks)
@@ -816,7 +825,9 @@ class ContractNegotiationCommander:
 
             term_months = signal.observed_term_months or 24
             cap_multiplier = signal.observed_liability_cap_multiplier or fallback_cap_multiplier
-            cap_risk = 1.0 if signal.unlimited_liability_indicator else min(1.0, cap_multiplier / 4.0)
+            cap_risk = (
+                1.0 if signal.unlimited_liability_indicator else min(1.0, cap_multiplier / 4.0)
+            )
             term_risk = min(1.0, term_months / 60.0)
             hint_risk = 0.0
             if signal.risk_hint in {"unlimited liability", "broad data use rights", "indemnity"}:
@@ -849,7 +860,9 @@ class ContractNegotiationCommander:
                 rationale.append("Risk profile requires hardline redline and executive escalation.")
             elif risk_score >= self.execution_policy.legal_review_risk_threshold:
                 route = "legal_review_and_counterproposal"
-                rationale.append("Elevated legal/commercial risk requires legal review and counterproposal.")
+                rationale.append(
+                    "Elevated legal/commercial risk requires legal review and counterproposal."
+                )
             elif risk_score >= self.execution_policy.standard_counterproposal_risk_threshold:
                 route = "standard_counterproposal"
                 rationale.append("Moderate risk supports standard counterproposal strategy.")
@@ -897,7 +910,8 @@ class ContractNegotiationCommander:
 
         decisions.sort(
             key=lambda row: (
-                row.route in {"hardline_redline_and_exec_escalation", "legal_review_and_counterproposal"},
+                row.route
+                in {"hardline_redline_and_exec_escalation", "legal_review_and_counterproposal"},
                 row.priority == "urgent",
                 row.risk_score,
             ),
@@ -959,9 +973,11 @@ class ContractNegotiationCommander:
                             target=row.contract_id,
                             request_payload={"contract_id": row.contract_id, "reason": reason},
                             idempotency_key=legal_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.open_legal_review(
-                                row.contract_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.open_legal_review(
+                                    row.contract_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1024,9 +1040,11 @@ class ContractNegotiationCommander:
                             target=row.contract_id,
                             request_payload={"contract_id": row.contract_id, "reason": reason},
                             idempotency_key=exec_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.escalate_exec_approval(
-                                row.contract_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.escalate_exec_approval(
+                                    row.contract_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1054,9 +1072,11 @@ class ContractNegotiationCommander:
                             target=row.clause_id,
                             request_payload={"clause_id": row.clause_id, "reason": reason},
                             idempotency_key=revision_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.request_counterparty_revision(
-                                row.clause_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.request_counterparty_revision(
+                                    row.clause_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1086,9 +1106,11 @@ class ContractNegotiationCommander:
                             target=row.contract_id,
                             request_payload={"contract_id": row.contract_id, "reason": reason},
                             idempotency_key=legal_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.open_legal_review(
-                                row.contract_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.open_legal_review(
+                                    row.contract_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1151,9 +1173,11 @@ class ContractNegotiationCommander:
                             target=row.clause_id,
                             request_payload={"clause_id": row.clause_id, "reason": reason},
                             idempotency_key=revision_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.request_counterparty_revision(
-                                row.clause_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.request_counterparty_revision(
+                                    row.clause_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1218,9 +1242,11 @@ class ContractNegotiationCommander:
                             target=row.clause_id,
                             request_payload={"clause_id": row.clause_id, "reason": reason},
                             idempotency_key=revision_key,
-                            call=lambda row=row, reason=reason: self.action_adapter.request_counterparty_revision(
-                                row.clause_id,
-                                reason=reason,
+                            call=lambda row=row, reason=reason: (
+                                self.action_adapter.request_counterparty_revision(
+                                    row.clause_id,
+                                    reason=reason,
+                                )
                             ),
                         )
                     )
@@ -1282,7 +1308,9 @@ class ContractNegotiationCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
         return result
 
     def _execute_with_retry(
@@ -1511,7 +1539,9 @@ class ContractNegotiationCommander:
             recs.append(f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}")
 
         if errors:
-            recs.append("At least one integration failed; escalate impacted clauses to manual legal review.")
+            recs.append(
+                "At least one integration failed; escalate impacted clauses to manual legal review."
+            )
 
         top = decisions[:3]
         if top:

@@ -42,34 +42,29 @@ def _normalize_identifier(value: str) -> str:
 
 
 class PolicyAdapter(Protocol):
-    def lookup_claim(self, claim_id: str) -> dict[str, Any]:
-        ...
+    def lookup_claim(self, claim_id: str) -> dict[str, Any]: ...
 
 
 class FraudAdapter(Protocol):
-    def evaluate_claim(self, claim_id: str, *, claimant_id: str | None = None) -> dict[str, Any]:
-        ...
+    def evaluate_claim(
+        self, claim_id: str, *, claimant_id: str | None = None
+    ) -> dict[str, Any]: ...
 
 
 class PayoutAdapter(Protocol):
-    def issue_advance(self, claim_id: str, *, amount_cents: int, reason: str) -> dict[str, Any]:
-        ...
+    def issue_advance(self, claim_id: str, *, amount_cents: int, reason: str) -> dict[str, Any]: ...
 
-    def place_hold(self, claim_id: str, *, reason: str) -> dict[str, Any]:
-        ...
+    def place_hold(self, claim_id: str, *, reason: str) -> dict[str, Any]: ...
 
 
 class AuditLogger(Protocol):
-    def log(self, event: dict[str, Any]) -> None:
-        ...
+    def log(self, event: dict[str, Any]) -> None: ...
 
 
 class IdempotencyStore(Protocol):
-    def seen(self, key: str) -> bool:
-        ...
+    def seen(self, key: str) -> bool: ...
 
-    def mark(self, key: str, *, ttl_seconds: int | None = None) -> None:
-        ...
+    def mark(self, key: str, *, ttl_seconds: int | None = None) -> None: ...
 
 
 class NoOpAuditLogger:
@@ -665,9 +660,11 @@ class CatastropheClaimsCommander:
                     target=claim_id,
                     request_payload={"claim_id": claim_id, "claimant_id": claimant_id},
                     idempotency_key=None,
-                    call=lambda claim_id=claim_id, claimant_id=claimant_id: self.fraud_adapter.evaluate_claim(
-                        claim_id,
-                        claimant_id=claimant_id,
+                    call=lambda claim_id=claim_id, claimant_id=claimant_id: (
+                        self.fraud_adapter.evaluate_claim(
+                            claim_id,
+                            claimant_id=claimant_id,
+                        )
                     ),
                 )
             )
@@ -797,10 +794,12 @@ class CatastropheClaimsCommander:
                             "reason": reason,
                         },
                         idempotency_key=idempotency_key,
-                        call=lambda claim_id=claim_id, amount=assessment.proposed_advance_cents, reason=reason: self.payout_adapter.issue_advance(
-                            claim_id,
-                            amount_cents=amount,
-                            reason=reason,
+                        call=lambda claim_id=claim_id, amount=assessment.proposed_advance_cents, reason=reason: (
+                            self.payout_adapter.issue_advance(
+                                claim_id,
+                                amount_cents=amount,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -813,9 +812,11 @@ class CatastropheClaimsCommander:
                         target=claim_id,
                         request_payload={"claim_id": claim_id, "reason": reason},
                         idempotency_key=idempotency_key,
-                        call=lambda claim_id=claim_id, reason=reason: self.payout_adapter.place_hold(
-                            claim_id,
-                            reason=reason,
+                        call=lambda claim_id=claim_id, reason=reason: (
+                            self.payout_adapter.place_hold(
+                                claim_id,
+                                reason=reason,
+                            )
                         ),
                     )
                 )
@@ -858,7 +859,9 @@ class CatastropheClaimsCommander:
         )
 
         if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds)
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
 
         return result
 
@@ -1088,7 +1091,9 @@ class CatastropheClaimsCommander:
             steps.append(
                 "Dry mode completed: financial actions are policy-gated unless explicitly enabled."
             )
-        steps.append("Capture decisions and rationales for adjuster QA and regulatory traceability.")
+        steps.append(
+            "Capture decisions and rationales for adjuster QA and regulatory traceability."
+        )
         return steps
 
     @staticmethod
@@ -1125,10 +1130,16 @@ class CatastropheClaimsCommander:
                 f"Primary tri-provider action: {pipeline_report.ranked_actions[0].action}"
             )
         else:
-            recommendations.append("Primary tri-provider action unavailable; escalate for manual queue strategy.")
+            recommendations.append(
+                "Primary tri-provider action unavailable; escalate for manual queue strategy."
+            )
 
         if warnings:
-            recommendations.append("Review warnings and confirm policy overrides before production payout calls.")
+            recommendations.append(
+                "Review warnings and confirm policy overrides before production payout calls."
+            )
 
-        recommendations.append("Post-cat event: backtest fraud thresholds against false-positive leakage.")
+        recommendations.append(
+            "Post-cat event: backtest fraud thresholds against false-positive leakage."
+        )
         return recommendations

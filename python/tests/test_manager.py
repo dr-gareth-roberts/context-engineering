@@ -66,7 +66,9 @@ class ContextManagerTests(unittest.TestCase):
         )
 
         packet = manager.build_context("How do retries for failed jobs work?")
-        selected_sources = [item.source for item in packet.items if item.kind == ContextKind.DOCUMENT]
+        selected_sources = [
+            item.source for item in packet.items if item.kind == ContextKind.DOCUMENT
+        ]
         self.assertIn("retry-doc", selected_sources)
         self.assertNotIn("billing-doc", selected_sources)
 
@@ -74,14 +76,16 @@ class ContextManagerTests(unittest.TestCase):
         base = datetime(2026, 1, 1, tzinfo=timezone.utc)
         manager = ContextManager(default_token_budget=30, reserved_response_tokens=10)
         manager.add_message("user", sized_text(10, "a"), created_at=base + timedelta(minutes=1))
-        manager.add_message("assistant", sized_text(10, "b"), created_at=base + timedelta(minutes=2))
+        manager.add_message(
+            "assistant", sized_text(10, "b"), created_at=base + timedelta(minutes=2)
+        )
         manager.add_message("user", sized_text(10, "c"), created_at=base + timedelta(minutes=3))
-        manager.add_message("assistant", sized_text(10, "d"), created_at=base + timedelta(minutes=4))
+        manager.add_message(
+            "assistant", sized_text(10, "d"), created_at=base + timedelta(minutes=4)
+        )
 
         packet = manager.build_context("latest answer")
-        conversation_text = [
-            item.text for item in packet.items if item.kind == ContextKind.MESSAGE
-        ]
+        conversation_text = [item.text for item in packet.items if item.kind == ContextKind.MESSAGE]
         self.assertEqual(conversation_text, [sized_text(10, "c"), sized_text(10, "d")])
 
     def test_rolling_summary_prunes_old_conversation(self) -> None:
@@ -106,9 +110,7 @@ class ContextManagerTests(unittest.TestCase):
             for item in all_items
             if item.kind == ContextKind.SUMMARY and item.source == "rolling-conversation"
         ]
-        conversation_items = [
-            item for item in all_items if item.kind == ContextKind.MESSAGE
-        ]
+        conversation_items = [item for item in all_items if item.kind == ContextKind.MESSAGE]
 
         self.assertEqual(len(summary_items), 1)
         self.assertEqual(len(conversation_items), 2)
@@ -116,9 +118,7 @@ class ContextManagerTests(unittest.TestCase):
         self.assertIn("turn 5", summary_items[0].text)
 
         packet = manager.build_context("turn")
-        summary_sources = [
-            item.source for item in packet.items if item.kind == ContextKind.SUMMARY
-        ]
+        summary_sources = [item.source for item in packet.items if item.kind == ContextKind.SUMMARY]
         self.assertIn("rolling-conversation", summary_sources)
 
 

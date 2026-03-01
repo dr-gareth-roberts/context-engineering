@@ -105,7 +105,10 @@ class ProviderSDKBridgeTests(unittest.TestCase):
         self.assertEqual(request["thinking"]["budget_tokens"], 500)
         self.assertIn("system", request)
         self.assertTrue(
-            all(block.get("cache_control", {}).get("type") == "ephemeral" for block in request["system"])
+            all(
+                block.get("cache_control", {}).get("type") == "ephemeral"
+                for block in request["system"]
+            )
         )
         self.assertEqual(request["tool_choice"]["type"], "auto")
         self.assertTrue(len(request["messages"]) >= 1)

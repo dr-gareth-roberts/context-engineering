@@ -23,8 +23,7 @@ class Retriever(Protocol):
         *,
         k: int = 5,
         min_score: float | None = None,
-    ) -> list[RetrievedChunk]:
-        ...
+    ) -> list[RetrievedChunk]: ...
 
 
 class InMemoryVectorRetriever:

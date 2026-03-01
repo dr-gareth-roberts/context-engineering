@@ -14,8 +14,7 @@ class ConversationSummarizer(Protocol):
         existing_summary: str,
         new_messages: Sequence[ContextItem],
         max_tokens: int,
-    ) -> str:
-        ...
+    ) -> str: ...
 
 
 @dataclass(slots=True)
