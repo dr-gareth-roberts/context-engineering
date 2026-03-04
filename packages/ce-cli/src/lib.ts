@@ -21,7 +21,9 @@ import {
   readBeadsJSONL,
   estimateCost,
   projectCosts,
+  createWebhookReporter,
 } from "@context-engineering/core";
+import type { WebhookReporter } from "@context-engineering/core";
 import type {
   ContextItem,
   ContextPack,
@@ -49,7 +51,8 @@ export type SchemaName =
   | "cache-aware-pack"
   | "cost-estimate"
   | "beads-issue"
-  | "pipeline-result";
+  | "pipeline-result"
+  | "webhook-analytics";
 
 const schemaFileMap: Record<SchemaName, string> = {
   "context-item": "context-item.schema.json",
@@ -61,6 +64,7 @@ const schemaFileMap: Record<SchemaName, string> = {
   "cost-estimate": "cost-estimate.schema.json",
   "beads-issue": "beads-issue.schema.json",
   "pipeline-result": "pipeline-result.schema.json",
+  "webhook-analytics": "webhook-analytics.schema.json",
 };
 
 export async function loadItemsFromFile(
@@ -382,4 +386,22 @@ export function runCost(
   }
 
   return { estimate, projection };
+}
+
+// ─── Webhook Reporter ────────────────────────────────────────────────
+
+export function createReporterFromCliOptions(options: {
+  webhookUrl?: string;
+  webhookHandoffUrl?: string;
+  webhookQualityUrl?: string;
+  webhookCostUrl?: string;
+  model?: string;
+}): WebhookReporter {
+  return createWebhookReporter({
+    analyticsUrl: options.webhookUrl,
+    handoffUrl: options.webhookHandoffUrl,
+    qualityUrl: options.webhookQualityUrl,
+    costUrl: options.webhookCostUrl,
+    model: options.model,
+  });
 }

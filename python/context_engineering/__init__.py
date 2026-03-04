@@ -92,6 +92,23 @@ from .session import (
     create_session,
 )
 from .stream import pack_stream
+from .recommendations import (
+    BudgetRecommendation,
+    RecommendationOptions,
+    WeightConfig,
+    fetch_budget_recommendation,
+    fetch_weight_config,
+    recommendation_options_from_env,
+)
+from .webhook import (
+    HandoffReportExtras,
+    PackReportExtras,
+    PipelineReportExtras,
+    WebhookOptions,
+    WebhookReporter,
+    create_webhook_reporter,
+    noop_reporter,
+)
 
 __all__ = [
     # Errors
@@ -205,4 +222,19 @@ __all__ = [
     "pickup_handoff",
     "merge_beads_jsonl",
     "get_ready_issues",
+    # Webhook
+    "WebhookOptions",
+    "WebhookReporter",
+    "PackReportExtras",
+    "HandoffReportExtras",
+    "PipelineReportExtras",
+    "create_webhook_reporter",
+    "noop_reporter",
+    # Recommendations
+    "BudgetRecommendation",
+    "WeightConfig",
+    "RecommendationOptions",
+    "fetch_budget_recommendation",
+    "fetch_weight_config",
+    "recommendation_options_from_env",
 ]

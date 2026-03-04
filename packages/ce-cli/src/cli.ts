@@ -15,6 +15,7 @@ import {
   runHandoff,
   runPickup,
   runCost,
+  createReporterFromCliOptions,
 } from "./lib.js";
 import {
   fmt,
@@ -35,6 +36,8 @@ program
   )
   .version("0.1.0")
   .option("--no-color", "Disable colored output")
+  .option("--webhook-url <url>", "Webhook URL for analytics telemetry")
+  .option("--webhook-handoff-url <url>", "Webhook URL for handoff notifications")
   .hook("preAction", thisCommand => {
     const opts = thisCommand.opts();
     if (opts.color === false) setNoColor(true);
@@ -98,6 +101,12 @@ program
             options.provider === "heuristic" ? undefined : options.provider,
         }
       );
+      const globalOpts = program.opts();
+      const reporter = createReporterFromCliOptions({
+        webhookUrl: globalOpts.webhookUrl,
+        webhookHandoffUrl: globalOpts.webhookHandoffUrl,
+      });
+      reporter.reportPack(result);
       outputResult(result, () => {
         console.log(
           fmt.bold(`Selected ${result.selected.length} items`) +
@@ -144,6 +153,12 @@ program
             options.provider === "heuristic" ? undefined : options.provider,
         }
       );
+      const globalOpts = program.opts();
+      const reporter = createReporterFromCliOptions({
+        webhookUrl: globalOpts.webhookUrl,
+        webhookHandoffUrl: globalOpts.webhookHandoffUrl,
+      });
+      reporter.reportTrace(trace);
       outputResult(trace, () => {
         console.log(fmt.bold(`Pack tokens: ${trace.pack.totalTokens}`));
         console.log(fmt.dim("\nDecisions:"));
@@ -198,7 +213,7 @@ program
   .description("Validate data against a JSON schema")
   .requiredOption(
     "-s, --schema <name>",
-    "Schema: context-item | context-pack | context-plan | context-trace | memory-item | cache-aware-pack | cost-estimate | beads-issue | pipeline-result"
+    "Schema: context-item | context-pack | context-plan | context-trace | memory-item | cache-aware-pack | cost-estimate | beads-issue | pipeline-result | webhook-analytics"
   )
   .requiredOption("-i, --input <file>", "Path to JSON/JSONL")
   .action(async options => {
@@ -454,6 +469,12 @@ program
           notes: options.notes,
         }
       );
+      const globalOpts = program.opts();
+      const reporter = createReporterFromCliOptions({
+        webhookUrl: globalOpts.webhookUrl,
+        webhookHandoffUrl: globalOpts.webhookHandoffUrl,
+      });
+      reporter.reportHandoff(result, { sourceAgent: options.agent });
 
       if (options.output) {
         await fs.writeFile(options.output, result.jsonl + "\n");

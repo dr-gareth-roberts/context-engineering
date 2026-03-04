@@ -21,6 +21,7 @@ from .cost import estimate_cost, project_costs
 from .errors import ContextEngineeringError
 from .placement import ATTENTION_PROFILES, effective_budget, place_items
 from .quality import analyze_context
+from .webhook import create_webhook_reporter
 
 # Environment variable defaults for CI/CD ergonomics
 _ENV_BUDGET = int(os.environ.get("CE_BUDGET", "4096"))
@@ -124,6 +125,7 @@ def _load_schema(name: str) -> Any:
         "cost-estimate": "cost-estimate.schema.json",
         "beads-issue": "beads-issue.schema.json",
         "pipeline-result": "pipeline-result.schema.json",
+        "webhook-analytics": "webhook-analytics.schema.json",
     }[name]
     schema_path = os.path.join(schema_dir, filename)
     with open(schema_path, "r", encoding="utf-8") as handle:
@@ -143,6 +145,7 @@ def _load_all_schemas() -> dict[str, Any]:
         "cost-estimate.schema.json",
         "beads-issue.schema.json",
         "pipeline-result.schema.json",
+        "webhook-analytics.schema.json",
     ]:
         path = os.path.join(schema_dir, filename)
         with open(path, "r", encoding="utf-8") as handle:
@@ -199,6 +202,11 @@ def cmd_pack(args: argparse.Namespace) -> None:
         items = _load_items(args.input)
     budget = Budget(maxTokens=args.budget)
     result = pack(items, budget, allow_compression=True, provider=args.provider)
+    reporter = create_webhook_reporter(
+        analytics_url=getattr(args, "webhook_url", None),
+        handoff_url=getattr(args, "webhook_handoff_url", None),
+    )
+    reporter.report_pack(result)
     if not _is_tty():
         print(_model_dump_json(result))
     else:
@@ -223,6 +231,11 @@ def cmd_trace(args: argparse.Namespace) -> None:
         items = _load_items(args.input)
     budget = Budget(maxTokens=args.budget)
     result = trace_pack(items, budget, allow_compression=True, provider=args.provider)
+    reporter = create_webhook_reporter(
+        analytics_url=getattr(args, "webhook_url", None),
+        handoff_url=getattr(args, "webhook_handoff_url", None),
+    )
+    reporter.report_trace(result)
     if not _is_tty():
         print(_model_dump_json(result))
     else:
@@ -382,6 +395,11 @@ def cmd_handoff(args: argparse.Namespace) -> None:
         handoff_notes=args.notes,
     )
     handoff = create_handoff(pack_result, opts)
+    reporter = create_webhook_reporter(
+        analytics_url=getattr(args, "webhook_url", None),
+        handoff_url=getattr(args, "webhook_handoff_url", None),
+    )
+    reporter.report_handoff(handoff)
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
@@ -500,6 +518,10 @@ def cmd_cost(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="ce", description="Context engineering CLI")
+    parser.add_argument("--webhook-url", default=None, help="Webhook URL for analytics telemetry")
+    parser.add_argument(
+        "--webhook-handoff-url", default=None, help="Webhook URL for handoff notifications"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     pack_parser = subparsers.add_parser("pack", help="Pack context items")
