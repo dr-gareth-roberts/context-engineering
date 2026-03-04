@@ -205,6 +205,8 @@ def cmd_pack(args: argparse.Namespace) -> None:
     reporter = create_webhook_reporter(
         analytics_url=getattr(args, "webhook_url", None),
         handoff_url=getattr(args, "webhook_handoff_url", None),
+        quality_url=getattr(args, "webhook_quality_url", None),
+        cost_url=getattr(args, "webhook_cost_url", None),
     )
     reporter.report_pack(result)
     if not _is_tty():
@@ -234,6 +236,8 @@ def cmd_trace(args: argparse.Namespace) -> None:
     reporter = create_webhook_reporter(
         analytics_url=getattr(args, "webhook_url", None),
         handoff_url=getattr(args, "webhook_handoff_url", None),
+        quality_url=getattr(args, "webhook_quality_url", None),
+        cost_url=getattr(args, "webhook_cost_url", None),
     )
     reporter.report_trace(result)
     if not _is_tty():
@@ -398,6 +402,8 @@ def cmd_handoff(args: argparse.Namespace) -> None:
     reporter = create_webhook_reporter(
         analytics_url=getattr(args, "webhook_url", None),
         handoff_url=getattr(args, "webhook_handoff_url", None),
+        quality_url=getattr(args, "webhook_quality_url", None),
+        cost_url=getattr(args, "webhook_cost_url", None),
     )
     reporter.report_handoff(handoff)
 
@@ -521,6 +527,12 @@ def main() -> None:
     parser.add_argument("--webhook-url", default=None, help="Webhook URL for analytics telemetry")
     parser.add_argument(
         "--webhook-handoff-url", default=None, help="Webhook URL for handoff notifications"
+    )
+    parser.add_argument(
+        "--webhook-quality-url", default=None, help="Webhook URL for quality regression alerts"
+    )
+    parser.add_argument(
+        "--webhook-cost-url", default=None, help="Webhook URL for cost anomaly alerts"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

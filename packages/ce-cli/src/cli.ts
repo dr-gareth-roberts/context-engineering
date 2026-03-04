@@ -38,6 +38,8 @@ program
   .option("--no-color", "Disable colored output")
   .option("--webhook-url <url>", "Webhook URL for analytics telemetry")
   .option("--webhook-handoff-url <url>", "Webhook URL for handoff notifications")
+  .option("--webhook-quality-url <url>", "Webhook URL for quality regression alerts")
+  .option("--webhook-cost-url <url>", "Webhook URL for cost anomaly alerts")
   .hook("preAction", thisCommand => {
     const opts = thisCommand.opts();
     if (opts.color === false) setNoColor(true);
@@ -105,6 +107,8 @@ program
       const reporter = createReporterFromCliOptions({
         webhookUrl: globalOpts.webhookUrl,
         webhookHandoffUrl: globalOpts.webhookHandoffUrl,
+        webhookQualityUrl: globalOpts.webhookQualityUrl,
+        webhookCostUrl: globalOpts.webhookCostUrl,
       });
       reporter.reportPack(result);
       outputResult(result, () => {
@@ -157,6 +161,8 @@ program
       const reporter = createReporterFromCliOptions({
         webhookUrl: globalOpts.webhookUrl,
         webhookHandoffUrl: globalOpts.webhookHandoffUrl,
+        webhookQualityUrl: globalOpts.webhookQualityUrl,
+        webhookCostUrl: globalOpts.webhookCostUrl,
       });
       reporter.reportTrace(trace);
       outputResult(trace, () => {
@@ -473,6 +479,8 @@ program
       const reporter = createReporterFromCliOptions({
         webhookUrl: globalOpts.webhookUrl,
         webhookHandoffUrl: globalOpts.webhookHandoffUrl,
+        webhookQualityUrl: globalOpts.webhookQualityUrl,
+        webhookCostUrl: globalOpts.webhookCostUrl,
       });
       reporter.reportHandoff(result, { sourceAgent: options.agent });
 
