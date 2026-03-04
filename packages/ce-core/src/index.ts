@@ -20,3 +20,5 @@ export * from "./beads.js";
 export { pipeline, ContextPipeline } from "./pipeline.js";
 export type { PipelineResult } from "./pipeline.js";
 export * from "./cost.js";
+export * from "./webhook.js";
+export * from "./recommendations.js";

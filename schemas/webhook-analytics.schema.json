@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "WebhookAnalytics",
+  "title": "WebhookAnalytics",
+  "description": "Analytics payload sent to webhook endpoints after pack/trace operations",
+  "type": "object",
+  "required": [
+    "event_type",
+    "session_id",
+    "model",
+    "strategy",
+    "timestamp",
+    "budget_max_tokens",
+    "budget_reserve_tokens",
+    "total_tokens",
+    "selected_count",
+    "dropped_count",
+    "budget_utilization_pct",
+    "remaining_tokens"
+  ],
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": ["pack", "trace"],
+      "description": "Type of operation that produced this payload"
+    },
+    "session_id": { "type": "string" },
+    "model": { "type": "string" },
+    "strategy": { "type": "string" },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "budget_max_tokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "budget_reserve_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "selected_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "dropped_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "budget_utilization_pct": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Budget utilization as percentage (0-100+)"
+    },
+    "remaining_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quality_overall": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "quality_density": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "quality_diversity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "cost_with_cache": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Cost in USD with prefix caching"
+    },
+    "cost_without_cache": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Cost in USD without caching"
+    },
+    "cache_hit_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "trace_decisions": {
+      "type": "string",
+      "description": "JSON-encoded array of trace step decisions (only for event_type=trace)"
+    }
+  },
+  "additionalProperties": false
+}
