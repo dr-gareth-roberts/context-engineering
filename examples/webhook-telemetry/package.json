@@ -1,0 +1,8 @@
+{
+  "name": "webhook-telemetry-demo",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@context-engineering/core": "workspace:*"
+  }
+}
