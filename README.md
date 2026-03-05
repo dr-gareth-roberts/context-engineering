@@ -87,9 +87,10 @@ Scoring formula: `priority × 1.0 + recency × 0.7 + salience × 0.5`
 
 Each extends the core pack/item model. Use when needed, ignore when not.
 
-| Feature            | Entry point                           | Purpose                                                     |
-| ------------------ | ------------------------------------- | ----------------------------------------------------------- |
-| **Cache topology** | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse        |
+| Feature                    | Entry point                           | Purpose                                                     |
+| -------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| **Causal Compaction**      | `createCausalScorer()`                | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
+| **Cache topology**         | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse        |
 | **Allocation**     | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints    |
 | **Sessions**       | `createSession()`                     | Track what changed between context compiles                 |
 | **Pipeline**       | `pipeline(budget)`                    | Fluent builder: `.add().allocate().cacheTopology().build()` |
