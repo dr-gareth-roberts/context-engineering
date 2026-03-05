@@ -19,6 +19,12 @@ export interface ContextItem {
   score?: number;
   metadata?: Record<string, unknown>;
   compressions?: Compression[];
+  /** The BEADS task ID this item belongs to */
+  taskId?: string;
+  /** If true, this item represents a critical outcome/result of a task */
+  isOutcome?: boolean;
+  /** IDs of tasks this item depends on */
+  dependsOn?: string[];
 }
 
 /**

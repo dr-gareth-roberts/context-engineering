@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from .core import Budget, ContextItem, estimate_tokens
+from .core import Budget, ContextItem, create_causal_scorer, estimate_tokens
 
 
 @dataclass
@@ -22,6 +22,8 @@ class Turn:
     tokens: int = 0
     timestamp: float = 0.0
     is_summary: bool = False
+    task_id: Optional[str] = None
+    is_outcome: Optional[bool] = None
 
 
 @dataclass
@@ -55,14 +57,34 @@ class ContextManager:
         self._estimate = token_estimator or (lambda text: estimate_tokens(text))
         self._turns: List[Turn] = []
         self._items: List[ContextItem] = []
+        self._active_task_id: Optional[str] = None
+        self._beads_graph: List[Any] = []
 
         self._system_tokens = self._estimate(system_prompt) if system_prompt else 0
         self._effective_budget = budget.max_tokens - (budget.reserve_tokens or 0)
 
-    def add_turn(self, role: str, content: str) -> None:
+    def set_active_task(self, task_id: str) -> None:
+        """Set the currently active task ID."""
+        self._active_task_id = task_id
+
+    def set_beads_graph(self, issues: List[Any]) -> None:
+        """Provide a BEADS graph for causal scoring."""
+        self._beads_graph = issues
+
+    def add_turn(self, role: str, content: str, task_id: Optional[str] = None, is_outcome: bool = False) -> None:
         """Add a conversation turn."""
         tokens = self._estimate(content)
-        self._turns.append(Turn(role=role, content=content, tokens=tokens, timestamp=time.time()))
+        tid = task_id or self._active_task_id
+        self._turns.append(
+            Turn(
+                role=role,
+                content=content,
+                tokens=tokens,
+                timestamp=time.time(),
+                task_id=tid,
+                is_outcome=is_outcome,
+            )
+        )
 
     def add_items(self, items: List[ContextItem]) -> None:
         """Add context items (e.g., from memory queries)."""
@@ -84,26 +106,58 @@ class ContextManager:
 
         Three phases:
         1. Preserve recent turns verbatim
-        2. Compact older turns into summary if threshold exceeded
+        2. Compact older turns (causal scoring if graph available, else summary)
         3. Pack context items into remaining budget
         """
         available = self._effective_budget - self._system_tokens
 
         # Phase 1: Preserve recent turns
-        if self._preserve_recent and len(self._turns) > self._preserve_recent:
+        if self._preserve_recent > 0:
             recent_turns = self._turns[-self._preserve_recent :]
             older_turns = self._turns[: -self._preserve_recent]
         else:
-            recent_turns = list(self._turns)
-            older_turns = []
+            recent_turns = []
+            older_turns = list(self._turns)
 
         recent_tokens = sum(t.tokens for t in recent_turns)
         available -= recent_tokens
 
         # Phase 2: Compact older turns
         compacted_older: List[Turn] = []
+        
+        # If we have a BEADS graph, we use causal scoring
+        scorer = None
+        if self._beads_graph:
+            scorer = create_causal_scorer(self._beads_graph, self._active_task_id)
 
-        if older_turns and len(older_turns) >= self._summarize_after:
+        if scorer and older_turns:
+            # Map Turns to ContextItems for scoring
+            scored_turns = []
+            for idx, t in enumerate(older_turns):
+                item = ContextItem(
+                    id=f"turn-{idx}",
+                    content=t.content,
+                    tokens=t.tokens,
+                    task_id=t.task_id,
+                    is_outcome=t.is_outcome,
+                    priority=5.0,
+                    recency=t.timestamp,
+                )
+                score = scorer(item)
+                scored_turns.append((t, score))
+            
+            # Sort by causal score
+            scored_turns.sort(key=lambda pair: pair[1], reverse=True)
+            
+            for t, _ in scored_turns:
+                if t.tokens <= available:
+                    compacted_older.append(t)
+                    available -= t.tokens
+            
+            # Re-sort by timestamp for conversation order
+            compacted_older.sort(key=lambda t: t.timestamp)
+
+        elif older_turns and len(older_turns) >= self._summarize_after:
             combined = "\n".join(f"[{t.role}]: {t.content}" for t in older_turns)
             target_tokens = int(available * 0.3)
             truncated = combined[: target_tokens * 4]
@@ -128,18 +182,22 @@ class ContextManager:
         # Phase 3: Pack context items into remaining budget
         selected_items: List[ContextItem] = []
         if self._items and available > 0:
+            item_scorer = scorer if scorer else (lambda i: i.score or 0.0)
+            
             scored = []
             for item in self._items:
                 tokens = item.tokens or self._estimate(item.content)
-                scored.append((item, tokens))
+                item_with_tokens = item.model_copy(update={"tokens": tokens})
+                score = item_scorer(item_with_tokens)
+                scored.append((item_with_tokens, score))
 
-            scored.sort(key=lambda pair: pair[0].score or 0, reverse=True)
+            scored.sort(key=lambda pair: pair[1], reverse=True)
 
             used_item_tokens = 0
-            for item, tokens in scored:
-                if used_item_tokens + tokens <= available:
+            for item, _ in scored:
+                if used_item_tokens + (item.tokens or 0) <= available:
                     selected_items.append(item)
-                    used_item_tokens += tokens
+                    used_item_tokens += item.tokens or 0
 
         all_turns = compacted_older + recent_turns
         total_tokens = (
@@ -162,6 +220,8 @@ class ContextManager:
         """Clear all turns and items."""
         self._turns = []
         self._items = []
+        self._active_task_id = None
+        self._beads_graph = []
 
 
 def create_context_manager(

@@ -295,6 +295,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ce-providers
 
+  examples/webhook-telemetry:
+    dependencies:
+      '@context-engineering/core':
+        specifier: workspace:*
+        version: link:../../packages/ce-core
+
   packages/ce-cli:
     dependencies:
       '@context-engineering/core':
