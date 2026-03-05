@@ -18,6 +18,8 @@ class Compression(BaseModel):
 
 
 class ContextItem(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str
     content: str
     kind: Optional[str] = None
@@ -33,6 +35,9 @@ class ContextItem(BaseModel):
     cost: float = 0.0
     latency: float = 0.0
     links: List[str] = Field(default_factory=list)
+    task_id: Optional[str] = Field(default=None, alias="taskId")
+    is_outcome: Optional[bool] = Field(default=None, alias="isOutcome")
+    depends_on: List[str] = Field(default_factory=list, alias="dependsOn")
 
 
 def create_context_item(id: str, content: str, **kwargs) -> ContextItem:
@@ -577,3 +582,63 @@ def diff(
             if i_id in b_map and b_map[i_id].content != i.content
         ],
     }
+
+
+def create_causal_scorer(
+    issues: List[Any], active_task_id: Optional[str] = None, weights: Optional[ScoringWeights] = None
+):
+    """Create a causal graph-aware scorer based on BEADS tasks.
+
+    Args:
+        issues: List of BEADS issues (or dicts) forming the graph.
+        active_task_id: The ID of the currently active task.
+        weights: Standard scoring weights.
+
+    Returns:
+        A callable (ContextItem) -> float.
+    """
+    w = weights or DEFAULT_SCORING_WEIGHTS
+    
+    # Simple map for quick lookup
+    issue_map = {getattr(i, "id", i.get("id")) if hasattr(i, "id") or isinstance(i, dict) else str(i): i for i in issues}
+    
+    active_statuses = {"open", "in_progress"}
+    active_ids = {
+        getattr(i, "id", i.get("id")) 
+        for i in issues 
+        if (getattr(i, "status", i.get("status")) in active_statuses)
+    }
+
+    def scorer(item: ContextItem) -> float:
+        if item.score is not None:
+            return item.score
+
+        priority = item.priority or 5.0
+        recency = item.recency or 0.0
+        salience = float(item.metadata.get("salience", 0.0))
+
+        multiplier = 1.0
+
+        # 1. Origin Protection
+        if item.metadata.get("isOrigin") or item.metadata.get("pinned"):
+            multiplier = 2.0
+
+        # 2. Graph-Aware Multiplier
+        if item.task_id:
+            issue = issue_map.get(item.task_id)
+
+            if item.task_id == active_task_id:
+                multiplier = 2.0
+            elif item.is_outcome:
+                multiplier = 1.5
+            elif issue:
+                status = getattr(issue, "status", issue.get("status")) if hasattr(issue, "status") or isinstance(issue, dict) else None
+                if item.task_id in active_ids:
+                    multiplier = 1.2
+                elif status == "closed":
+                    multiplier = 0.1
+
+        base_score = (priority * w.priority) + (recency * w.recency) + (salience * w.salience)
+        return base_score * multiplier
+
+    return scorer

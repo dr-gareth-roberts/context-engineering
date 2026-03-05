@@ -16,6 +16,9 @@ export const ContextItemSchema = z.object({
   score: z.number().finite().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   compressions: z.array(CompressionSchema).optional(),
+  taskId: z.string().optional(),
+  isOutcome: z.boolean().optional(),
+  dependsOn: z.array(z.string()).optional(),
 });
 
 export const BudgetSchema = z.object({
