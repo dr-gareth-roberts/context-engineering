@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/contexts/ThemeContext";
+import { CausalPlayground } from "@/components/CausalPlayground";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -158,6 +159,7 @@ export default function Home() {
   const navItems = [
     { label: "Why CE?", id: "why" },
     { label: "Patterns", id: "patterns" },
+    { label: "Causal Demo", id: "causal" },
     { label: "Playground", id: "playground" },
   ];
 
@@ -468,6 +470,30 @@ export default function Home() {
               </Card>
             </div>
           </div>
+        </section>
+
+        {/* CAUSAL DEMO SECTION */}
+        <section id="causal" className="scroll-mt-24 mb-32">
+          <div className="flex items-center gap-4 mb-12">
+            <h2 className="font-display text-5xl marker-black">
+              Causal Compaction
+            </h2>
+            <div className="flex-1 h-[2px] bg-marker-black/10" />
+            <div className="px-3 py-1 bg-marker-green text-white text-xs font-mono font-bold rounded-full">
+              NEW: GRAPH-AWARE
+            </div>
+          </div>
+
+          <div className="max-w-3xl mb-8 space-y-4">
+            <p className="text-lg text-muted-foreground">
+              Stop pruning context by time. Start pruning by{" "}
+              <span className="marker-black font-bold">causal relevance</span>.
+              The Causal Manager uses your BEADS task graph to protect your
+              goals while flushing noise from closed tasks.
+            </p>
+          </div>
+
+          <CausalPlayground />
         </section>
 
         {/* PLAYGROUND */}
