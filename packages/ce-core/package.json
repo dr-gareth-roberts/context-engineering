@@ -44,9 +44,9 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^3.2.4",
-    "typescript": "^5.6.3",
-    "vitest": "^3.2.4"
+    "@vitest/coverage-v8": "^4.0.18",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "zod": "^4.1.12"
