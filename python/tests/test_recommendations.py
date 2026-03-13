@@ -3,17 +3,13 @@
 from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 
 from context_engineering.recommendations import (
-    BudgetRecommendation,
     RecommendationOptions,
-    WeightConfig,
     fetch_budget_recommendation,
     fetch_weight_config,
     recommendation_options_from_env,
 )
-
 
 # ---------------------------------------------------------------------------
 # Budget Recommendation
@@ -145,9 +141,7 @@ class TestFetchBudgetRecommendation:
         response.json.return_value = {"maxTokens": 70_000, "confidence": 0.9}
         mock_httpx.get.return_value = response
 
-        opts = RecommendationOptions(
-            budget_url="https://explicit.example.com/budget"
-        )
+        opts = RecommendationOptions(budget_url="https://explicit.example.com/budget")
         rec = fetch_budget_recommendation("sess-1", opts)
 
         call_url = mock_httpx.get.call_args[0][0]
@@ -289,9 +283,7 @@ class TestFetchWeightConfig:
         }
         mock_httpx.get.return_value = response
 
-        opts = RecommendationOptions(
-            weights_url="https://explicit.example.com/weights"
-        )
+        opts = RecommendationOptions(weights_url="https://explicit.example.com/weights")
         config = fetch_weight_config("sess-1", opts)
 
         call_url = mock_httpx.get.call_args[0][0]

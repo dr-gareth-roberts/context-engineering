@@ -71,7 +71,9 @@ class ContextManager:
         """Provide a BEADS graph for causal scoring."""
         self._beads_graph = issues
 
-    def add_turn(self, role: str, content: str, task_id: Optional[str] = None, is_outcome: bool = False) -> None:
+    def add_turn(
+        self, role: str, content: str, task_id: Optional[str] = None, is_outcome: bool = False
+    ) -> None:
         """Add a conversation turn."""
         tokens = self._estimate(content)
         tid = task_id or self._active_task_id
@@ -124,7 +126,7 @@ class ContextManager:
 
         # Phase 2: Compact older turns
         compacted_older: List[Turn] = []
-        
+
         # If we have a BEADS graph, we use causal scoring
         scorer = None
         if self._beads_graph:
@@ -145,15 +147,15 @@ class ContextManager:
                 )
                 score = scorer(item)
                 scored_turns.append((t, score))
-            
+
             # Sort by causal score
             scored_turns.sort(key=lambda pair: pair[1], reverse=True)
-            
+
             for t, _ in scored_turns:
                 if t.tokens <= available:
                     compacted_older.append(t)
                     available -= t.tokens
-            
+
             # Re-sort by timestamp for conversation order
             compacted_older.sort(key=lambda t: t.timestamp)
 
@@ -183,7 +185,7 @@ class ContextManager:
         selected_items: List[ContextItem] = []
         if self._items and available > 0:
             item_scorer = scorer if scorer else (lambda i: i.score or 0.0)
-            
+
             scored = []
             for item in self._items:
                 tokens = item.tokens or self._estimate(item.content)

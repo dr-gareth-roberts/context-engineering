@@ -162,9 +162,7 @@ class WebhookOptions:
 # ─── Internal Helpers ─────────────────────────────────────────────────
 
 
-def _compute_utilization(
-    total_tokens: int, max_tokens: int, reserve_tokens: int
-) -> float:
+def _compute_utilization(total_tokens: int, max_tokens: int, reserve_tokens: int) -> float:
     effective = max_tokens - reserve_tokens
     return round((total_tokens / effective) * 10000) / 100 if effective > 0 else 0
 
@@ -208,9 +206,7 @@ def _build_analytics_payload(
 ) -> Dict[str, Any]:
     max_tokens = pack.budget.max_tokens
     reserve_tokens = pack.budget.reserve_tokens or 0
-    utilization_pct = _compute_utilization(
-        pack.total_tokens, max_tokens, reserve_tokens
-    )
+    utilization_pct = _compute_utilization(pack.total_tokens, max_tokens, reserve_tokens)
 
     payload: Dict[str, Any] = {
         "event_type": event_type,
@@ -374,9 +370,15 @@ class WebhookReporter:
             "event_type": "handoff",
             "session_id": self._session_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "total_issues": stats.get("totalIssues", 0) if isinstance(stats, dict) else getattr(stats, "total_issues", 0),
-            "active_items": stats.get("activeItems", 0) if isinstance(stats, dict) else getattr(stats, "active_items", 0),
-            "deferred_items": stats.get("deferredItems", 0) if isinstance(stats, dict) else getattr(stats, "deferred_items", 0),
+            "total_issues": stats.get("totalIssues", 0)
+            if isinstance(stats, dict)
+            else getattr(stats, "total_issues", 0),
+            "active_items": stats.get("activeItems", 0)
+            if isinstance(stats, dict)
+            else getattr(stats, "active_items", 0),
+            "deferred_items": stats.get("deferredItems", 0)
+            if isinstance(stats, dict)
+            else getattr(stats, "deferred_items", 0),
             "jsonl_size_bytes": len(jsonl.encode("utf-8")),
         }
         if extras:
@@ -438,7 +440,9 @@ class WebhookReporter:
             "model": self._model,
             "cost_with_cache": cost.cost_with_cache,
             "cost_without_cache": cost.cost_without_cache,
-            "cache_hit_ratio": cache_hit_ratio if cache_hit_ratio is not None else cost.cache_efficiency,
+            "cache_hit_ratio": cache_hit_ratio
+            if cache_hit_ratio is not None
+            else cost.cache_efficiency,
             "total_tokens": cost.input_tokens,
             "budget_max_tokens": pack.budget.max_tokens,
         }
@@ -463,9 +467,7 @@ class _NoopReporter:
     def report_quality(self, pack: Any, quality: Any) -> None:
         pass
 
-    def report_cost(
-        self, pack: Any, cost: Any, cache_hit_ratio: Any = None
-    ) -> None:
+    def report_cost(self, pack: Any, cost: Any, cache_hit_ratio: Any = None) -> None:
         pass
 
 
@@ -501,7 +503,12 @@ def create_webhook_reporter(
     resolved_quality = quality_url or os.environ.get("CE_WEBHOOK_QUALITY_URL", "")
     resolved_cost = cost_url or os.environ.get("CE_WEBHOOK_COST_URL", "")
 
-    if not resolved_analytics and not resolved_handoff and not resolved_quality and not resolved_cost:
+    if (
+        not resolved_analytics
+        and not resolved_handoff
+        and not resolved_quality
+        and not resolved_cost
+    ):
         return noop_reporter
 
     import time

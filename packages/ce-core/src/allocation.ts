@@ -225,7 +225,8 @@ export function packWithAllocation(
   const allocResult: Record<string, KindResult> = {};
 
   for (const alloc of allocations) {
-    const result = kindResults.get(alloc.kind)!;
+    const result = kindResults.get(alloc.kind);
+    if (!result) continue;
     allSelected.push(...result.selected);
     allDropped.push(...result.dropped);
     allocResult[alloc.kind] = {

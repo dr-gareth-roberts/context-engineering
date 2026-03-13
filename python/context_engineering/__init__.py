@@ -44,6 +44,7 @@ from .core import (
     diff,
     estimate_tokens,
     pack,
+    pack_async,
     simulate_budgets,
     trace_pack,
 )
@@ -67,6 +68,7 @@ from .framework import AgentContextManager
 from .memory import FileStore, InMemoryStore, MemoryItem, MemoryQuery, SqliteStore
 from .pipeline import ContextPipeline, PipelineResult, create_pipeline
 from .placement import ATTENTION_PROFILES, AttentionProfile, effective_budget, place_items
+from .postgres_store import PostgresMemoryStore
 from .providers import (
     AnthropicProvider,
     CerebrasProvider,
@@ -76,6 +78,16 @@ from .providers import (
     OpenAIProvider,
 )
 from .quality import ContextQuality, analyze_context, analyze_context_pack
+from .recommendations import (
+    BudgetRecommendation,
+    RecommendationOptions,
+    WeightConfig,
+    fetch_budget_recommendation,
+    fetch_weight_config,
+    recommendation_options_from_env,
+)
+from .redis_store import RedisMemoryStore
+from .redundancy import RedundancyConfig, RedundancyEliminator
 from .segmentation import (
     BoundaryProtector,
     HybridSegmenter,
@@ -92,14 +104,6 @@ from .session import (
     create_session,
 )
 from .stream import pack_stream
-from .recommendations import (
-    BudgetRecommendation,
-    RecommendationOptions,
-    WeightConfig,
-    fetch_budget_recommendation,
-    fetch_weight_config,
-    recommendation_options_from_env,
-)
 from .webhook import (
     HandoffReportExtras,
     PackReportExtras,
@@ -130,16 +134,22 @@ __all__ = [
     "create_context_item",
     "create_scorer",
     "pack",
+    "pack_async",
     "trace_pack",
     "diff",
     "estimate_tokens",
     "simulate_budgets",
+    # Redundancy
+    "RedundancyConfig",
+    "RedundancyEliminator",
     # Memory
     "MemoryItem",
     "MemoryQuery",
     "InMemoryStore",
     "FileStore",
     "SqliteStore",
+    "RedisMemoryStore",
+    "PostgresMemoryStore",
     # Providers
     "OpenAIProvider",
     "AnthropicProvider",

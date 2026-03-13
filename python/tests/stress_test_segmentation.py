@@ -46,7 +46,7 @@ class SegmentationStressTest:
 
         # 2. 'Messy' Logs (JSONL fragments)
         logs = ""
-        log_path = ".manus-logs/browserConsole.log"
+        log_path = "logs/system_monitor.log"
         if os.path.exists(log_path):
             with open(log_path, "r") as f:
                 logs = f.read()

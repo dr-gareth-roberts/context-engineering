@@ -1,6 +1,6 @@
-import pytest
 from context_engineering.compaction import ContextManager
 from context_engineering.core import Budget
+
 
 def test_causal_compaction_prioritization():
     # 1. Setup Manager with a small budget (approx 4 turns if each is 500)
@@ -8,8 +8,8 @@ def test_causal_compaction_prioritization():
     ctx = ContextManager(
         budget=Budget(maxTokens=2500),
         system_prompt="System",
-        token_estimator=lambda x: 500, # Fixed size for testing
-        preserve_recent_turns=0
+        token_estimator=lambda x: 500,  # Fixed size for testing
+        preserve_recent_turns=0,
     )
 
     # 2. Define the Task Graph
@@ -24,7 +24,7 @@ def test_causal_compaction_prioritization():
 
     # 3. Add Turns
     ctx.add_turn("user", "GOAL: Build a house.", task_id="root")
-    
+
     # 5 noise turns from task-a
     for i in range(5):
         ctx.add_turn("assistant", f"Debugging plumbing {i}...", task_id="task-a")
@@ -37,12 +37,12 @@ def test_causal_compaction_prioritization():
 
     # 5. Verify
     contents = [t.content for t in result.turns]
-    
+
     # Must have the Root Goal
     assert "GOAL: Build a house." in contents
     # Must have the Active work
     assert "Now starting on the roof." in contents
-    
+
     # Root (500) + Active (500) + System (??) = 1000+
     # Budget 2500 can fit at most 2-3 noise turns.
     assert len(result.turns) <= 5
@@ -50,6 +50,7 @@ def test_causal_compaction_prioritization():
     # Check order
     timestamps = [t.timestamp for t in result.turns]
     assert timestamps == sorted(timestamps)
+
 
 def test_causal_compaction_protect_outcomes():
     # Noise = 500, Outcome = 800
@@ -59,9 +60,7 @@ def test_causal_compaction_protect_outcomes():
         return 500
 
     ctx = ContextManager(
-        budget=Budget(maxTokens=1500),
-        token_estimator=custom_estimator,
-        preserve_recent_turns=0
+        budget=Budget(maxTokens=1500), token_estimator=custom_estimator, preserve_recent_turns=0
     )
 
     graph = [
@@ -72,7 +71,7 @@ def test_causal_compaction_protect_outcomes():
     # Add noise
     ctx.add_turn("assistant", "Noise 1", task_id="task-a")
     ctx.add_turn("assistant", "Noise 2", task_id="task-a")
-    
+
     # Add outcome
     ctx.add_turn("assistant", "Outcome: FINAL ARCHITECTURE", task_id="task-a", is_outcome=True)
 
