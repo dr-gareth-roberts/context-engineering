@@ -18,8 +18,8 @@
   },
   "scripts": {
     "dev": "vite --host",
-    "build:app": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:app": "vite build && esbuild packages/ce-web-server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build": "vite build && esbuild packages/ce-web-server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
@@ -129,14 +129,10 @@
     "typescript": "5.6.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.1.11",
-    "vite-plugin-manus-runtime": "^0.0.57",
     "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@10.30.3",
   "pnpm": {
-    "patchedDependencies": {
-      "wouter@3.7.1": "patches/wouter@3.7.1.patch"
-    },
     "overrides": {
       "tailwindcss>nanoid": "3.3.7",
       "minimatch": ">=10.2.3",

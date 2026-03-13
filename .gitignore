@@ -117,3 +117,11 @@ python/dist/
 
 # Husky
 .husky/_/
+
+# Project Caches
+.pytest_cache/
+.ruff_cache/
+.system-logs/
+.claude/
+client.log
+demo_agent.db
