@@ -226,6 +226,31 @@ def _apply_compression(
     return None
 
 
+async def pack_async(
+    items: List[ContextItem],
+    budget: Budget,
+    *,
+    allow_compression: bool = True,
+    provider: Optional[str] = None,
+    weights: Optional[ScoringWeights] = None,
+    redundancy_config: Optional[Any] = None,
+) -> ContextPack:
+    """Async version of pack() that supports asynchronous redundancy elimination."""
+    processed_items = items
+    if redundancy_config is not None:
+        from .redundancy import RedundancyEliminator
+        eliminator = RedundancyEliminator(redundancy_config)
+        processed_items = await eliminator.process(items)
+
+    return pack(
+        items=processed_items,
+        budget=budget,
+        allow_compression=allow_compression,
+        provider=provider,
+        weights=weights,
+    )
+
+
 def pack(
     items: List[ContextItem],
     budget: Budget,
@@ -585,7 +610,9 @@ def diff(
 
 
 def create_causal_scorer(
-    issues: List[Any], active_task_id: Optional[str] = None, weights: Optional[ScoringWeights] = None
+    issues: List[Any],
+    active_task_id: Optional[str] = None,
+    weights: Optional[ScoringWeights] = None,
 ):
     """Create a causal graph-aware scorer based on BEADS tasks.
 
@@ -598,14 +625,17 @@ def create_causal_scorer(
         A callable (ContextItem) -> float.
     """
     w = weights or DEFAULT_SCORING_WEIGHTS
-    
+
     # Simple map for quick lookup
-    issue_map = {getattr(i, "id", i.get("id")) if hasattr(i, "id") or isinstance(i, dict) else str(i): i for i in issues}
-    
+    issue_map = {
+        getattr(i, "id", i.get("id")) if hasattr(i, "id") or isinstance(i, dict) else str(i): i
+        for i in issues
+    }
+
     active_statuses = {"open", "in_progress"}
     active_ids = {
-        getattr(i, "id", i.get("id")) 
-        for i in issues 
+        getattr(i, "id", i.get("id"))
+        for i in issues
         if (getattr(i, "status", i.get("status")) in active_statuses)
     }
 
@@ -632,7 +662,11 @@ def create_causal_scorer(
             elif item.is_outcome:
                 multiplier = 1.5
             elif issue:
-                status = getattr(issue, "status", issue.get("status")) if hasattr(issue, "status") or isinstance(issue, dict) else None
+                status = (
+                    getattr(issue, "status", issue.get("status"))
+                    if hasattr(issue, "status") or isinstance(issue, dict)
+                    else None
+                )
                 if item.task_id in active_ids:
                     multiplier = 1.2
                 elif status == "closed":

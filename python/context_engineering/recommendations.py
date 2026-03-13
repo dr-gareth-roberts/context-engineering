@@ -16,7 +16,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
-from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import httpx
 

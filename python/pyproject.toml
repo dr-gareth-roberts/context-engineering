@@ -9,7 +9,6 @@ keywords = ["context-engineering", "llm", "token-budget", "ai", "context-packing
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -19,13 +18,6 @@ classifiers = [
 authors = [
   { name = "Dr Gareth Roberts", email = "gareth@zmail.com" },
 ]
-
-[project.urls]
-Homepage = "https://github.com/dr-gareth-roberts/context-engineering"
-Repository = "https://github.com/dr-gareth-roberts/context-engineering.git"
-Documentation = "https://github.com/dr-gareth-roberts/context-engineering/tree/main/python"
-Issues = "https://github.com/dr-gareth-roberts/context-engineering/issues"
-Changelog = "https://github.com/dr-gareth-roberts/context-engineering/blob/main/CHANGELOG.md"
 
 dependencies = [
   "pydantic>=2.7.0",
@@ -38,6 +30,13 @@ dependencies = [
   "rank-bm25>=0.2.2"
 ]
 
+[project.urls]
+Homepage = "https://github.com/dr-gareth-roberts/context-engineering"
+Repository = "https://github.com/dr-gareth-roberts/context-engineering.git"
+Documentation = "https://github.com/dr-gareth-roberts/context-engineering/tree/main/python"
+Issues = "https://github.com/dr-gareth-roberts/context-engineering/issues"
+Changelog = "https://github.com/dr-gareth-roberts/context-engineering/blob/main/CHANGELOG.md"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=7.0",
@@ -45,6 +44,8 @@ dev = [
   "ruff>=0.1.0",
   "pyright>=1.1.350",
 ]
+redis = ["redis>=5.0.0"]
+postgres = ["asyncpg>=0.29.0"]
 
 [project.scripts]
 ce = "context_engineering.cli:main"

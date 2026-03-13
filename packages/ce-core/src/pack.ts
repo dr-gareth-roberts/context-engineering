@@ -7,6 +7,7 @@ import type {
 } from "./types.js";
 import { createScorer, defaultItemScorer } from "./score.js";
 import { estimateTokens } from "./estimate.js";
+import { eliminateRedundancy } from "./redundancy.js";
 import {
   ValidationError,
   BudgetExceededError,
@@ -100,12 +101,38 @@ function applyCompression(
  * );
  * ```
  */
+
+/**
+ * Async version of pack that supports async operations like redundancy elimination.
+ */
+export async function packAsync(
+  items: ContextItem[],
+  budget: Budget,
+  options: PackOptions = {}
+): Promise<ContextPack> {
+  const result = await internalPackAsync(items, budget, options);
+  return result.pack;
+}
+
 export function pack(
   items: ContextItem[],
   budget: Budget,
   options: PackOptions = {}
 ): ContextPack {
   return internalPack(items, budget, options).pack;
+}
+
+export async function internalPackAsync(
+  items: ContextItem[],
+  budget: Budget,
+  options: PackOptions = {},
+  trace = false
+): Promise<PackResult> {
+  let processedItems = items;
+  if (options.redundancyConfig) {
+    processedItems = await eliminateRedundancy(items, options.redundancyConfig);
+  }
+  return internalPack(processedItems, budget, options, trace);
 }
 
 export function internalPack(

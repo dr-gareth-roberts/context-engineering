@@ -1,3 +1,5 @@
+import type { Logger } from "./logger.js";
+
 export interface Budget {
   maxTokens: number;
   reserveTokens?: number;
@@ -114,7 +116,8 @@ export interface PackOptions {
   summarizer?: Summarizer;
   allowCompression?: boolean;
   weights?: ScoringWeights;
-  logger?: import("./logger.js").Logger;
+  logger?: Logger;
+  redundancyConfig?: import("./redundancy.js").RedundancyOptions;
 }
 
 export interface PackDiff {

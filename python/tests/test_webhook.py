@@ -4,20 +4,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
-
-import pytest
+from typing import Any, Dict
+from unittest.mock import patch
 
 from context_engineering.core import Budget, ContextItem, ContextPack, ContextTrace, TraceStep
-from context_engineering.quality import ContextQuality
 from context_engineering.cost import CostEstimate
+from context_engineering.quality import ContextQuality
 from context_engineering.webhook import (
-    PackReportExtras,
     HandoffReportExtras,
+    PackReportExtras,
     WebhookReporter,
     _NoopReporter,
-    _fire_webhook,
     create_webhook_reporter,
     noop_reporter,
 )
@@ -426,8 +423,13 @@ class TestReportQuality:
         )
 
         quality = ContextQuality(
-            item_count=2, total_tokens=300, density=0.8,
-            diversity=0.6, freshness=0.9, redundancy=0.1, overall=0.75,
+            item_count=2,
+            total_tokens=300,
+            density=0.8,
+            diversity=0.6,
+            freshness=0.9,
+            redundancy=0.1,
+            overall=0.75,
         )
         reporter.report_quality(_make_pack(), quality)
         mock_fire.assert_not_called()
@@ -486,9 +488,16 @@ class TestReportCost:
         )
 
         cost = CostEstimate(
-            model="m", input_tokens=300, cached_tokens=200, uncached_tokens=100,
-            output_tokens=500, cost_without_cache=0.02, cost_with_cache=0.01,
-            savings=0.01, savings_percent=50.0, cache_efficiency=0.67,
+            model="m",
+            input_tokens=300,
+            cached_tokens=200,
+            uncached_tokens=100,
+            output_tokens=500,
+            cost_without_cache=0.02,
+            cost_with_cache=0.01,
+            savings=0.01,
+            savings_percent=50.0,
+            cache_efficiency=0.67,
         )
         reporter.report_cost(_make_pack(), cost)
         mock_fire.assert_not_called()

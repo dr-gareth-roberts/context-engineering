@@ -112,7 +112,7 @@ export function createContextManager(
   function addTurn(turn: Omit<Turn, "tokens" | "timestamp">): void {
     const tokens = estimate(turn.content);
     // Inherit activeTaskId if not provided
-    const taskId = (turn as any).taskId ?? activeTaskId;
+    const taskId = (turn as { taskId?: string }).taskId ?? activeTaskId;
     turns.push({ ...turn, taskId, tokens, timestamp: Date.now() });
   }
 
