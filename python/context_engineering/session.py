@@ -11,6 +11,7 @@ delta updates compared to full recomputation baselines.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
@@ -53,11 +54,25 @@ class SessionPack:
 
 
 def _quick_hash(s: str) -> str:
-    """Simple string hash for manifests and cache keys."""
-    h = 0
-    for ch in s:
-        h = ((h << 5) - h + ord(ch)) & 0xFFFFFFFF
-    return format(h, "x")
+    """SHA-256 based hash for manifests and cache keys.
+
+    Returns the first 16 hex characters for a compact but
+    collision-resistant key.
+    """
+    return hashlib.sha256(s.encode()).hexdigest()[:16]
+
+
+def _unchanged_prefix(
+    previous: List[ManifestEntry], current: List[ManifestEntry]
+) -> List[ManifestEntry]:
+    prefix: List[ManifestEntry] = []
+    for prev_entry, curr_entry in zip(previous, current):
+        if prev_entry.id != curr_entry.id:
+            break
+        if prev_entry.content_hash != curr_entry.content_hash:
+            break
+        prefix.append(curr_entry)
+    return prefix
 
 
 class ContextSession:
@@ -128,9 +143,13 @@ class ContextSession:
         # Compute delta from previous
         delta: Optional[SessionDelta] = None
 
+        # Compute unchanged prefix once (used for both delta and cache key).
+        unchanged_prefix = _unchanged_prefix(self._previous_manifest, current_manifest)
+
         if self._compile_count > 0:
             prev_map = {e.id: e for e in self._previous_manifest}
             curr_map = {e.id: e for e in current_manifest}
+            reusable_prefix_ids = {entry.id for entry in unchanged_prefix}
 
             added: List[ContextItem] = []
             changed: List[ContextItem] = []
@@ -159,7 +178,8 @@ class ContextSession:
                     changed_tokens += entry.tokens
                 else:
                     kept_count += 1
-                    reusable_tokens += entry.tokens
+                    if entry.id in reusable_prefix_ids:
+                        reusable_tokens += entry.tokens
 
             # Find removed
             for entry in self._previous_manifest:
@@ -180,17 +200,13 @@ class ContextSession:
                 reuse_ratio=round(reusable_tokens / total_prev, 3) if total_prev > 0 else 0,
             )
 
-        # Generate cache key from unchanged items
-        prev_map_for_cache = {e.id: e for e in self._previous_manifest}
-        unchanged_ids = sorted(
-            [
-                e.id
-                for e in current_manifest
-                if e.id in prev_map_for_cache
-                and prev_map_for_cache[e.id].content_hash == e.content_hash
-            ]
+        # Generate cache key from unchanged prefix
+        cache_key = _quick_hash(
+            ",".join(
+                f"{entry.position}:{entry.id}:{entry.content_hash}" for entry in unchanged_prefix
+            )
+            or "empty"
         )
-        cache_key = _quick_hash(",".join(unchanged_ids) or "empty")
 
         # Update state for next compile
         self._previous_manifest = current_manifest

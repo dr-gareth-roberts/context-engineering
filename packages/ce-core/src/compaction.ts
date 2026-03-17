@@ -111,8 +111,7 @@ export function createContextManager(
 
   function addTurn(turn: Omit<Turn, "tokens" | "timestamp">): void {
     const tokens = estimate(turn.content);
-    // Inherit activeTaskId if not provided
-    const taskId = (turn as { taskId?: string }).taskId ?? activeTaskId;
+    const taskId = turn.taskId ?? activeTaskId;
     turns.push({ ...turn, taskId, tokens, timestamp: Date.now() });
   }
 
@@ -156,15 +155,24 @@ export function createContextManager(
 
     // Phase 2: Compact older turns
     // If we have a BEADS graph, we use causal scoring to prune older turns
-    const scorer = beadsGraph.length > 0 
-      ? createCausalScorer(beadsGraph, activeTaskId)
-      : undefined;
+    const scorer =
+      beadsGraph.length > 0
+        ? createCausalScorer(beadsGraph, activeTaskId)
+        : undefined;
 
     const compactedOlder: Turn[] = [];
 
     if (scorer && olderTurns.length > 0) {
-      // Map Turns to ContextItems for scoring
+      // Map Turns to ContextItems for scoring.
+      // Normalize timestamps to 0-10 recency scale: most recent older turn = 10, oldest = 0.
+      const timestamps = olderTurns.map(t => t.timestamp ?? 0);
+      const minTs = Math.min(...timestamps);
+      const maxTs = Math.max(...timestamps);
+      const tsRange = maxTs - minTs;
+
       const scoredTurns = olderTurns.map((t, idx) => {
+        const normalizedRecency =
+          tsRange > 0 ? (((t.timestamp ?? 0) - minTs) / tsRange) * 10 : 5;
         const item: ContextItem = {
           id: `turn-${idx}`,
           content: t.content,
@@ -172,7 +180,7 @@ export function createContextManager(
           taskId: t.taskId,
           isOutcome: t.isOutcome,
           priority: 5,
-          recency: t.timestamp
+          recency: normalizedRecency,
         };
         return { turn: t, score: scorer(item) };
       });
@@ -188,20 +196,46 @@ export function createContextManager(
       }
       // Re-sort by timestamp for conversation order
       compactedOlder.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-
     } else if (olderTurns.length > 0 && olderTurns.length >= summarizeAfter) {
-      // Fallback: Group older turns and create a summary
+      // Fallback: Group older turns and truncate to fit token budget.
+      // Use the token estimator to measure actual token cost rather than
+      // assuming a fixed character-to-token ratio.
       const combinedContent = olderTurns
         .map(t => `[${t.role}]: ${t.content}`)
         .join("\n");
 
       const targetTokens = Math.floor(availableTokens * 0.3);
-      const truncated = combinedContent.slice(0, targetTokens * 4);
-      const summaryTokens = estimate(truncated);
+      const prefix = `[Summary of ${olderTurns.length} earlier turns]\n`;
+      const prefixTokens = estimate(prefix);
+      const contentBudget = Math.max(0, targetTokens - prefixTokens);
+
+      // Truncate by splitting into words and trimming until within budget
+      const words = combinedContent.split(/\s+/);
+      let truncated = combinedContent;
+      const truncatedTokens = estimate(truncated);
+
+      if (truncatedTokens > contentBudget) {
+        // Binary search for the number of words that fits
+        let lo = 0;
+        let hi = words.length;
+        while (lo < hi) {
+          const mid = Math.ceil((lo + hi) / 2);
+          const candidate = words.slice(0, mid).join(" ");
+          if (estimate(candidate) <= contentBudget) {
+            lo = mid;
+          } else {
+            hi = mid - 1;
+          }
+        }
+        truncated = words.slice(0, lo).join(" ");
+      }
+
+      const summaryContent = prefix + truncated;
+      const summaryTokens = estimate(summaryContent);
 
       compactedOlder.push({
         role: "system",
-        content: `[Summary of ${olderTurns.length} earlier turns]\n${truncated}`,
+        content: summaryContent,
         tokens: summaryTokens,
         isSummary: true,
         timestamp: olderTurns[0]?.timestamp,
@@ -221,18 +255,17 @@ export function createContextManager(
     let selectedItems: ContextItem[] = [];
     if (items.length > 0 && availableTokens > 0) {
       const itemScorer = scorer ?? ((i: ContextItem) => i.score ?? 0);
-      
-      selectedItems = items
-        .map(i => ({ 
-          ...i, 
-          tokens: i.tokens ?? estimate(i.content)
+
+      const scored = items
+        .map(i => ({
+          ...i,
+          tokens: i.tokens ?? estimate(i.content),
         }))
         .map(i => ({ ...i, score: itemScorer(i) }))
-        .filter(i => (i.tokens ?? 0) <= availableTokens)
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
       let usedTokens = 0;
-      selectedItems = selectedItems.filter(item => {
+      selectedItems = scored.filter(item => {
         if (usedTokens + (item.tokens ?? 0) <= availableTokens) {
           usedTokens += item.tokens ?? 0;
           return true;
@@ -261,14 +294,14 @@ export function createContextManager(
     beadsGraph = [];
   }
 
-  return { 
-    setActiveTask, 
-    setBeadsGraph, 
-    addTurn, 
-    addItems, 
-    getTokenUsage, 
-    compile, 
-    turnCount, 
-    clear 
+  return {
+    setActiveTask,
+    setBeadsGraph,
+    addTurn,
+    addItems,
+    getTokenUsage,
+    compile,
+    turnCount,
+    clear,
   };
 }

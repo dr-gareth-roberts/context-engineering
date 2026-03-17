@@ -308,7 +308,7 @@ from .retrieval import (
     RetrievedChunk,
     Retriever,
 )
-from .scoring import EmbeddingScorer, KeywordOverlapScorer, RelevanceScorer
+from .scoring import EmbeddingScorer, KeywordOverlapScorer, RelevanceScorer, cosine_similarity
 from .quality import (
     FaithfulnessJudge,
     FaithfulnessVerdict,
@@ -319,6 +319,18 @@ from .quality import (
     precision_at_k,
     recall_at_k,
 )
+from .runtime_base import (
+    AuditLogger,
+    BaseCommanderMixin,
+    ExecutionTask,
+    HTTPJSONAdapterBase,
+    IdempotencyStore,
+    InMemoryIdempotencyStore,
+    JSONLAuditLogger,
+    NoOpAuditLogger,
+    ToolExecutionResult,
+    unique_preserve,
+)
 from .soc_runtime import (
     EDRAdapter,
     ExecutionPolicy,
@@ -326,13 +338,9 @@ from .soc_runtime import (
     HTTPIAMAdapter,
     HTTPSIEMAdapter,
     IAMAdapter,
-    IdempotencyStore,
     InMemoryEDRAdapter,
     InMemoryIAMAdapter,
-    InMemoryIdempotencyStore,
     InMemorySIEMAdapter,
-    JSONLAuditLogger,
-    NoOpAuditLogger,
     NoOpEDRAdapter,
     NoOpIAMAdapter,
     NoOpSIEMAdapter,
@@ -341,7 +349,6 @@ from .soc_runtime import (
     SOCExecutionStats,
     SOCIncidentCommander,
     SOCIndicators,
-    ToolExecutionResult,
     build_edr_adapter_from_env,
     build_iam_adapter_from_env,
     build_siem_adapter_from_env,
@@ -394,6 +401,11 @@ from .tri_provider_use_cases import (
 )
 
 __all__ = [
+    "AuditLogger",
+    "BaseCommanderMixin",
+    "ExecutionTask",
+    "HTTPJSONAdapterBase",
+    "unique_preserve",
     "AMLActionResult",
     "AMLDecision",
     "AMLExecutionPolicy",
@@ -435,6 +447,8 @@ __all__ = [
     "ContextManager",
     "ContextPacket",
     "EmbeddingScorer",
+    "FaithfulnessJudge",
+    "FaithfulnessVerdict",
     "FrameworkRunResult",
     "DeepAgentsBridge",
     "ExecutionPolicy",
@@ -572,6 +586,7 @@ __all__ = [
     "HTTPSanctionsScreenAdapter",
     "HTTPSupplierRiskAdapter",
     "HTTPTransactionGraphAdapter",
+    "HybridInMemoryRetriever",
     "InMemoryVectorRetriever",
     "InMemoryCaseActionAdapter",
     "InMemoryCriticalLoadAdapter",
@@ -672,6 +687,7 @@ __all__ = [
     "PerplexityResult",
     "PolicyAdapter",
     "PydanticAIBridge",
+    "QuoteOnlyFaithfulnessJudge",
     "RelevanceScorer",
     "Retriever",
     "RetrievedChunk",
@@ -743,5 +759,11 @@ __all__ = [
     "build_siem_adapter_from_env",
     "build_supplier_risk_adapter_from_env",
     "build_transaction_graph_adapter_from_env",
+    "average_precision",
+    "cosine_similarity",
+    "mrr",
+    "ndcg_at_k",
+    "precision_at_k",
+    "recall_at_k",
     "validate_use_case_catalog",
 ]

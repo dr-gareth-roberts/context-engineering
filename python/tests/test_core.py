@@ -12,6 +12,7 @@ from context_engineering.errors import (
     BudgetExceededError,
     ContextEngineeringError,
     EstimationError,
+    ValidationDetail,
     ValidationError,
 )
 
@@ -106,7 +107,27 @@ def test_validation_error_has_details():
     err = ValidationError("bad input", [{"path": "budget", "message": "must be positive"}])
     assert err.code == "VALIDATION_ERROR"
     assert len(err.details) == 1
-    assert err.details[0]["path"] == "budget"
+    assert err.details[0] == ValidationDetail(path="budget", message="must be positive")
+
+
+def test_pack_treats_mismatched_embedding_dimensions_as_non_redundant():
+    items = [
+        ContextItem(
+            id="a",
+            content="one",
+            tokens=10,
+            embedding=[1.0, 0.0],
+        ),
+        ContextItem(
+            id="b",
+            content="two",
+            tokens=10,
+            embedding=[1.0, 0.0, 0.0],
+        ),
+    ]
+
+    result = pack(items, Budget(maxTokens=100), redundancy_threshold=0.5)
+    assert [item.id for item in result.selected] == ["a", "b"]
 
 
 def test_estimation_error_from_cost():

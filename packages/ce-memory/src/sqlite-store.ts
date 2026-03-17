@@ -9,6 +9,28 @@ interface SqliteStoreOptions {
 
 type DatabaseInstance = ReturnType<typeof Database>;
 
+interface SqliteRow {
+  id: string;
+  content: string;
+  created_at: string;
+  updated_at: string | null;
+  salience: number | null;
+  ttl_seconds: number | null;
+  metadata_json: string | null;
+}
+
+function rowToItem(row: SqliteRow): MemoryItem {
+  return {
+    id: row.id,
+    content: row.content,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? undefined,
+    salience: row.salience ?? undefined,
+    ttlSeconds: row.ttl_seconds ?? undefined,
+    metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
+  };
+}
+
 export class SqliteStore implements MemoryStore {
   private db: DatabaseInstance;
   private tableName: string;
@@ -27,7 +49,7 @@ export class SqliteStore implements MemoryStore {
   }
 
   private init() {
-    const createSql = `
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS ${this.tableName} (
         id TEXT PRIMARY KEY,
         content TEXT NOT NULL,
@@ -37,8 +59,12 @@ export class SqliteStore implements MemoryStore {
         ttl_seconds INTEGER,
         metadata_json TEXT
       );
-    `;
-    this.db.exec(createSql);
+    `);
+    // Index for salience-sorted queries
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_${this.tableName}_salience
+        ON ${this.tableName} (salience DESC);
+    `);
   }
 
   async put(
@@ -80,93 +106,20 @@ export class SqliteStore implements MemoryStore {
     const stmt = this.db.prepare(
       `SELECT * FROM ${this.tableName} WHERE id = ? LIMIT 1`
     );
-    const row = stmt.get(id) as
-      | {
-          id: string;
-          content: string;
-          created_at: string;
-          updated_at: string | null;
-          salience: number | null;
-          ttl_seconds: number | null;
-          metadata_json: string | null;
-        }
-      | undefined;
-
+    const row = stmt.get(id) as SqliteRow | undefined;
     if (!row) return null;
-
-    return {
-      id: row.id,
-      content: row.content,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at ?? undefined,
-      salience: row.salience ?? undefined,
-      ttlSeconds: row.ttl_seconds ?? undefined,
-      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
-    };
+    return rowToItem(row);
   }
 
   async query(query: MemoryQuery = {}): Promise<MemoryItem[]> {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
+    // Fetch all rows, let applyQueryFilter handle filtering uniformly.
+    // This ensures consistent behavior with other store implementations
+    // (same `now` for TTL, same case-insensitive text matching, same
+    // salience decay logic) and avoids double-filtering bugs.
+    const stmt = this.db.prepare(`SELECT * FROM ${this.tableName}`);
+    const rows = stmt.all() as SqliteRow[];
 
-    // Push TTL expiry filter into SQL (exclude expired unless includeExpired)
-    if (!query.includeExpired) {
-      const now = query.now ?? Date.now();
-      conditions.push(
-        "(ttl_seconds IS NULL OR (CAST(strftime('%s', created_at) AS INTEGER) * 1000 + ttl_seconds * 1000) > ?)"
-      );
-      params.push(now);
-    }
-
-    // Push text filter into SQL
-    if (query.text) {
-      conditions.push("content LIKE ?");
-      params.push(`%${query.text}%`);
-    }
-
-    // Push minSalience filter into SQL (only when no halfLife decay is needed)
-    if (
-      query.minSalience !== undefined &&
-      query.halfLifeSeconds === undefined
-    ) {
-      conditions.push("salience >= ?");
-      params.push(query.minSalience);
-    }
-
-    let sql = `SELECT * FROM ${this.tableName}`;
-    if (conditions.length > 0) {
-      sql += ` WHERE ${conditions.join(" AND ")}`;
-    }
-    // Sort by salience descending to match applyQueryFilter behavior
-    sql += " ORDER BY salience DESC";
-    if (query.limit !== undefined) {
-      sql += " LIMIT ?";
-      params.push(query.limit);
-    }
-
-    const stmt = this.db.prepare(sql);
-    const rows = stmt.all(...params) as Array<{
-      id: string;
-      content: string;
-      created_at: string;
-      updated_at: string | null;
-      salience: number | null;
-      ttl_seconds: number | null;
-      metadata_json: string | null;
-    }>;
-
-    const items: MemoryItem[] = rows.map(row => ({
-      id: row.id,
-      content: row.content,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at ?? undefined,
-      salience: row.salience ?? undefined,
-      ttlSeconds: row.ttl_seconds ?? undefined,
-      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
-    }));
-
-    // Fall back to JS filtering for fields that can't be fully pushed to SQL
-    // (e.g., halfLifeSeconds decay, case-insensitive text matching)
+    const items: MemoryItem[] = rows.map(rowToItem);
     return applyQueryFilter(items, query);
   }
 
@@ -176,7 +129,7 @@ export class SqliteStore implements MemoryStore {
     return result.changes > 0;
   }
 
-  close(): void {
+  async close(): Promise<void> {
     this.db.close();
   }
 }

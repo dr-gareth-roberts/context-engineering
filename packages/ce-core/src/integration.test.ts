@@ -221,7 +221,8 @@ describe("integration: composable pipeline with sessions", () => {
     expect(r2.delta!.keptCount).toBeGreaterThan(0);
     expect(r2.delta!.added.length).toBeGreaterThan(0);
     expect(r2.delta!.removedIds.length).toBeGreaterThan(0);
-    expect(r2.delta!.reuseRatio).toBeGreaterThan(0);
+    expect(r2.delta!.reusableTokens).toBe(0);
+    expect(r2.delta!.reuseRatio).toBe(0);
   });
 });
 

@@ -1,8 +1,4 @@
-import type {
-  ContextItem,
-  ItemScorer,
-  ScoringWeights,
-} from "./types.js";
+import type { ContextItem, ItemScorer, ScoringWeights } from "./types.js";
 import type { BeadsIssue } from "./beads.js";
 
 const DEFAULT_WEIGHTS: Required<ScoringWeights> = {
@@ -32,9 +28,7 @@ export function createScorer(weights: ScoringWeights = {}): ItemScorer {
     const priority = item.priority ?? 0;
     const recency = item.recency ?? 0;
     const salience =
-      typeof item.metadata?.salience === "number"
-        ? (item.metadata.salience as number)
-        : 0;
+      typeof item.metadata?.salience === "number" ? item.metadata.salience : 0;
 
     return priority * w.priority + recency * w.recency + salience * w.salience;
   };
@@ -64,13 +58,15 @@ export function createCausalScorer(
   // Build a map for quick lookup
   const issueMap = new Map(issues.map(i => [i.id, i]));
   const activeIds = new Set(
-    issues.filter(i => i.status === "open" || i.status === "in_progress").map(i => i.id)
+    issues
+      .filter(i => i.status === "open" || i.status === "in_progress")
+      .map(i => i.id)
   );
 
   return (item: ContextItem) => {
     if (typeof item.score === "number") return item.score;
 
-    const priority = item.priority ?? 5;
+    const priority = item.priority ?? 0;
     const recency = item.recency ?? 0;
     const salience = (item.metadata?.salience as number) ?? 0;
 

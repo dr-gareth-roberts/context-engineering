@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol, Sequence
+from typing import Any, Callable, Literal, Protocol, Sequence
 
 from .scoring import cosine_similarity
 
@@ -81,10 +81,28 @@ class InMemoryVectorRetriever:
 class ChromaRetriever:
     """
     Adapter for Chroma collections (`collection.query`).
+
+    The ``distance_metric`` parameter must match the metric used by the
+    Chroma collection (default ``"l2"``).  Supported values: ``"l2"``,
+    ``"cosine"``, ``"ip"`` (inner product).
     """
 
-    def __init__(self, collection: Any) -> None:
+    def __init__(
+        self,
+        collection: Any,
+        *,
+        distance_metric: Literal["l2", "cosine", "ip"] = "l2",
+    ) -> None:
         self._collection = collection
+        self._distance_metric = distance_metric
+
+    def _distance_to_score(self, distance: float) -> float:
+        if self._distance_metric == "l2":
+            return 1.0 / (1.0 + distance)
+        if self._distance_metric == "cosine":
+            return 1.0 - distance
+        # inner product: Chroma returns negative IP as distance
+        return -distance
 
     def retrieve(
         self,
@@ -106,7 +124,7 @@ class ChromaRetriever:
             metadata = dict(metas[idx] or {}) if idx < len(metas) else {}
             source = metadata.get("source") or (ids[idx] if idx < len(ids) else None)
             distance = float(distances[idx]) if idx < len(distances) else 0.0
-            score = 1.0 - distance
+            score = self._distance_to_score(distance)
             if min_score is not None and score < min_score:
                 continue
             chunks.append(

@@ -15,6 +15,7 @@
 import type { Budget, ContextItem, ContextPack, PackOptions } from "./types.js";
 import { pack } from "./pack.js";
 import { estimateTokens } from "./estimate.js";
+import { hash64 } from "./hash.js";
 
 /** Volatility level for cache partitioning. */
 export type Volatility = "static" | "session" | "request";
@@ -107,19 +108,6 @@ export function classifyVolatility(item: ContextItem): Volatility {
 
   // Default: items without explicit kind are request-level (volatile)
   return "request";
-}
-
-/**
- * Simple string hash for cache key generation.
- * Not cryptographic — just consistent enough for cache identity.
- */
-function hashString(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0;
-  }
-  return (hash >>> 0).toString(36);
 }
 
 /**
@@ -256,7 +244,7 @@ export function packWithCacheTopology(
   const staticContent = selectedStatic
     .map(i => `${i.id}:${i.content}`)
     .join("|");
-  const cacheKey = hashString(staticContent);
+  const cacheKey = hash64(staticContent);
 
   const staticTokens = selectedStatic.reduce(
     (sum, i) => sum + (i.tokens ?? 0),

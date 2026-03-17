@@ -27,7 +27,7 @@ export const defaultTokenEstimator: TokenEstimator = (text: string) => {
  * ```
  */
 export function estimateTokens(
-  text: string,
+  text: string | null | undefined,
   options?: { model?: string; provider?: string; estimator?: TokenEstimator }
 ): number {
   if (text == null) return 0;

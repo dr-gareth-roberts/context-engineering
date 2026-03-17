@@ -91,6 +91,20 @@ class TestCreateSession:
         assert r2.delta.reusable_tokens == 100
         assert r2.delta.reuse_ratio == 0.5
 
+    def test_reordering_breaks_prefix_reuse(self):
+        session = create_session(Budget(max_tokens=500))
+        session.set_items([make_item("a", 10, 100), make_item("b", 9, 100)])
+        first = session.compile()
+
+        session.set_items([make_item("b", 10, 100), make_item("a", 9, 100)])
+        second = session.compile()
+
+        assert second.delta is not None
+        assert second.delta.kept_count == 2
+        assert second.delta.reusable_tokens == 0
+        assert second.delta.reuse_ratio == 0
+        assert second.cache_key == first.cache_key
+
     def test_delta_tokens(self):
         session = create_session(Budget(max_tokens=500))
         session.set_items([make_item("a", 10, 100)])
@@ -158,3 +172,41 @@ class TestCreateSession:
         assert len(r3.delta.added) == 1
         assert "a" in r3.delta.removed_ids
         assert r3.delta.kept_count == 1
+
+    def test_reordered_items_break_prefix_reuse(self):
+        session = create_session(Budget(max_tokens=500))
+        session.set_items([make_item("a", 10, 100), make_item("b", 9, 80)])
+        session.compile()
+
+        session.set_items([make_item("b", 10, 80), make_item("a", 9, 100)])
+        second = session.compile()
+
+        assert second.delta is not None
+        assert second.delta.kept_count == 2
+        assert second.delta.reusable_tokens == 0
+        assert second.delta.reuse_ratio == 0
+        assert second.cache_key
+
+    def test_only_unchanged_prefix_counts_as_reusable(self):
+        session = create_session(Budget(max_tokens=500))
+        session.set_items(
+            [
+                ContextItem(id="a", content="stable", priority=10, tokens=100),
+                ContextItem(id="b", content="old", priority=9, tokens=80),
+                ContextItem(id="c", content="also-stable", priority=8, tokens=60),
+            ]
+        )
+        session.compile()
+
+        session.set_items(
+            [
+                ContextItem(id="a", content="stable", priority=10, tokens=100),
+                ContextItem(id="b", content="new", priority=9, tokens=80),
+                ContextItem(id="c", content="also-stable", priority=8, tokens=60),
+            ]
+        )
+        result = session.compile()
+
+        assert result.delta is not None
+        assert result.delta.reusable_tokens == 100
+        assert result.delta.reuse_ratio == 0.417

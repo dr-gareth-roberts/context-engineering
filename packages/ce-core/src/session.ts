@@ -12,6 +12,7 @@
 import type { Budget, ContextItem, PackOptions } from "./types.js";
 import { pack } from "./pack.js";
 import { estimateTokens } from "./estimate.js";
+import { hash64 } from "./hash.js";
 
 /**
  * A manifest entry tracking an item's position and content hash.
@@ -61,15 +62,19 @@ export interface SessionPack {
   compileCount: number;
 }
 
-/**
- * Simple string hash for manifests and cache keys.
- */
-function quickHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+function unchangedPrefix(
+  previous: ManifestEntry[],
+  current: ManifestEntry[]
+): ManifestEntry[] {
+  const prefix: ManifestEntry[] = [];
+  const maxLength = Math.min(previous.length, current.length);
+  for (let i = 0; i < maxLength; i++) {
+    const prev = previous[i];
+    const curr = current[i];
+    if (prev.id !== curr.id || prev.contentHash !== curr.contentHash) break;
+    prefix.push(curr);
   }
-  return (hash >>> 0).toString(36);
+  return prefix;
 }
 
 /**
@@ -132,7 +137,6 @@ export function createSession(options: SessionOptions): ContextSession {
 
   let currentItems: ContextItem[] = [];
   let previousManifest: ManifestEntry[] = [];
-  let _previousSelectedIds = new Set<string>();
   let compileCount = 0;
 
   function setItems(items: ContextItem[]): void {
@@ -163,7 +167,7 @@ export function createSession(options: SessionOptions): ContextSession {
     // Build manifest for current compile
     const currentManifest: ManifestEntry[] = packed.selected.map((item, i) => ({
       id: item.id,
-      contentHash: quickHash(item.content),
+      contentHash: hash64(item.content),
       tokens: item.tokens ?? estimateTokens(item.content, { estimator }),
       position: i,
     }));
@@ -174,6 +178,8 @@ export function createSession(options: SessionOptions): ContextSession {
     if (compileCount > 0) {
       const prevMap = new Map(previousManifest.map(e => [e.id, e]));
       const currMap = new Map(currentManifest.map(e => [e.id, e]));
+      const reusablePrefix = unchangedPrefix(previousManifest, currentManifest);
+      const reusablePrefixIds = new Set(reusablePrefix.map(entry => entry.id));
 
       const added: ContextItem[] = [];
       const changed: ContextItem[] = [];
@@ -203,7 +209,9 @@ export function createSession(options: SessionOptions): ContextSession {
         } else {
           // Unchanged
           keptCount++;
-          reusableTokens += entry.tokens;
+          if (reusablePrefixIds.has(entry.id)) {
+            reusableTokens += entry.tokens;
+          }
         }
       }
 
@@ -233,23 +241,15 @@ export function createSession(options: SessionOptions): ContextSession {
     }
 
     // Generate cache key from unchanged items
-    const prevMapForCache =
-      compileCount > 0
-        ? new Map(previousManifest.map(e => [e.id, e]))
-        : new Map<string, ManifestEntry>();
-    const unchangedIds = currentManifest
-      .filter(e => {
-        const prev = prevMapForCache.get(e.id);
-        return prev && prev.contentHash === e.contentHash;
-      })
-      .map(e => e.id)
-      .sort()
-      .join(",");
-    const cacheKey = quickHash(unchangedIds || "empty");
+    const prefix = unchangedPrefix(previousManifest, currentManifest);
+    const cacheKey = hash64(
+      prefix
+        .map(entry => `${entry.position}:${entry.id}:${entry.contentHash}`)
+        .join(",") || "empty"
+    );
 
     // Update state for next compile
     previousManifest = currentManifest;
-    _previousSelectedIds = new Set(currentManifest.map(e => e.id));
     compileCount++;
 
     return {
@@ -273,7 +273,6 @@ export function createSession(options: SessionOptions): ContextSession {
   function clear(): void {
     currentItems = [];
     previousManifest = [];
-    _previousSelectedIds = new Set();
     compileCount = 0;
   }
 

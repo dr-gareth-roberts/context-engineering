@@ -90,6 +90,9 @@ class TriProviderPipeline:
     openai_bridge: OpenAIResponsesSDKBridge = field(init=False)
     anthropic_bridge: AnthropicSDKBridge = field(init=False)
     cerebras_bridge: CerebrasSDKBridge = field(init=False)
+    _openai_client: Any = field(init=False, default=None, repr=False)
+    _anthropic_client: Any = field(init=False, default=None, repr=False)
+    _cerebras_client: Any = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.openai_bridge = OpenAIResponsesSDKBridge(
@@ -344,10 +347,11 @@ class TriProviderPipeline:
 
         # OpenAI
         try:
-            from openai import OpenAI  # type: ignore
+            if self._openai_client is None:
+                from openai import OpenAI  # type: ignore
 
-            client = OpenAI()
-            response = client.responses.create(**openai_request)
+                self._openai_client = OpenAI()
+            response = self._openai_client.responses.create(**openai_request)
             preview = self._extract_openai_preview(response)
             openai_stage = StageOutcome(
                 provider="openai",
@@ -370,10 +374,11 @@ class TriProviderPipeline:
 
         # Anthropic
         try:
-            from anthropic import Anthropic  # type: ignore
+            if self._anthropic_client is None:
+                from anthropic import Anthropic  # type: ignore
 
-            client = Anthropic()
-            response = client.messages.create(**anthropic_request)
+                self._anthropic_client = Anthropic()
+            response = self._anthropic_client.messages.create(**anthropic_request)
             preview = self._extract_anthropic_preview(response)
             anthropic_stage = StageOutcome(
                 provider="anthropic",
@@ -396,10 +401,11 @@ class TriProviderPipeline:
 
         # Cerebras
         try:
-            from cerebras.cloud.sdk import Cerebras  # type: ignore
+            if self._cerebras_client is None:
+                from cerebras.cloud.sdk import Cerebras  # type: ignore
 
-            client = Cerebras()
-            response = client.chat.completions.create(**cerebras_request)
+                self._cerebras_client = Cerebras()
+            response = self._cerebras_client.chat.completions.create(**cerebras_request)
             preview = self._extract_cerebras_preview(response)
             speculative_metrics = self.cerebras_bridge.extract_speculative_decoding_metrics(
                 response
@@ -409,7 +415,7 @@ class TriProviderPipeline:
             candidate_actions = self._candidate_actions()
             if candidate_actions:
                 ranked = self.cerebras_bridge.score_candidates_by_perplexity(
-                    client,
+                    self._cerebras_client,
                     prefix=f"{self.spec.objective}\nScenario:\n{scenario}",
                     candidates=candidate_actions,
                 )

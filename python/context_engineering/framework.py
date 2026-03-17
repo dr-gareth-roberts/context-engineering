@@ -33,7 +33,7 @@ class AdaptiveBudgetStrategy:
         self.min_budget = min_budget
         self.max_budget = max_budget
 
-    def calculate_budget(self, input_text: str, metadata: Dict[str, Any] = None) -> int:
+    def calculate_budget(self, input_text: str, metadata: Optional[Dict[str, Any]] = None) -> int:
         budget = self.min_budget
         tokens = estimate_tokens(input_text)
         if tokens > 500:
@@ -76,7 +76,7 @@ class AgentContextManager:
         self.system_prompt: Optional[ContextItem] = None
         self.temporary_items: List[ContextItem] = []
 
-    def adapt_budget(self, user_input: str, metadata: Dict[str, Any] = None):
+    def adapt_budget(self, user_input: str, metadata: Optional[Dict[str, Any]] = None):
         self.active_budget = self.adaptive_strategy.calculate_budget(user_input, metadata)
         return self.active_budget
 
@@ -128,7 +128,7 @@ class AgentContextManager:
         content: str,
         id: str,
         priority: float = 5.0,
-        compressions: List[Dict[str, Any]] = None,
+        compressions: Optional[List[Dict[str, Any]]] = None,
         cost: float = 0.0,
         latency: float = 0.0,
     ):

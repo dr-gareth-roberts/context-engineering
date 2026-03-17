@@ -9,7 +9,7 @@ from context_engineering.redis_store import RedisMemoryStore
 
 @pytest.fixture
 def mock_redis():
-    with patch('context_engineering.redis_store.redis') as mock_redis_mod:
+    with patch("context_engineering.redis_store.redis") as mock_redis_mod:
         mock_client = MagicMock()
 
         mock_pipeline = AsyncMock()
@@ -22,14 +22,15 @@ def mock_redis():
         # Async methods
         mock_client.get = AsyncMock()
         mock_client.mget = AsyncMock()
-        mock_client.keys = AsyncMock()
+        mock_client.scan = AsyncMock()
 
         mock_redis_mod.from_url.return_value = mock_client
         yield mock_client
 
+
 @pytest.fixture
 def mock_asyncpg():
-    with patch('context_engineering.postgres_store.asyncpg') as mock_pg:
+    with patch("context_engineering.postgres_store.asyncpg") as mock_pg:
         mock_pool = MagicMock()
         mock_conn = AsyncMock()
 
@@ -39,6 +40,7 @@ def mock_asyncpg():
 
         mock_pg.create_pool = AsyncMock(return_value=mock_pool)
         yield mock_conn
+
 
 @pytest.mark.asyncio
 async def test_redis_store_edge_cases(mock_redis):
@@ -53,25 +55,30 @@ async def test_redis_store_edge_cases(mock_redis):
     await store.aput([item])
     mock_pipeline = mock_redis.pipeline.return_value
     # Should call set without EX because ttl_seconds <= 0
-    mock_pipeline.set.assert_called_with('ce_memory:neg', item.model_dump_json(by_alias=True))
+    mock_pipeline.set.assert_called_with("ce_memory:neg", item.model_dump_json(by_alias=True))
 
     # Test aget when not found
     mock_redis.get.return_value = None
     assert await store.aget("missing") is None
 
-    # Test aquery returns empty when no keys
-    mock_redis.keys.return_value = []
+    # Test aquery returns empty when no keys (scan returns cursor=0 and empty batch)
+    mock_redis.scan.return_value = (0, [])
     assert await store.aquery() == []
 
-    # Test aquery with malformed JSON skips silently or we expect the standard apply_query flow
-    # Assuming mget returns the correct structure
-    mock_redis.keys.return_value = ["ce_memory:1"]
-    item_json = MemoryItem(id="1", content="data", created_at="2023-01-01T00:00:00Z").model_dump_json(by_alias=True)
-    mock_redis.mget.return_value = [item_json, None] # simulating mget returning a None for a deleted key
+    # Test aquery with scan returning keys
+    mock_redis.scan.return_value = (0, ["ce_memory:1"])
+    item_json = MemoryItem(
+        id="1", content="data", created_at="2023-01-01T00:00:00Z"
+    ).model_dump_json(by_alias=True)
+    mock_redis.mget.return_value = [
+        item_json,
+        None,
+    ]  # simulating mget returning a None for a deleted key
 
     res = await store.aquery(MemoryQuery())
     assert len(res) == 1
     assert res[0].id == "1"
+
 
 @pytest.mark.asyncio
 async def test_postgres_store_edge_cases(mock_asyncpg):
@@ -82,7 +89,9 @@ async def test_postgres_store_edge_cases(mock_asyncpg):
     assert res == []
 
     # Test aput with vector (embedding)
-    item = MemoryItem(id="vec", content="data", created_at="2023-01-01T00:00:00Z", embedding=[0.1, 0.2, 0.3])
+    item = MemoryItem(
+        id="vec", content="data", created_at="2023-01-01T00:00:00Z", embedding=[0.1, 0.2, 0.3]
+    )
     await store.aput([item])
 
     # Check if the query formed handles the array properly by casting to string
@@ -95,14 +104,20 @@ async def test_postgres_store_edge_cases(mock_asyncpg):
 
     # Test aget with weird embedding format in DB
     mock_asyncpg.fetchrow.return_value = {
-        'id': '1', 'content': 'data', 'created_at': '2023-01-01T00:00:00Z',
-        'updated_at': None, 'last_accessed_at': None, 'salience': 1.0,
-        'ttl_seconds': None, 'is_summary': False, 'metadata': "{}",
-        'embedding': "[invalid json]" # Simulate corrupted DB state
+        "id": "1",
+        "content": "data",
+        "created_at": "2023-01-01T00:00:00Z",
+        "updated_at": None,
+        "last_accessed_at": None,
+        "salience": 1.0,
+        "ttl_seconds": None,
+        "is_summary": False,
+        "metadata": "{}",
+        "embedding": "[invalid json]",  # Simulate corrupted DB state
     }
     fetched = await store.aget("1")
     assert fetched is not None
-    assert fetched.embedding is None # Should swallow invalid json and return None for embedding
+    assert fetched.embedding is None  # Should swallow invalid json and return None for embedding
 
     # Test aquery SQL construction with multiple clauses
     mock_asyncpg.fetch.return_value = []
@@ -117,4 +132,4 @@ async def test_postgres_store_edge_cases(mock_asyncpg):
     assert "LIMIT $3" in sql
     assert "%test%" in call_args
     assert "[1.0,2.0]" in call_args
-    assert 10 in call_args # Limit is multiplied by 2 internally
+    assert 10 in call_args  # Limit is multiplied by 2 internally

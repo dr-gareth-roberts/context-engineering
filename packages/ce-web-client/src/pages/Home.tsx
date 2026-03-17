@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Brain,
@@ -9,7 +9,6 @@ import {
   BookOpen,
   Code,
   Github,
-  CheckCircle2,
   AlertCircle,
   Database,
   FileCode,
@@ -66,41 +65,20 @@ const defaultItems = `[
   }
 ]`;
 
-const defaultTrace = `{"type":"pack","pack":{"budget":{"maxTokens":120},"selected":[{"id":"system","content":"You are a helpful assistant.","tokens":12}],"dropped":[{"id":"notes","content":"User prefers concise answers.","tokens":8}],"totalTokens":12}}
-{"type":"step","id":"system","decision":"include","tokens":12,"score":10,"reason":"fits_budget"}
-{"type":"step","id":"notes","decision":"exclude","tokens":8,"score":4,"reason":"over_budget"}`;
-
 function parseItems(raw: string): { items: ContextItem[]; error?: string } {
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (Array.isArray(parsed)) return { items: parsed };
-    if (parsed?.items && Array.isArray(parsed.items))
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "items" in parsed &&
+      Array.isArray(parsed.items)
+    )
       return { items: parsed.items };
     return { items: [], error: "Expected an array or { items: [] }" };
   } catch (error) {
     return { items: [], error: (error as Error).message };
-  }
-}
-
-function parseTrace(raw: string): {
-  pack?: any;
-  steps: Array<Record<string, any>>;
-  error?: string;
-} {
-  const trimmed = raw.trim();
-  if (!trimmed) return { steps: [], error: "Provide trace JSON or JSONL" };
-  try {
-    const lines = trimmed.split(/\r?\n/).filter(Boolean);
-    const steps: Array<Record<string, any>> = [];
-    let pack: any | undefined;
-    for (const line of lines) {
-      const entry = JSON.parse(line);
-      if (entry.type === "pack") pack = entry.pack;
-      else steps.push(entry);
-    }
-    return { pack, steps };
-  } catch (error) {
-    return { steps: [], error: (error as Error).message };
   }
 }
 
@@ -109,7 +87,6 @@ export default function Home() {
   const [itemsJson, setItemsJson] = useState(defaultItems);
   const [budgetA, setBudgetA] = useState("128");
   const [budgetB, setBudgetB] = useState("64");
-  const [traceInput, setTraceInput] = useState(defaultTrace);
 
   const parsed = useMemo(() => parseItems(itemsJson), [itemsJson]);
 
@@ -121,7 +98,7 @@ export default function Home() {
         { maxTokens: Number(budgetA) || 0 },
         { allowCompression: true }
       );
-    } catch (e) {
+    } catch {
       return null;
     }
   }, [parsed, budgetA]);
@@ -134,7 +111,7 @@ export default function Home() {
         { maxTokens: Number(budgetB) || 0 },
         { allowCompression: true }
       );
-    } catch (e) {
+    } catch {
       return null;
     }
   }, [parsed, budgetB]);
@@ -143,18 +120,6 @@ export default function Home() {
     if (!packA || !packB) return null;
     return diff(packA, packB);
   }, [packA, packB]);
-
-  const traceParsed = useMemo(() => parseTrace(traceInput), [traceInput]);
-  const decisionCounts = useMemo(() => {
-    const counts = { include: 0, exclude: 0, compress: 0 };
-    traceParsed.steps.forEach(step => {
-      const d = step.decision;
-      if (d === "include") counts.include++;
-      else if (d === "exclude") counts.exclude++;
-      else if (d === "compress") counts.compress++;
-    });
-    return counts;
-  }, [traceParsed.steps]);
 
   const navItems = [
     { label: "Why CE?", id: "why" },
@@ -203,8 +168,17 @@ export default function Home() {
             >
               {theme === "dark" ? "☀️" : "🌙"}
             </Button>
-            <Button className="bg-marker-black hover:bg-marker-black/90 text-background shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] font-bold">
-              <Github className="w-4 h-4 mr-2" /> Local Repo
+            <Button
+              className="bg-marker-black hover:bg-marker-black/90 text-background shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] font-bold"
+              asChild
+            >
+              <a
+                href="https://github.com/dr-gareth-roberts/context-engineering"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Github className="w-4 h-4 mr-2" /> GitHub
+              </a>
             </Button>
           </div>
         </div>
@@ -541,10 +515,14 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold marker-black uppercase ml-1">
+                  <label
+                    htmlFor="budget-a"
+                    className="text-[10px] font-bold marker-black uppercase ml-1"
+                  >
                     Budget A (Tokens)
                   </label>
                   <Input
+                    id="budget-a"
                     type="number"
                     value={budgetA}
                     onChange={e => setBudgetA(e.target.value)}
@@ -552,10 +530,14 @@ export default function Home() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold marker-black uppercase ml-1">
+                  <label
+                    htmlFor="budget-b"
+                    className="text-[10px] font-bold marker-black uppercase ml-1"
+                  >
                     Budget B (Tokens)
                   </label>
                   <Input
+                    id="budget-b"
                     type="number"
                     value={budgetB}
                     onChange={e => setBudgetB(e.target.value)}

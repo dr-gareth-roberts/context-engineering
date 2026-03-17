@@ -1,19 +1,31 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import re
-import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
-from threading import Lock
-from typing import Any, Callable, Protocol
-from urllib import request as urlrequest
-from urllib.error import HTTPError, URLError
+from typing import Any, Protocol
 
+from .runtime_base import (
+    AuditLogger,
+    BaseCommanderMixin,
+    IdempotencyStore,
+    InMemoryIdempotencyStore,
+    NoOpAuditLogger,
+)
+from .runtime_base import (
+    ExecutionTask as _ExecutionTask,
+)
+from .runtime_base import (
+    HTTPJSONAdapterBase as _HTTPJSONAdapterBase,
+)
+from .runtime_base import (
+    ToolExecutionResult as ClaimsToolExecutionResult,
+)
+from .runtime_base import (
+    unique_preserve as _unique_preserve,
+)
 from .tri_provider_pipeline import TriProviderPipeline, UseCaseExecutionReport
 
 _CLAIM_ID_RE = re.compile(r"\b(?:CLM|CLAIM)[-_]?\d{3,}\b", re.IGNORECASE)
@@ -23,18 +35,6 @@ _CLAIMANT_ID_RE = re.compile(
 )
 _POLICY_ID_RE = re.compile(r"\b(?:POL|POLICY)[-_]?\d{2,}\b", re.IGNORECASE)
 _REGION_RE = re.compile(r"\b[A-Z]{2}-\d{5}\b")
-
-
-def _unique_preserve(values: list[str]) -> list[str]:
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for value in values:
-        key = value.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        ordered.append(value)
-    return ordered
 
 
 def _normalize_identifier(value: str) -> str:
@@ -55,58 +55,6 @@ class PayoutAdapter(Protocol):
     def issue_advance(self, claim_id: str, *, amount_cents: int, reason: str) -> dict[str, Any]: ...
 
     def place_hold(self, claim_id: str, *, reason: str) -> dict[str, Any]: ...
-
-
-class AuditLogger(Protocol):
-    def log(self, event: dict[str, Any]) -> None: ...
-
-
-class IdempotencyStore(Protocol):
-    def seen(self, key: str) -> bool: ...
-
-    def mark(self, key: str, *, ttl_seconds: int | None = None) -> None: ...
-
-
-class NoOpAuditLogger:
-    def log(self, event: dict[str, Any]) -> None:
-        _ = event
-
-
-@dataclass(slots=True)
-class JSONLAuditLogger:
-    path: Path
-
-    def __post_init__(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-
-    def log(self, event: dict[str, Any]) -> None:
-        line = json.dumps(event, separators=(",", ":"), default=str)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(f"{line}\n")
-
-
-@dataclass(slots=True)
-class InMemoryIdempotencyStore:
-    default_ttl_seconds: int = 4 * 60 * 60
-    _entries: dict[str, float] = field(default_factory=dict, init=False)
-    _lock: Lock = field(default_factory=Lock, init=False, repr=False)
-
-    def seen(self, key: str) -> bool:
-        now = time.time()
-        with self._lock:
-            self._prune(now)
-            expires_at = self._entries.get(key)
-            return expires_at is not None and expires_at > now
-
-    def mark(self, key: str, *, ttl_seconds: int | None = None) -> None:
-        ttl = self.default_ttl_seconds if ttl_seconds is None else max(1, ttl_seconds)
-        with self._lock:
-            self._entries[key] = time.time() + ttl
-
-    def _prune(self, now: float) -> None:
-        stale = [key for key, expires_at in self._entries.items() if expires_at <= now]
-        for key in stale:
-            self._entries.pop(key, None)
 
 
 class NoOpPolicyAdapter:
@@ -230,41 +178,6 @@ class InMemoryPayoutAdapter:
         }
         self.actions.append(dict(row))
         return row
-
-
-@dataclass(slots=True)
-class _HTTPJSONAdapterBase:
-    base_url: str
-    api_key: str
-    timeout_seconds: float = 10.0
-
-    def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if not self.base_url.startswith(("http://", "https://")):
-            raise ValueError("base_url must start with http:// or https://")
-        if not path.startswith("/"):
-            path = f"/{path}"
-        url = f"{self.base_url.rstrip('/')}{path}"
-        body = json.dumps(payload).encode("utf-8")
-        req = urlrequest.Request(
-            url,
-            data=body,
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-        )
-        try:
-            with urlrequest.urlopen(req, timeout=self.timeout_seconds) as response:
-                data = response.read().decode("utf-8")
-                if not data.strip():
-                    return {}
-                return json.loads(data)
-        except HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
-        except URLError as exc:
-            raise RuntimeError(f"Network error: {exc}") from exc
 
 
 @dataclass(slots=True)
@@ -395,22 +308,6 @@ class ClaimAssessment:
 
 
 @dataclass(slots=True, frozen=True)
-class ClaimsToolExecutionResult:
-    tool: str
-    target: str
-    success: bool
-    latency_ms: int
-    request: dict[str, Any]
-    response: dict[str, Any] | None = None
-    error: str | None = None
-    retried: int = 0
-    attempts: int = 1
-    status: str = "executed"
-    idempotency_key: str | None = None
-    notes: tuple[str, ...] = ()
-
-
-@dataclass(slots=True, frozen=True)
 class ClaimsExecutionStats:
     policy_total: int
     policy_success: int
@@ -460,17 +357,8 @@ class CatastropheClaimsExecutionReport:
         }
 
 
-@dataclass(slots=True, frozen=True)
-class _ExecutionTask:
-    tool: str
-    target: str
-    request_payload: dict[str, Any]
-    idempotency_key: str | None
-    call: Callable[[], dict[str, Any]]
-
-
 @dataclass(slots=True)
-class CatastropheClaimsCommander:
+class CatastropheClaimsCommander(BaseCommanderMixin):
     pipeline: TriProviderPipeline
     policy_adapter: PolicyAdapter
     fraud_adapter: FraudAdapter
@@ -822,120 +710,6 @@ class CatastropheClaimsCommander:
                 )
         return tasks
 
-    def _execute_tasks(self, tasks: list[_ExecutionTask]) -> list[ClaimsToolExecutionResult]:
-        if not tasks:
-            return []
-
-        workers = min(self.execution_policy.max_parallel_tasks, len(tasks))
-        if workers == 1:
-            return [self._execute_task(task) for task in tasks]
-
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = [executor.submit(self._execute_task, task) for task in tasks]
-            return [future.result() for future in futures]
-
-    def _execute_task(self, task: _ExecutionTask) -> ClaimsToolExecutionResult:
-        if task.idempotency_key and self.idempotency_store.seen(task.idempotency_key):
-            return ClaimsToolExecutionResult(
-                tool=task.tool,
-                target=task.target,
-                success=True,
-                latency_ms=0,
-                request=task.request_payload,
-                response=None,
-                retried=0,
-                attempts=0,
-                status="skipped",
-                idempotency_key=task.idempotency_key,
-                notes=("duplicate action suppressed by idempotency store",),
-            )
-
-        result = self._execute_with_retry(
-            tool=task.tool,
-            target=task.target,
-            request_payload=task.request_payload,
-            call=task.call,
-            idempotency_key=task.idempotency_key,
-        )
-
-        if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(
-                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
-            )
-
-        return result
-
-    def _execute_with_retry(
-        self,
-        *,
-        tool: str,
-        target: str,
-        request_payload: dict[str, Any],
-        call: Callable[[], dict[str, Any]],
-        idempotency_key: str | None,
-    ) -> ClaimsToolExecutionResult:
-        attempts = max(1, self.retry_attempts)
-        retried = 0
-        used_attempts = 0
-        last_error: str | None = None
-        start = time.perf_counter()
-
-        for attempt in range(1, attempts + 1):
-            used_attempts = attempt
-            try:
-                response = call()
-                latency_ms = int((time.perf_counter() - start) * 1000)
-                return ClaimsToolExecutionResult(
-                    tool=tool,
-                    target=target,
-                    success=True,
-                    latency_ms=latency_ms,
-                    request=request_payload,
-                    response=response,
-                    retried=retried,
-                    attempts=used_attempts,
-                    status="executed",
-                    idempotency_key=idempotency_key,
-                )
-            except Exception as exc:  # noqa: BLE001
-                last_error = str(exc)
-                if attempt >= attempts or not self._is_retryable_error(exc):
-                    break
-                retried += 1
-                time.sleep(self.retry_backoff_seconds * attempt)
-
-        latency_ms = int((time.perf_counter() - start) * 1000)
-        return ClaimsToolExecutionResult(
-            tool=tool,
-            target=target,
-            success=False,
-            latency_ms=latency_ms,
-            request=request_payload,
-            response=None,
-            error=last_error or "unknown error",
-            retried=retried,
-            attempts=used_attempts,
-            status="executed",
-            idempotency_key=idempotency_key,
-        )
-
-    @staticmethod
-    def _is_retryable_error(exc: Exception) -> bool:
-        text = str(exc).lower()
-        markers = (
-            "timeout",
-            "tempor",
-            "rate limit",
-            "connection reset",
-            "connection aborted",
-            "unavailable",
-            "502",
-            "503",
-            "504",
-            "429",
-        )
-        return any(marker in text for marker in markers)
-
     def _log_audit_event(
         self,
         *,
@@ -961,22 +735,6 @@ class CatastropheClaimsCommander:
             "notes": list(row.notes),
         }
         self.audit_logger.log(event)
-
-    @staticmethod
-    def _safe_payload(payload: Any, *, max_chars: int = 900) -> Any:
-        if payload is None:
-            return None
-        try:
-            encoded = json.dumps(payload, separators=(",", ":"), default=str)
-        except Exception:  # noqa: BLE001
-            return str(payload)[:max_chars]
-        if len(encoded) <= max_chars:
-            return payload
-        return {
-            "truncated": True,
-            "size": len(encoded),
-            "preview": encoded[:max_chars],
-        }
 
     @staticmethod
     def _parse_policy_status(response: dict[str, Any]) -> str:

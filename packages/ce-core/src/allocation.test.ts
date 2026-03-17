@@ -138,6 +138,20 @@ describe("packWithAllocation", () => {
     expect(result.totalTokens).toBeLessThanOrEqual(150);
   });
 
+  it("never exceeds the total budget when minimums overcommit", () => {
+    const items = [
+      makeItem("s1", "system", 10, 120),
+      makeItem("r1", "retrieval", 9, 120),
+    ];
+
+    const result = packWithAllocation(items, { maxTokens: 150 }, [
+      { kind: "system", minTokens: 100, priority: 10 },
+      { kind: "retrieval", minTokens: 100, priority: 1 },
+    ]);
+
+    expect(result.totalTokens).toBeLessThanOrEqual(150);
+  });
+
   it("all items present in selected or dropped", () => {
     const items = [
       makeItem("a", "system", 10, 100),

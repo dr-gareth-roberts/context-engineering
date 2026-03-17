@@ -162,7 +162,19 @@ class ContextManager:
         elif older_turns and len(older_turns) >= self._summarize_after:
             combined = "\n".join(f"[{t.role}]: {t.content}" for t in older_turns)
             target_tokens = int(available * 0.3)
-            truncated = combined[: target_tokens * 4]
+            # Binary search for the right truncation point to hit target_tokens.
+            # Start with a heuristic then adjust.
+            lo, hi = 0, len(combined)
+            truncated = combined
+            while lo < hi:
+                mid = (lo + hi) // 2
+                candidate = combined[:mid]
+                est = self._estimate(candidate)
+                if est <= target_tokens:
+                    truncated = candidate
+                    lo = mid + 1
+                else:
+                    hi = mid
             summary_tokens = self._estimate(truncated)
 
             compacted_older.append(

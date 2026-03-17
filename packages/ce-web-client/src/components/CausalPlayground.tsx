@@ -1,56 +1,83 @@
 import { useState, useMemo } from "react";
-import { 
-  createContextManager, 
-  type BeadsIssue, 
-  type Turn 
+import {
+  createContextManager,
+  type BeadsIssue,
+  type Turn,
 } from "@context-engineering/core";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
-import { Badge } from "lucide-react";
+
+type PlaygroundTurn = Omit<Turn, "tokens" | "timestamp">;
 
 export function CausalPlayground() {
   const [budget, setBudget] = useState(2000);
   const [activeTask, setActiveTask] = useState("task-b");
-  const [beadsJson, setBeadsJson] = useState(JSON.stringify([
-    { id: "root", title: "Build Auth System", status: "open" },
-    { id: "task-a", title: "Debug CI/CD", status: "closed" },
-    { id: "task-b", title: "Implement OAuth", status: "open" }
-  ], null, 2));
+  const [beadsJson, setBeadsJson] = useState(
+    JSON.stringify(
+      [
+        { id: "root", title: "Build Auth System", status: "open" },
+        { id: "task-a", title: "Debug CI/CD", status: "closed" },
+        { id: "task-b", title: "Implement OAuth", status: "open" },
+      ],
+      null,
+      2
+    )
+  );
 
-  const [history, setHistory] = useState<Omit<Turn, "tokens" | "timestamp">[]>([
-    { role: "user", content: "GOAL: Build secure auth system using OAuth2. NO JWT.", taskId: "root" } as any,
-    { role: "assistant", content: "Debugging CI error line 42...", taskId: "task-a" } as any,
-    { role: "assistant", content: "CI error fixed by updating docker.", taskId: "task-a" } as any,
-    { role: "user", content: "Starting on the OAuth flow.", taskId: "task-b" } as any,
+  const [history, setHistory] = useState<PlaygroundTurn[]>([
+    {
+      role: "user",
+      content: "GOAL: Build secure auth system using OAuth2. NO JWT.",
+      taskId: "root",
+    },
+    {
+      role: "assistant",
+      content: "Debugging CI error line 42...",
+      taskId: "task-a",
+    },
+    {
+      role: "assistant",
+      content: "CI error fixed by updating docker.",
+      taskId: "task-a",
+    },
+    {
+      role: "user",
+      content: "Starting on the OAuth flow.",
+      taskId: "task-b",
+    },
   ]);
 
-  const [newTurn, setNewTurn] = useState({ role: "assistant" as const, content: "", taskId: "task-b" });
+  const [newTurn, setNewTurn] = useState<PlaygroundTurn>({
+    role: "assistant",
+    content: "",
+    taskId: "task-b",
+  });
 
   const result = useMemo(() => {
     try {
       const graph = JSON.parse(beadsJson) as BeadsIssue[];
       const ctx = createContextManager({
         budget: { maxTokens: budget },
-        tokenEstimator: (text) => text.length / 4, // Simple proxy for tokens
-        preserveRecentTurns: 0
+        tokenEstimator: text => text.length / 4, // Simple proxy for tokens
+        preserveRecentTurns: 0,
       });
-      
+
       ctx.setBeadsGraph(graph);
       ctx.setActiveTask(activeTask);
-      
+
       history.forEach(turn => ctx.addTurn(turn));
-      
+
       return ctx.compile();
-    } catch (e) {
+    } catch {
       return null;
     }
   }, [budget, activeTask, beadsJson, history]);
 
   const addTurn = () => {
     if (!newTurn.content) return;
-    setHistory([...history, { ...newTurn } as any]);
+    setHistory([...history, newTurn]);
     setNewTurn({ ...newTurn, content: "" });
   };
 
@@ -59,25 +86,52 @@ export function CausalPlayground() {
       <div className="space-y-6">
         <Card className="whiteboard-card bg-card">
           <CardHeader>
-            <CardTitle className="font-display text-2xl marker-black">Graph Configuration</CardTitle>
+            <CardTitle className="font-display text-2xl marker-black">
+              Graph Configuration
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">BEADS Graph (JSON)</label>
-              <Textarea 
-                value={beadsJson} 
-                onChange={(e) => setBeadsJson(e.target.value)}
+              <label
+                htmlFor="beads-graph"
+                className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block"
+              >
+                BEADS Graph (JSON)
+              </label>
+              <Textarea
+                id="beads-graph"
+                value={beadsJson}
+                onChange={e => setBeadsJson(e.target.value)}
                 className="font-mono text-xs h-32"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">Token Budget</label>
-                <Input type="number" value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+                <label
+                  htmlFor="token-budget"
+                  className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block"
+                >
+                  Token Budget
+                </label>
+                <Input
+                  id="token-budget"
+                  type="number"
+                  value={budget}
+                  onChange={e => setBudget(Number(e.target.value))}
+                />
               </div>
               <div>
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">Active Task ID</label>
-                <Input value={activeTask} onChange={(e) => setActiveTask(e.target.value)} />
+                <label
+                  htmlFor="active-task-id"
+                  className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block"
+                >
+                  Active Task ID
+                </label>
+                <Input
+                  id="active-task-id"
+                  value={activeTask}
+                  onChange={e => setActiveTask(e.target.value)}
+                />
               </div>
             </div>
           </CardContent>
@@ -85,29 +139,42 @@ export function CausalPlayground() {
 
         <Card className="whiteboard-card bg-card">
           <CardHeader>
-            <CardTitle className="font-display text-2xl marker-black">Add Turn</CardTitle>
+            <CardTitle className="font-display text-2xl marker-black">
+              Add Turn
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
-              <select 
+              <select
+                aria-label="Task assignment"
                 className="bg-background border-2 border-marker-black/10 px-2 py-1 text-sm font-bold rounded-none"
                 value={newTurn.taskId}
-                onChange={(e) => setNewTurn({ ...newTurn, taskId: e.target.value })}
+                onChange={e =>
+                  setNewTurn({ ...newTurn, taskId: e.target.value })
+                }
               >
                 <option value="root">Root</option>
                 <option value="task-a">Task A (Closed)</option>
                 <option value="task-b">Task B (Active)</option>
               </select>
-              <Input 
-                placeholder="Message content..." 
+              <Input
+                placeholder="Message content..."
                 value={newTurn.content}
-                onChange={(e) => setNewTurn({ ...newTurn, content: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && addTurn()}
+                onChange={e =>
+                  setNewTurn({ ...newTurn, content: e.target.value })
+                }
+                onKeyDown={e => e.key === "Enter" && addTurn()}
               />
-              <Button onClick={addTurn} className="bg-marker-blue hover:bg-marker-blue/90 text-white font-bold rounded-none">Add</Button>
+              <Button
+                onClick={addTurn}
+                className="bg-marker-blue hover:bg-marker-blue/90 text-white font-bold rounded-none"
+              >
+                Add
+              </Button>
             </div>
             <div className="text-[10px] text-muted-foreground italic">
-              Hint: Add multiple turns to Task A to see them get pruned when the budget fills up.
+              Hint: Add multiple turns to Task A to see them get pruned when the
+              budget fills up.
             </div>
           </CardContent>
         </Card>
@@ -116,7 +183,9 @@ export function CausalPlayground() {
       <div className="space-y-6">
         <Card className="whiteboard-card bg-marker-black/5 border-dashed border-2">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="font-display text-2xl marker-black">Compiled Context Window</CardTitle>
+            <CardTitle className="font-display text-2xl marker-black">
+              Compiled Context Window
+            </CardTitle>
             {result && (
               <div className="px-3 py-1 bg-highlight-yellow text-xs font-bold marker-black border border-marker-black/20">
                 {Math.round(result.totalTokens)} / {budget} Tokens
@@ -126,13 +195,22 @@ export function CausalPlayground() {
           <CardContent>
             <div className="space-y-3">
               {result?.turns.map((turn, i) => (
-                <div key={i} className="bg-card p-3 border-2 border-marker-black/10 relative group">
+                <div
+                  key={i}
+                  className="bg-card p-3 border-2 border-marker-black/10 relative group"
+                >
                   <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-marker-green text-[8px] text-white px-1 font-bold uppercase">Kept</div>
+                    <div className="bg-marker-green text-[8px] text-white px-1 font-bold uppercase">
+                      Kept
+                    </div>
                   </div>
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-marker-blue">{turn.role}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground">Task: {turn.taskId}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-marker-blue">
+                      {turn.role}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      Task: {turn.taskId}
+                    </span>
                   </div>
                   <p className="text-sm leading-snug">{turn.content}</p>
                 </div>

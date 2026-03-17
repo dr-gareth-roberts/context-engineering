@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { createRequire } from "module";
 import { promises as fs } from "fs";
 import type { ContextItem } from "@context-engineering/core";
 import {
@@ -27,6 +28,9 @@ import {
   isJsonMode,
 } from "./output.js";
 
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
+
 const program = new Command();
 
 program
@@ -34,11 +38,17 @@ program
   .description(
     "Context engineering CLI — pack, trace, diff, place, quality, handoff, pickup, cost, lint, and budget"
   )
-  .version("0.1.0")
+  .version(version)
   .option("--no-color", "Disable colored output")
   .option("--webhook-url <url>", "Webhook URL for analytics telemetry")
-  .option("--webhook-handoff-url <url>", "Webhook URL for handoff notifications")
-  .option("--webhook-quality-url <url>", "Webhook URL for quality regression alerts")
+  .option(
+    "--webhook-handoff-url <url>",
+    "Webhook URL for handoff notifications"
+  )
+  .option(
+    "--webhook-quality-url <url>",
+    "Webhook URL for quality regression alerts"
+  )
   .option("--webhook-cost-url <url>", "Webhook URL for cost anomaly alerts")
   .hook("preAction", thisCommand => {
     const opts = thisCommand.opts();
@@ -58,7 +68,15 @@ async function loadItems(input: string): Promise<ContextItem[]> {
     if (input === "-") {
       const raw = await readStdin();
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : (parsed.items ?? []);
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed.items)) return parsed.items;
+      if (Array.isArray(parsed.selected)) {
+        return [...parsed.selected, ...(parsed.dropped ?? [])];
+      }
+      return outputError(
+        "Invalid input: expected array, { items: [] }, or { selected: [] }",
+        "Pipe a JSON array of ContextItems or a ContextPack to stdin"
+      );
     }
     return await loadItemsFromFile(input);
   } catch (err) {
@@ -188,16 +206,14 @@ program
 program
   .command("diff")
   .description("Compare two context packs or item lists")
-  .requiredOption("--before <file>", "Before JSON file")
-  .requiredOption("--after <file>", "After JSON file")
+  .requiredOption("--before <file>", "Before JSON/JSONL file (use - for stdin)")
+  .requiredOption("--after <file>", "After JSON/JSONL file")
   .option("--json", "Force JSON output")
   .action(async options => {
     if (options.json) setForceJson(true);
     try {
-      const beforeRaw = await fs.readFile(options.before, "utf-8");
-      const afterRaw = await fs.readFile(options.after, "utf-8");
-      const before = JSON.parse(beforeRaw);
-      const after = JSON.parse(afterRaw);
+      const before = await loadItems(options.before);
+      const after = await loadItems(options.after);
       const result = runDiff(before, after);
       outputResult(result, () => {
         console.log(fmt.green(`+ Added: ${result.added.length}`));
@@ -206,11 +222,7 @@ program
         console.log(fmt.dim(`= Kept: ${result.kept.length}`));
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("ENOENT")) {
-        outputError("File not found", "Check --before and --after paths");
-      }
-      outputError(msg);
+      return outputError(err instanceof Error ? err.message : String(err));
     }
   });
 
@@ -222,13 +234,15 @@ program
     "Schema: context-item | context-pack | context-plan | context-trace | memory-item | cache-aware-pack | cost-estimate | beads-issue | pipeline-result | webhook-analytics"
   )
   .requiredOption("-i, --input <file>", "Path to JSON/JSONL")
+  .option("--json", "Force JSON output")
   .action(async options => {
+    if (options.json) setForceJson(true);
     try {
       const raw = await fs.readFile(options.input, "utf-8");
       const trimmed = raw.trim();
 
       if (!trimmed) {
-        outputError("Input file is empty");
+        return outputError("Input file is empty");
       }
 
       if (options.input.endsWith(".jsonl")) {
@@ -237,7 +251,7 @@ program
           const data = JSON.parse(line);
           const result = await lintFile(options.schema, data);
           if (!result.valid) {
-            outputError(
+            return outputError(
               `Line ${index + 1} failed validation`,
               JSON.stringify(result.errors, null, 2)
             );
@@ -254,7 +268,7 @@ program
       const data = JSON.parse(trimmed);
       const result = await lintFile(options.schema, data);
       if (!result.valid) {
-        outputError(
+        return outputError(
           "Validation failed",
           JSON.stringify(result.errors, null, 2)
         );
@@ -265,10 +279,14 @@ program
         console.log(fmt.success("Valid"));
       }
     } catch (err) {
-      if (err instanceof Error && err.message.includes("ENOENT")) {
-        outputError(`File not found: ${options.input}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("ENOENT")) {
+        return outputError(
+          `File not found: ${options.input}`,
+          "Check the file path and try again"
+        );
       }
-      outputError(err instanceof Error ? err.message : String(err));
+      return outputError(msg);
     }
   });
 
@@ -282,14 +300,16 @@ program
     "Token estimator: openai | anthropic | heuristic",
     ENV_PROVIDER
   )
+  .option("--json", "Force JSON output")
   .action(async options => {
+    if (options.json) setForceJson(true);
     try {
       let text = options.text as string | undefined;
       if (!text && options.file) {
         text = await fs.readFile(options.file, "utf-8");
       }
       if (!text) {
-        outputError("Provide --text or --file");
+        return outputError("Provide --text or --file");
       }
       const tokens = runBudget(text, {
         provider:
@@ -303,7 +323,7 @@ program
         );
       }
     } catch (err) {
-      outputError(err instanceof Error ? err.message : String(err));
+      return outputError(err instanceof Error ? err.message : String(err));
     }
   });
 

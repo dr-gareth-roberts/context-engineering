@@ -11,7 +11,9 @@ from .memory import MemoryItem, MemoryQuery, MemoryStore, _apply_query, _normali
 class RedisMemoryStore(MemoryStore):
     def __init__(self, url: str):
         if redis is None:
-            raise ImportError("redis package is required for RedisMemoryStore. Install it with `pip install redis`.")
+            raise ImportError(
+                "redis package is required for RedisMemoryStore. Install it with `pip install redis`."
+            )
         self.client = redis.from_url(url)
 
     async def aput(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
@@ -48,9 +50,16 @@ class RedisMemoryStore(MemoryStore):
         return item
 
     async def aquery(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
-        # Very simple scan-based query. Not recommended for huge databases.
-        # In a real production scenario, use RediSearch.
-        keys = await self.client.keys("ce_memory:*")
+        # Use SCAN instead of KEYS to avoid blocking the Redis server.
+        # In a real production scenario, use RediSearch for better performance.
+        keys: list = []
+        cursor = 0
+        while True:
+            cursor, batch = await self.client.scan(cursor, match="ce_memory:*", count=100)
+            keys.extend(batch)
+            if cursor == 0:
+                break
+
         if not keys:
             return []
 

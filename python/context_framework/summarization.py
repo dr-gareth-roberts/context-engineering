@@ -32,6 +32,11 @@ class RollingSummaryConfig:
             raise ValueError("keep_recent_messages must be >= 0")
         if self.target_tokens < 1:
             raise ValueError("target_tokens must be >= 1")
+        if self.keep_recent_messages >= self.trigger_messages:
+            raise ValueError(
+                "keep_recent_messages must be less than trigger_messages, "
+                "otherwise the rolling summary will never prune conversations"
+            )
 
 
 @dataclass(slots=True)
@@ -80,7 +85,8 @@ class HeuristicConversationSummarizer:
     def _clip_to_budget(self, text: str, max_tokens: int) -> str:
         if not text:
             return ""
-        assert self.token_counter is not None
+        if self.token_counter is None:
+            raise RuntimeError("token_counter is not set; ensure __post_init__ has run")
         if self.token_counter.count(text) <= max_tokens:
             return text
 

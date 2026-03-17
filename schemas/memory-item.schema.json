@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "MemoryItem",
+  "$id": "memory-item.schema.json",
   "title": "MemoryItem",
   "type": "object",
   "required": ["id", "content", "createdAt"],
@@ -9,9 +9,27 @@
     "content": { "type": "string" },
     "createdAt": { "type": "string" },
     "updatedAt": { "type": "string" },
+    "lastAccessedAt": {
+      "type": "string",
+      "description": "Timestamp of last access (Python SDK)"
+    },
     "salience": { "type": "number" },
-    "ttlSeconds": { "type": "number" },
-    "metadata": { "type": "object", "additionalProperties": true }
+    "ttlSeconds": { "type": "integer" },
+    "metadata": { "type": "object", "additionalProperties": true },
+    "isSummary": {
+      "type": "boolean",
+      "description": "Whether this item is a summary of other items (Python SDK)"
+    },
+    "embedding": {
+      "type": "array",
+      "items": { "type": "number" },
+      "description": "Vector embedding for semantic operations (Python SDK)"
+    },
+    "links": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs of related memory items (Python SDK)"
+    }
   },
   "additionalProperties": true
 }

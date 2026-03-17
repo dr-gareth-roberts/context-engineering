@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { Budget, ContextItem } from "./types.js";
+import { ValidationError, BudgetExceededError } from "./errors.js";
 
 export const CompressionSchema = z.object({
   content: z.string(),
@@ -26,11 +28,41 @@ export const BudgetSchema = z.object({
   reserveTokens: z.number().nonnegative().finite().optional(),
 });
 
-export const PackOptionsSchema = z
-  .object({
-    tokenEstimator: z.function().optional(),
-    scorer: z.function().optional(),
-    summarizer: z.function().optional(),
-    allowCompression: z.boolean().optional(),
-  })
-  .optional();
+/**
+ * Validate pack inputs (items and budget). Shared by pack() and packStream().
+ *
+ * @throws {ValidationError} If items or budget fail schema validation
+ * @throws {BudgetExceededError} If reserveTokens >= maxTokens
+ */
+export function validatePackInputs(items: ContextItem[], budget: Budget): void {
+  const budgetResult = BudgetSchema.safeParse(budget);
+  if (!budgetResult.success) {
+    throw new ValidationError(
+      `Invalid budget: ${budgetResult.error.issues.map((i: z.ZodIssue) => i.message).join(", ")}`,
+      budgetResult.error.issues.map((i: z.ZodIssue) => ({
+        path: i.path.join("."),
+        message: i.message,
+      }))
+    );
+  }
+
+  if (
+    budget.reserveTokens !== undefined &&
+    budget.reserveTokens >= budget.maxTokens
+  ) {
+    throw new BudgetExceededError(
+      `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
+    );
+  }
+
+  const itemsResult = z.array(ContextItemSchema).safeParse(items);
+  if (!itemsResult.success) {
+    throw new ValidationError(
+      `Invalid items: ${itemsResult.error.issues.map((i: z.ZodIssue) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+      itemsResult.error.issues.map((i: z.ZodIssue) => ({
+        path: i.path.join("."),
+        message: i.message,
+      }))
+    );
+  }
+}

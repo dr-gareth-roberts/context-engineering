@@ -4,14 +4,21 @@ import path from "path";
 import type { MemoryQuery, MemoryStore } from "./types.js";
 import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";
 
+export interface FileStoreOptions {
+  /** When true, skip lines that fail JSON.parse instead of throwing. */
+  skipCorruptedLines?: boolean;
+}
+
 export class FileStore implements MemoryStore {
   private filePath: string;
+  private options: FileStoreOptions;
   private items = new Map<string, MemoryItem>();
   private writeQueue: Promise<void> = Promise.resolve();
   private loadPromise: Promise<void> | null = null;
 
-  constructor(filePath: string) {
+  constructor(filePath: string, options: FileStoreOptions = {}) {
     this.filePath = filePath;
+    this.options = options;
   }
 
   private ensureLoaded(): Promise<void> {
@@ -28,8 +35,15 @@ export class FileStore implements MemoryStore {
       const content = await fs.readFile(this.filePath, "utf-8");
       const lines = content.split(/\r?\n/).filter(l => l.trim());
       for (const line of lines) {
-        const item = JSON.parse(line) as MemoryItem;
-        this.items.set(item.id, item);
+        try {
+          const item = JSON.parse(line) as MemoryItem;
+          this.items.set(item.id, item);
+        } catch (parseError) {
+          if (!this.options.skipCorruptedLines) {
+            throw parseError;
+          }
+          // Silently skip corrupted lines when opted in
+        }
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -41,7 +55,7 @@ export class FileStore implements MemoryStore {
   private persist(): Promise<void> {
     // Serialize writes through a queue to prevent concurrent .tmp file races.
     // The .catch(() => {}) on the assignment ensures a failed write does not
-    // permanently poison the queue — subsequent writes can still proceed.
+    // permanently poison the queue -- subsequent writes can still proceed.
     const write = this.writeQueue.then(async () => {
       const lines = Array.from(this.items.values()).map(item =>
         JSON.stringify(item)
@@ -85,5 +99,9 @@ export class FileStore implements MemoryStore {
     const deleted = this.items.delete(id);
     await this.persist();
     return deleted;
+  }
+
+  async close(): Promise<void> {
+    await this.writeQueue;
   }
 }

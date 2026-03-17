@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Optional, Union
 from .allocation import KindAllocation, pack_with_allocation
 from .bridge import BridgeOptions, memory_to_context
 from .cache_topology import CacheConfig, pack_with_cache_topology
-from .core import Budget, ContextItem, estimate_tokens, pack
+from .core import Budget, ContextItem, ScoringWeights, estimate_tokens, pack
 from .memory import MemoryItem
 from .placement import place_items
 from .quality import ContextQuality, analyze_context
@@ -137,11 +137,11 @@ class ContextPipeline:
         self, priority: float = 1.0, recency: float = 0.0, salience: float = 0.0
     ) -> "ContextPipeline":
         """Set scoring weights."""
-        self._pack_options["weights"] = {
-            "priority": priority,
-            "recency": recency,
-            "salience": salience,
-        }
+        self._pack_options["weights"] = ScoringWeights(
+            priority=priority,
+            recency=recency,
+            salience=salience,
+        )
         return self
 
     def build(self) -> PipelineResult:
@@ -203,7 +203,10 @@ class ContextPipeline:
 
         else:
             stages.append("pack")
-            result = pack(items, self._budget)
+            pack_kwargs: Dict[str, Any] = {}
+            if "weights" in self._pack_options:
+                pack_kwargs["weights"] = self._pack_options["weights"]
+            result = pack(items, self._budget, **pack_kwargs)
             selected = list(result.selected)
             dropped = list(result.dropped)
             total_tokens = result.total_tokens

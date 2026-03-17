@@ -7,31 +7,101 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Rate limiter with periodic cleanup to prevent memory leaks.
+ * Entries are purged every `cleanupIntervalMs` to remove expired windows.
+ */
+function createRateLimiter(windowMs: number, maxRequests: number) {
+  const state = new Map<string, { count: number; resetAtMs: number }>();
+  const cleanupIntervalMs = Math.max(windowMs, 60_000);
+
+  const cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of state) {
+      if (entry.resetAtMs <= now) {
+        state.delete(ip);
+      }
+    }
+  }, cleanupIntervalMs);
+
+  // Allow the process to exit even if the timer is still running
+  cleanupTimer.unref();
+
+  function check(ip: string): { allowed: boolean; retryAfterMs?: number } {
+    const now = Date.now();
+    const existing = state.get(ip);
+
+    if (!existing || existing.resetAtMs <= now) {
+      state.set(ip, { count: 1, resetAtMs: now + windowMs });
+      return { allowed: true };
+    }
+
+    existing.count += 1;
+    if (existing.count > maxRequests) {
+      return { allowed: false, retryAfterMs: existing.resetAtMs - now };
+    }
+
+    return { allowed: true };
+  }
+
+  function dispose() {
+    clearInterval(cleanupTimer);
+    state.clear();
+  }
+
+  return { check, dispose };
+}
+
 async function startServer() {
   const app = express();
+
+  // Trust the first proxy hop (standard for reverse proxies / load balancers).
+  // This makes req.ip return the real client IP from X-Forwarded-For.
+  app.set("trust proxy", 1);
+
+  // ── Security headers (applied to all responses) ──────────────────────
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "0");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()"
+    );
+    if (process.env.NODE_ENV === "production") {
+      res.setHeader(
+        "Strict-Transport-Security",
+        "max-age=63072000; includeSubDomains"
+      );
+    }
+    next();
+  });
+
   const server = createServer(app);
 
   app.get("/healthz", (_req, res) => {
     res.status(200).json({ status: "ok" });
   });
 
-  // Setup proxy to FastAPI backend for /api routes
+  // ── Proxy configuration ──────────────────────────────────────────────
   const backendPort = Number(process.env.BACKEND_PORT || 8000);
   const backendUrl =
     process.env.BACKEND_URL || `http://127.0.0.1:${backendPort}`;
 
+  // CORS: In production, require explicit CORS_ORIGIN. In development,
+  // default to the local dev server origin so credentials work correctly.
   const corsOrigin =
     process.env.CORS_ORIGIN ||
-    (process.env.NODE_ENV === "production" ? "" : "*");
+    (process.env.NODE_ENV === "production"
+      ? undefined
+      : "http://localhost:3000");
 
   const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
   const rateLimitMax = Number(process.env.RATE_LIMIT_MAX || 120);
+  const rateLimiter = createRateLimiter(rateLimitWindowMs, rateLimitMax);
 
-  const rateLimitState = new Map<
-    string,
-    { count: number; resetAtMs: number }
-  >();
-
+  // ── API middleware: CORS + rate limiting ──────────────────────────────
   app.use("/api", (req, res, next) => {
     if (corsOrigin) {
       res.header("Access-Control-Allow-Origin", corsOrigin);
@@ -43,6 +113,7 @@ async function startServer() {
         "Access-Control-Allow-Headers",
         "Content-Type, Authorization, X-Requested-With"
       );
+      res.header("Access-Control-Allow-Credentials", "true");
     }
 
     if (req.method === "OPTIONS") {
@@ -50,21 +121,12 @@ async function startServer() {
     }
 
     const ip = req.ip || req.socket.remoteAddress || "unknown";
-    const now = Date.now();
-    const existing = rateLimitState.get(ip);
-    if (!existing || existing.resetAtMs <= now) {
-      rateLimitState.set(ip, { count: 1, resetAtMs: now + rateLimitWindowMs });
-      return next();
-    }
-
-    existing.count += 1;
-    if (existing.count > rateLimitMax) {
-      res
-        .status(429)
-        .json({
-          error: "rate_limited",
-          retryAfterMs: existing.resetAtMs - now,
-        });
+    const result = rateLimiter.check(ip);
+    if (!result.allowed) {
+      res.status(429).json({
+        error: "rate_limited",
+        retryAfterMs: result.retryAfterMs,
+      });
       return;
     }
 
@@ -76,13 +138,10 @@ async function startServer() {
     createProxyMiddleware({
       target: backendUrl,
       changeOrigin: true,
-      pathRewrite: {
-        "^/api": "/api", // Keep /api prefix
-      },
     })
   );
 
-  // Serve static files from dist/public in production
+  // ── Static files & SPA fallback ─────────────────────────────────────
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "public")
@@ -98,9 +157,30 @@ async function startServer() {
   const port = process.env.PORT || 3000;
 
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
-    console.log(`Proxying /api to ${backendUrl}/`);
+    console.warn(`Server running on http://localhost:${port}/`);
+    console.warn(`Proxying /api to ${backendUrl}/`);
   });
+
+  // ── Graceful shutdown ────────────────────────────────────────────────
+  function shutdown(signal: string) {
+    console.warn(`Received ${signal}, shutting down gracefully...`);
+    rateLimiter.dispose();
+    server.close(() => {
+      console.warn("Server closed");
+      process.exit(0);
+    });
+    // Force exit after 10s if connections are not drained
+    setTimeout(() => {
+      console.error("Forcing shutdown after timeout");
+      process.exit(1);
+    }, 10_000).unref();
+  }
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-startServer().catch(console.error);
+startServer().catch(err => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});

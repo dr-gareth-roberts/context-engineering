@@ -6,7 +6,7 @@ Mirrors the TypeScript error types in @ce/core for cross-language parity.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from typing import Iterable, List, Mapping
 
 
 class ContextEngineeringError(Exception):
@@ -30,9 +30,21 @@ class ValidationError(ContextEngineeringError):
 
     details: List[ValidationDetail]
 
-    def __init__(self, message: str, details: List[ValidationDetail] | None = None):
+    def __init__(
+        self,
+        message: str,
+        details: Iterable[ValidationDetail | Mapping[str, str]] | None = None,
+    ):
         super().__init__(message, "VALIDATION_ERROR")
-        self.details = details or []
+        normalized: List[ValidationDetail] = []
+        for detail in details or []:
+            if isinstance(detail, ValidationDetail):
+                normalized.append(detail)
+                continue
+            path = str(detail.get("path", ""))
+            message_text = str(detail.get("message", ""))
+            normalized.append(ValidationDetail(path=path, message=message_text))
+        self.details = normalized
 
 
 class BudgetExceededError(ContextEngineeringError):

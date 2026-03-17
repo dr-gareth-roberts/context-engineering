@@ -35,8 +35,11 @@ jobs:
       - name: Build
         run: pnpm build:all
 
-      - name: Test
-        run: pnpm test:all
+      - name: Test packages (unit tests)
+        run: pnpm test:packages
+
+      - name: Test app (type check + build)
+        run: pnpm test
 
   python:
     name: Python

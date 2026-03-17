@@ -47,7 +47,7 @@ describe("packStream", () => {
     expect(selected.length).toBe(0);
   });
 
-  it("drops items with compressions instead of compressing them", async () => {
+  it("drops items without compression when allowCompression is not set", async () => {
     const compressibleItems: ContextItem[] = [
       {
         id: "big",
@@ -61,7 +61,58 @@ describe("packStream", () => {
     for await (const item of packStream(compressibleItems, { maxTokens: 50 })) {
       selected.push(item);
     }
-    // packStream does not apply compressions — items that exceed budget are simply skipped
+    // Without allowCompression, items that exceed budget are skipped
     expect(selected.length).toBe(0);
+  });
+
+  it("compresses items when allowCompression is enabled", async () => {
+    const compressibleItems: ContextItem[] = [
+      {
+        id: "big",
+        content: "Large content",
+        priority: 10,
+        tokens: 200,
+        compressions: [{ content: "Small", tokens: 20, note: "summary" }],
+      },
+    ];
+    const selected: ContextItem[] = [];
+    for await (const item of packStream(
+      compressibleItems,
+      { maxTokens: 50 },
+      { allowCompression: true }
+    )) {
+      selected.push(item);
+    }
+    expect(selected.length).toBe(1);
+    expect(selected[0].content).toBe("Small");
+    expect(selected[0].tokens).toBe(20);
+  });
+
+  it("picks largest fitting compression for best quality", async () => {
+    const compressibleItems: ContextItem[] = [
+      {
+        id: "big",
+        content: "Original very long content",
+        priority: 10,
+        tokens: 200,
+        compressions: [
+          { content: "Tiny", tokens: 10, note: "very short" },
+          { content: "Medium summary", tokens: 40, note: "medium" },
+          { content: "Full summary that is larger", tokens: 80, note: "full" },
+        ],
+      },
+    ];
+    const selected: ContextItem[] = [];
+    for await (const item of packStream(
+      compressibleItems,
+      { maxTokens: 50 },
+      { allowCompression: true }
+    )) {
+      selected.push(item);
+    }
+    // Should pick the 40-token "Medium summary" (largest that fits in 50)
+    expect(selected.length).toBe(1);
+    expect(selected[0].content).toBe("Medium summary");
+    expect(selected[0].tokens).toBe(40);
   });
 });

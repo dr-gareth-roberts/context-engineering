@@ -47,7 +47,7 @@ export function useComposition<
   });
 
   const onCompositionEnd = usePersistFn((e: React.CompositionEvent<T>) => {
-    // 使用两层 setTimeout 来处理 Safari 浏览器中 compositionEnd 先于 onKeyDown 触发的问题
+    // Two nested setTimeouts handle Safari where compositionEnd fires before onKeyDown
     timer.current = setTimeout(() => {
       timer2.current = setTimeout(() => {
         c.current = false;
@@ -57,7 +57,7 @@ export function useComposition<
   });
 
   const onKeyDown = usePersistFn((e: React.KeyboardEvent<T>) => {
-    // 在 composition 状态下，阻止 ESC 和 Enter（非 shift+Enter）事件的冒泡
+    // While composing, block Escape and Enter (non-shift) from propagating
     if (
       c.current &&
       (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey))

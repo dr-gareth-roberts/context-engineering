@@ -30,8 +30,8 @@ export default tseslint.config(
       "**/*.test.ts",
       "**/*.config.ts",
       "**/*.config.js",
-      "client/**",
-      "server/**",
+      "packages/ce-web-client/**",
+      "shared/**",
       "examples/**",
     ],
   }

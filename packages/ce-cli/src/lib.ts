@@ -31,7 +31,6 @@ import type {
   TokenEstimator,
   PlacementStrategy,
   ContextQuality,
-  CacheAwarePack,
   HandoffResult,
   PickupResult,
   CostEstimate,
@@ -140,11 +139,16 @@ export function runBudget(
   });
 }
 
+/**
+ * Walk up from startDir looking for a "schemas" directory.
+ * Stops at the filesystem root.
+ */
 function findSchemasDir(startDir: string): string | null {
   let current = startDir;
-  for (let i = 0; i < 8; i += 1) {
+  // Walk to the root -- path.dirname(root) === root stops the loop
+  while (true) {
     const candidate = path.join(current, "schemas");
-    if (fsExistsSync(candidate)) return candidate;
+    if (existsSync(candidate)) return candidate;
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
@@ -152,15 +156,13 @@ function findSchemasDir(startDir: string): string | null {
   return null;
 }
 
-function fsExistsSync(target: string): boolean {
-  try {
-    return existsSync(target);
-  } catch {
-    return false;
-  }
-}
+// Schema cache: loaded once per process, reused across lintFile calls.
+let cachedSchemas: Record<string, unknown> | null = null;
+let cachedAjv: InstanceType<typeof _Ajv.default> | null = null;
 
 export async function loadSchemas(): Promise<Record<string, unknown>> {
+  if (cachedSchemas) return cachedSchemas;
+
   const cwd = process.cwd();
   const baseDir =
     findSchemasDir(cwd) ??
@@ -177,11 +179,15 @@ export async function loadSchemas(): Promise<Record<string, unknown>> {
       schemas[key] = JSON.parse(content);
     })
   );
+  cachedSchemas = schemas;
   return schemas;
 }
 
-export async function lintFile(schemaName: SchemaName, data: unknown) {
-  const schemas = await loadSchemas();
+function getAjv(
+  schemas: Record<string, unknown>
+): InstanceType<typeof _Ajv.default> {
+  if (cachedAjv) return cachedAjv;
+
   const ajv = new Ajv({
     allErrors: true,
     strict: false,
@@ -191,6 +197,14 @@ export async function lintFile(schemaName: SchemaName, data: unknown) {
   Object.values(schemas).forEach(schema => {
     ajv.addSchema(schema as Record<string, unknown>);
   });
+
+  cachedAjv = ajv;
+  return ajv;
+}
+
+export async function lintFile(schemaName: SchemaName, data: unknown) {
+  const schemas = await loadSchemas();
+  const ajv = getAjv(schemas);
 
   const schema = schemas[schemaName];
   if (!schema) throw new Error(`Unknown schema: ${schemaName}`);
@@ -343,6 +357,9 @@ export function runPickup(
   if (options.ready) {
     const allIssues = readBeadsJSONL(jsonl);
     const ready = getReadyIssues(allIssues);
+    // BEADS IDs use "ce-" prefix (contextItemToBeads creates "ce-{id}"),
+    // and beadsToContextItem strips it back, so recovered item.id matches
+    // the original. We reconstruct the BEADS ID here for the comparison.
     return {
       ...result,
       items: result.items.filter(item =>
@@ -373,7 +390,7 @@ export function runCost(
     {
       tokenEstimator: resolveTokenEstimator(options.provider),
     }
-  ) as CacheAwarePack;
+  );
 
   const estimate = estimateCost(packed, model, options.outputTokens);
 

@@ -121,6 +121,53 @@ class ContextManagerTests(unittest.TestCase):
         summary_sources = [item.source for item in packet.items if item.kind == ContextKind.SUMMARY]
         self.assertIn("rolling-conversation", summary_sources)
 
+    def test_build_messages_abstains_when_only_system_context_is_high_confidence(self) -> None:
+        manager = ContextManager(default_token_budget=60, reserved_response_tokens=10)
+        manager.add_system("Follow policy exactly.", source="policy", importance=1.0)
+        manager.add_document("Weak evidence.", source="doc", importance=0.2)
+
+        messages = manager.build_messages(
+            "What happened?",
+            abstain_on_low_confidence=True,
+            min_confidence_threshold=0.5,
+        )
+
+        self.assertEqual(
+            messages,
+            [{"role": "system", "content": "I abstain: insufficient evidence to answer."}],
+        )
+
+    def test_build_messages_abstains_without_evidence(self) -> None:
+        manager = ContextManager(default_token_budget=80, reserved_response_tokens=20)
+        manager.add_system("You are a precise assistant.", source="policy", importance=1.0)
+
+        messages = manager.build_messages(
+            "What happened?",
+            abstain_on_low_confidence=True,
+            min_confidence_threshold=0.4,
+        )
+
+        self.assertEqual(
+            messages,
+            [{"role": "system", "content": "I abstain: insufficient evidence to answer."}],
+        )
+
+    def test_build_messages_uses_evidence_confidence(self) -> None:
+        manager = ContextManager(default_token_budget=80, reserved_response_tokens=20)
+        manager.add_system("You are a precise assistant.", source="policy", importance=1.0)
+        manager.add_document("Incident timeline", source="timeline", importance=0.8)
+
+        messages = manager.build_messages(
+            "What happened?",
+            abstain_on_low_confidence=True,
+            min_confidence_threshold=0.4,
+        )
+
+        self.assertNotEqual(
+            messages,
+            [{"role": "system", "content": "I abstain: insufficient evidence to answer."}],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

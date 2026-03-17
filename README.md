@@ -87,19 +87,19 @@ Scoring formula: `priority × 1.0 + recency × 0.7 + salience × 0.5`
 
 Each extends the core pack/item model. Use when needed, ignore when not.
 
-| Feature                    | Entry point                           | Purpose                                                     |
-| -------------------------- | ------------------------------------- | ----------------------------------------------------------- |
-| **Causal Compaction**      | `createCausalScorer()`                | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
-| **Cache topology**         | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse        |
-| **Allocation**     | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints    |
-| **Sessions**       | `createSession()`                     | Track what changed between context compiles                 |
-| **Pipeline**       | `pipeline(budget)`                    | Fluent builder: `.add().allocate().cacheTopology().build()` |
-| **Placement**      | `placeItems()`                        | Reorder items by model attention profile (start/end bias)   |
-| **Quality**        | `analyzeContext()`                    | Density, diversity, freshness, redundancy scores            |
-| **Cost**           | `estimateCost()`                      | Dollar cost with prefix cache savings                       |
-| **BEADS handoff**  | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context for agent-to-agent transfer   |
-| **Compaction**     | `createContextManager()`              | Auto-summarize old turns in conversation                    |
-| **Stream**         | `packStream()`                        | Async generator variant of pack                             |
+| Feature               | Entry point                           | Purpose                                                                           |
+| --------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
+| **Causal Compaction** | `createCausalScorer()`                | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
+| **Cache topology**    | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse                              |
+| **Allocation**        | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints                          |
+| **Sessions**          | `createSession()`                     | Track what changed between context compiles                                       |
+| **Pipeline**          | `pipeline(budget)`                    | Fluent builder: `.add().allocate().cacheTopology().build()`                       |
+| **Placement**         | `placeItems()`                        | Reorder items by model attention profile (start/end bias)                         |
+| **Quality**           | `analyzeContext()`                    | Density, diversity, freshness, redundancy scores                                  |
+| **Cost**              | `estimateCost()`                      | Dollar cost with prefix cache savings                                             |
+| **BEADS handoff**     | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context for agent-to-agent transfer                         |
+| **Compaction**        | `createContextManager()`              | Auto-summarize old turns in conversation                                          |
+| **Stream**            | `packStream()`                        | Async generator variant of pack                                                   |
 
 ### Pipeline Example
 
@@ -211,10 +211,13 @@ pip install -e ".[dev]"
 ### Testing
 
 ```bash
-# All TypeScript tests (389 tests)
+# Root web/tooling smoke test
+pnpm test
+
+# All TypeScript tests (root smoke test + package suites)
 pnpm test:all
 
-# All Python tests (398 tests)
+# All Python tests
 cd python && python -m pytest
 
 # Single TS package
@@ -227,7 +230,8 @@ cd python && python -m pytest tests/test_core.py
 ### Type Checking
 
 ```bash
-pnpm check:all    # TypeScript strict mode across all packages
+pnpm check        # Web app + server
+pnpm check:all    # Root app plus all TypeScript packages
 ```
 
 ## Examples

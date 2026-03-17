@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Callable, Protocol, Sequence
 
@@ -49,22 +50,32 @@ def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     return dot / (left_norm * right_norm)
 
 
+_DEFAULT_EMBEDDING_CACHE_SIZE = 2048
+
+
 @dataclass(slots=True)
 class EmbeddingScorer:
     """
     Relevance scorer backed by a user-supplied embedder function.
+
+    The embedding cache is bounded to ``max_cache_size`` entries (LRU eviction)
+    to prevent unbounded memory growth in long-running processes.
     """
 
     embed: Callable[[str], Sequence[float]]
-    _cache: dict[str, tuple[float, ...]] = field(default_factory=dict)
+    max_cache_size: int = _DEFAULT_EMBEDDING_CACHE_SIZE
+    _cache: OrderedDict[str, tuple[float, ...]] = field(default_factory=OrderedDict)
 
     def _embed_cached(self, text: str) -> tuple[float, ...]:
         cached = self._cache.get(text)
         if cached is not None:
+            self._cache.move_to_end(text)
             return cached
 
         vector = tuple(float(v) for v in self.embed(text))
         self._cache[text] = vector
+        if len(self._cache) > self.max_cache_size:
+            self._cache.popitem(last=False)
         return vector
 
     def score(self, query: str, item: ContextItem) -> float:

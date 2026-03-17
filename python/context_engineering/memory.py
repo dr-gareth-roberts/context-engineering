@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
 import os
 import sqlite3
 import threading
@@ -12,6 +11,8 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
+
+from ._similarity import cosine_similarity as _cosine_similarity
 
 logger = structlog.get_logger(__name__)
 
@@ -92,15 +93,6 @@ def _normalize(item: MemoryItem | Dict[str, Any]) -> MemoryItem:
     return MemoryItem.model_validate(item)
 
 
-def _cosine_similarity(v1: List[float], v2: List[float]) -> float:
-    dot_product = sum(a * b for a, b in zip(v1, v2))
-    m1 = math.sqrt(sum(a * a for a in v1))
-    m2 = math.sqrt(sum(a * a for a in v2))
-    if not m1 or not m2:
-        return 0.0
-    return dot_product / (m1 * m2)
-
-
 def _apply_query(items: List[MemoryItem], query: MemoryQuery) -> List[MemoryItem]:
     now_ms = query.now or int(datetime.now(timezone.utc).timestamp() * 1000)
     scored: List[tuple[MemoryItem, float]] = []
@@ -113,8 +105,10 @@ def _apply_query(items: List[MemoryItem], query: MemoryQuery) -> List[MemoryItem
                     c_ms = int(datetime.fromisoformat(item.created_at).timestamp() * 1000)
                     if c_ms + item.ttl_seconds * 1000 <= now_ms:
                         continue
-                except Exception:
-                    pass
+                except (ValueError, TypeError, OSError) as exc:
+                    logger.warning(
+                        "Bad created_at for item %s, treating as non-expired: %s", item.id, exc
+                    )
 
         # 2. Salience Calculation (with time decay)
         salience = item.salience or 1.0
@@ -124,13 +118,16 @@ def _apply_query(items: List[MemoryItem], query: MemoryQuery) -> List[MemoryItem
                 age_s = (now_ms - c_ms) / 1000
                 decay = 0.5 ** (age_s / query.half_life_seconds)
                 salience *= decay
-            except Exception:
-                pass
+            except (ValueError, TypeError, OSError) as exc:
+                logger.warning("Bad created_at for item %s, skipping decay: %s", item.id, exc)
 
         # 3. Vector Similarity (Semantic Relevance)
         relevance = 0.0
         if query.vector and item.embedding:
-            relevance = _cosine_similarity(query.vector, item.embedding)
+            try:
+                relevance = _cosine_similarity(query.vector, item.embedding)
+            except ValueError:
+                relevance = 0.0
         elif query.vector:
             # If query has vector but item doesn't, it's effectively 0 relevance
             relevance = 0.0
@@ -173,9 +170,10 @@ class InMemoryStore(MemoryStore):
     def get(self, item_id: str) -> Optional[MemoryItem]:
         with self._lock:
             item = self._items.get(item_id)
-            if item:
-                item.last_accessed_at = _now_iso()
-        return item
+            if item is None:
+                return None
+            item.last_accessed_at = _now_iso()
+            return item.model_copy()
 
     def query(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
         with self._lock:
@@ -238,7 +236,7 @@ class FileStore(MemoryStore):
                     try:
                         i = MemoryItem.model_validate(json.loads(stripped))
                         self._items[i.id] = i
-                    except (json.JSONDecodeError, Exception) as exc:
+                    except Exception as exc:
                         logger.warning(
                             "Skipping corrupted line %d in %s: %s", lineno, self.file_path, exc
                         )

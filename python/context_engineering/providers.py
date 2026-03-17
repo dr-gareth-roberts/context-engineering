@@ -37,6 +37,13 @@ class OpenAIProvider:
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        self._client: Optional[httpx.Client] = None
+
+    def _get_client(self) -> httpx.Client:
+        if self._client is None or self._client.is_closed:
+            headers = {"Authorization": f"Bearer {self.api_key}"}
+            self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=30)
+        return self._client
 
     def generate(
         self,
@@ -55,11 +62,10 @@ class OpenAIProvider:
             "temperature": temperature,
         }
 
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        with httpx.Client(base_url=self.base_url, headers=headers, timeout=30) as client:
-            response = client.post("/chat/completions", json=payload)
-            response.raise_for_status()
-            data = response.json()
+        client = self._get_client()
+        response = client.post("/chat/completions", json=payload)
+        response.raise_for_status()
+        data = response.json()
 
         text = data["choices"][0]["message"]["content"]
         usage = data.get("usage", {})
@@ -79,11 +85,10 @@ class OpenAIProvider:
             "input": texts,
         }
 
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        with httpx.Client(base_url=self.base_url, headers=headers, timeout=30) as client:
-            response = client.post("/embeddings", json=payload)
-            response.raise_for_status()
-            data = response.json()
+        client = self._get_client()
+        response = client.post("/embeddings", json=payload)
+        response.raise_for_status()
+        data = response.json()
 
         vectors = [item["embedding"] for item in data["data"]]
         return EmbeddingResult(vectors=vectors, model=data.get("model", model))
@@ -100,6 +105,16 @@ class CerebrasProvider:
         self.base_url = base_url or os.environ.get(
             "CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"
         )
+        self._client: Optional[httpx.Client] = None
+
+    def _get_client(self) -> httpx.Client:
+        if self._client is None or self._client.is_closed:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+            self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=30)
+        return self._client
 
     def score_perplexity(self, text: str, model: str = "llama3.1-8b") -> float:
         """
@@ -109,7 +124,6 @@ class CerebrasProvider:
         if not self.api_key:
             raise ValueError("CEREBRAS_API_KEY is required")
 
-        # Cerebras perplexity requires 'echo': True and 'logprobs'
         payload = {
             "model": model,
             "prompt": text,
@@ -118,12 +132,10 @@ class CerebrasProvider:
             "max_tokens": 0,
         }
 
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-
-        with httpx.Client(base_url=self.base_url, headers=headers, timeout=30) as client:
-            response = client.post("/completions", json=payload)
-            response.raise_for_status()
-            data = response.json()
+        client = self._get_client()
+        response = client.post("/completions", json=payload)
+        response.raise_for_status()
+        data = response.json()
 
         logprobs_data = data["choices"][0]["logprobs"]
         token_logprobs = logprobs_data["token_logprobs"]
@@ -143,6 +155,16 @@ class AnthropicProvider:
         self.base_url = base_url or os.environ.get(
             "ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"
         )
+        self._client: Optional[httpx.Client] = None
+
+    def _get_client(self) -> httpx.Client:
+        if self._client is None or self._client.is_closed:
+            headers = {
+                "x-api-key": self.api_key,
+                "anthropic-version": "2023-06-01",
+            }
+            self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=30)
+        return self._client
 
     def generate(
         self,
@@ -167,15 +189,10 @@ class AnthropicProvider:
         if system:
             payload["system"] = system
 
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-        }
-
-        with httpx.Client(base_url=self.base_url, headers=headers, timeout=30) as client:
-            response = client.post("/messages", json=payload)
-            response.raise_for_status()
-            data = response.json()
+        client = self._get_client()
+        response = client.post("/messages", json=payload)
+        response.raise_for_status()
+        data = response.json()
 
         content_blocks = data.get("content", [])
         text = "".join(block.get("text", "") for block in content_blocks)

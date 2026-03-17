@@ -552,6 +552,3 @@ def validate_use_case_catalog(
             raise ValueError(
                 f"{spec.use_case_id} cerebras max_completion_tokens must be at least 200"
             )
-
-
-validate_use_case_catalog()
