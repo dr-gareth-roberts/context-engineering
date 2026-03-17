@@ -3,6 +3,8 @@ import { useComposition } from "@/hooks/useComposition";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
+type ComposingNativeKeyboardEvent = KeyboardEvent & { isComposing?: boolean };
+
 function Textarea({
   className,
   onKeyDown,
@@ -22,7 +24,7 @@ function Textarea({
     onKeyDown: e => {
       // Check if this is an Enter key that should be blocked
       const isComposing =
-        (e.nativeEvent as any).isComposing ||
+        (e.nativeEvent as ComposingNativeKeyboardEvent).isComposing ||
         dialogComposition.justEndedComposing();
 
       // If Enter key is pressed while composing or just after composition ended,

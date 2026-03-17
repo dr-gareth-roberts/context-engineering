@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "PipelineResult",
+  "$id": "pipeline-result.schema.json",
   "title": "PipelineResult",
   "description": "Result of a composable context pipeline build",
   "type": "object",
@@ -15,26 +15,26 @@
   "properties": {
     "selected": {
       "type": "array",
-      "items": { "$ref": "ContextItem" }
+      "items": { "$ref": "context-item.schema.json" }
     },
     "dropped": {
       "type": "array",
-      "items": { "$ref": "ContextItem" }
+      "items": { "$ref": "context-item.schema.json" }
     },
-    "totalTokens": { "type": "number" },
+    "totalTokens": { "type": "integer" },
     "budget": {
       "type": "object",
       "required": ["maxTokens"],
       "properties": {
-        "maxTokens": { "type": "number" },
-        "reserveTokens": { "type": "number" }
+        "maxTokens": { "type": "integer" },
+        "reserveTokens": { "type": "integer" }
       }
     },
     "quality": {
       "type": "object",
       "properties": {
-        "itemCount": { "type": "number" },
-        "totalTokens": { "type": "number" },
+        "itemCount": { "type": "integer" },
+        "totalTokens": { "type": "integer" },
         "density": { "type": "number" },
         "diversity": { "type": "number" },
         "freshness": { "type": "number" },
@@ -44,20 +44,26 @@
     },
     "cacheKey": { "type": "string" },
     "cacheEfficiency": { "type": "number" },
-    "cacheableTokens": { "type": "number" },
+    "cacheableTokens": { "type": "integer" },
     "delta": {
       "type": ["object", "null"],
       "properties": {
-        "added": { "type": "array", "items": { "$ref": "ContextItem" } },
+        "added": {
+          "type": "array",
+          "items": { "$ref": "context-item.schema.json" }
+        },
         "removedIds": { "type": "array", "items": { "type": "string" } },
-        "changed": { "type": "array", "items": { "$ref": "ContextItem" } },
-        "keptCount": { "type": "number" },
-        "deltaTokens": { "type": "number" }
+        "changed": {
+          "type": "array",
+          "items": { "$ref": "context-item.schema.json" }
+        },
+        "keptCount": { "type": "integer" },
+        "deltaTokens": { "type": "integer" }
       }
     },
     "allocations": { "type": "object", "additionalProperties": true },
     "allocationEfficiency": { "type": "number" },
-    "inputCount": { "type": "number" },
+    "inputCount": { "type": "integer" },
     "stages": {
       "type": "array",
       "items": { "type": "string" }

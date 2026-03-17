@@ -25,7 +25,7 @@ class ApproxTokenCounter:
     def count(self, text: str) -> int:
         body = text.strip()
         if not body:
-            return self._min_tokens
+            return 0
         return max(self._min_tokens, math.ceil(len(body) / self._chars_per_token))
 
 

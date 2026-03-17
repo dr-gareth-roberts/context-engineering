@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "CacheAwarePack",
+  "$id": "cache-aware-pack.schema.json",
   "title": "CacheAwarePack",
   "description": "Cache-topology-aware context pack with prefix caching metadata",
   "type": "object",
@@ -20,30 +20,30 @@
       "type": "object",
       "required": ["maxTokens"],
       "properties": {
-        "maxTokens": { "type": "number" },
-        "reserveTokens": { "type": "number" }
+        "maxTokens": { "type": "integer" },
+        "reserveTokens": { "type": "integer" }
       }
     },
     "selected": {
       "type": "array",
-      "items": { "$ref": "ContextItem" }
+      "items": { "$ref": "context-item.schema.json" }
     },
     "dropped": {
       "type": "array",
-      "items": { "$ref": "ContextItem" }
+      "items": { "$ref": "context-item.schema.json" }
     },
-    "totalTokens": { "type": "number" },
+    "totalTokens": { "type": "integer" },
     "stats": { "type": "object", "additionalProperties": true },
     "cacheKey": {
       "type": "string",
       "description": "Hash of the stable prefix — same hash means cache hit"
     },
     "cacheableTokens": {
-      "type": "number",
+      "type": "integer",
       "description": "Tokens in the stable prefix (cacheable)"
     },
     "volatileTokens": {
-      "type": "number",
+      "type": "integer",
       "description": "Tokens in the volatile suffix (changes per request)"
     },
     "cacheEfficiency": {
@@ -54,7 +54,7 @@
     },
     "partitionBoundaries": {
       "type": "array",
-      "items": { "type": "number" },
+      "items": { "type": "integer" },
       "description": "Partition boundaries: [staticEnd, sessionEnd]"
     }
   },

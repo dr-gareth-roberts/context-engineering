@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { Check, Copy } from "lucide-react";
 import hljs from "highlight.js/lib/core";
 import typescript from "highlight.js/lib/languages/typescript";
@@ -27,26 +27,38 @@ export function CodeBlock({
   showLineNumbers = false,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
-  const codeRef = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    if (codeRef.current && language !== "text") {
-      hljs.highlightElement(codeRef.current);
+  // Produce highlighted HTML via hljs.highlight() instead of mutating DOM
+  // with highlightElement(). This avoids double-highlighting on re-render.
+  // Safe: hljs tokenizes code text into <span> elements -- no user HTML passes through.
+  const highlightedHtml = useMemo(() => {
+    if (language === "text" || !hljs.getLanguage(language)) {
+      return null;
+    }
+    try {
+      return hljs.highlight(code, { language }).value;
+    } catch {
+      return null;
     }
   }, [code, language]);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API may fail if page is not focused, not served over
+      // HTTPS, or permissions are denied. Silently degrade.
+    }
   };
 
   const lines = code.split("\n");
 
   return (
-    <div className="relative group rounded-lg overflow-hidden border-2 border-marker-black bg-[#FDFDFD] my-4 shadow-[4px_4px_0_0_rgba(45,52,54,0.1)]">
+    <div className="relative group rounded-lg overflow-hidden border-2 border-marker-black bg-card my-4 shadow-[4px_4px_0_0_rgba(45,52,54,0.1)]">
       {title && (
-        <div className="flex items-center justify-between px-4 py-2 bg-white border-b-2 border-marker-black/10">
+        <div className="flex items-center justify-between px-4 py-2 bg-card border-b-2 border-marker-black/10">
           <span className="text-sm font-mono marker-black">{title}</span>
           <span className="text-xs font-mono text-muted-foreground uppercase">
             {language}
@@ -56,28 +68,36 @@ export function CodeBlock({
       <div className="relative">
         <button
           onClick={handleCopy}
-          className="absolute top-3 right-3 p-2 rounded-md bg-white border border-marker-black/20 hover:bg-gray-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
+          className="absolute top-3 right-3 p-2 rounded-md bg-card border border-marker-black/20 hover:bg-muted transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
           aria-label="Copy code"
         >
           {copied ? (
-            <Check className="w-4 h-4 text-green-600" />
+            <Check className="w-4 h-4 text-marker-green" />
           ) : (
             <Copy className="w-4 h-4 marker-black/60" />
           )}
         </button>
         <pre className="p-4 overflow-x-auto text-sm bg-transparent">
-          <code ref={codeRef} className={`language-${language} text-slate-900`}>
-            {showLineNumbers
-              ? lines.map((line, i) => (
-                  <div key={i} className="flex">
-                    <span className="select-none text-muted-foreground/40 w-8 text-right mr-4 shrink-0 font-mono">
-                      {i + 1}
-                    </span>
-                    <span>{line}</span>
-                  </div>
-                ))
-              : code}
-          </code>
+          {showLineNumbers ? (
+            <code className={`language-${language} text-foreground`}>
+              {lines.map((line, i) => (
+                <div key={i} className="flex">
+                  <span className="select-none text-muted-foreground/40 w-8 text-right mr-4 shrink-0 font-mono">
+                    {i + 1}
+                  </span>
+                  <span>{line}</span>
+                </div>
+              ))}
+            </code>
+          ) : highlightedHtml ? (
+            <code className={`language-${language} text-foreground hljs`}>
+              <span dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+            </code>
+          ) : (
+            <code className={`language-${language} text-foreground`}>
+              {code}
+            </code>
+          )}
         </pre>
       </div>
       {copied && (

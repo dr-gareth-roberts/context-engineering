@@ -3,6 +3,7 @@ import { InMemoryStore } from "./in-memory-store.js";
 import { FileStore } from "./file-store.js";
 import { SqliteStore } from "./sqlite-store.js";
 import { createMemoryStore } from "./factory.js";
+import { normalizeMemoryItem, decaySalience } from "./utils.js";
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
@@ -24,6 +25,65 @@ afterEach(async () => {
 function tempPath(name: string) {
   return path.join(tempDir, name);
 }
+
+describe("normalizeMemoryItem", () => {
+  it("throws when content is missing", () => {
+    expect(() => normalizeMemoryItem({})).toThrow("content");
+  });
+
+  it("throws when content is undefined", () => {
+    expect(() => normalizeMemoryItem({ id: "a" })).toThrow("content");
+  });
+
+  it("accepts empty string content", () => {
+    const item = normalizeMemoryItem({ content: "" });
+    expect(item.content).toBe("");
+  });
+});
+
+describe("decaySalience", () => {
+  it("does not amplify salience for future createdAt timestamps", () => {
+    const now = Date.now();
+    const futureCreatedAt = new Date(now + 60_000).toISOString(); // 1 minute in the future
+    const item = normalizeMemoryItem({
+      content: "future item",
+      salience: 0.8,
+      createdAt: futureCreatedAt,
+    });
+
+    const decayed = decaySalience(item, now, 3600);
+    // Future timestamps should produce zero age, so decayFactor = 1.0.
+    // The decayed salience must equal the base salience exactly (no amplification).
+    expect(decayed).toBe(0.8);
+  });
+
+  it("decays salience for past createdAt timestamps", () => {
+    const now = Date.now();
+    const halfLife = 3600; // 1 hour
+    const pastCreatedAt = new Date(now - halfLife * 1000).toISOString(); // exactly 1 half-life ago
+    const item = normalizeMemoryItem({
+      content: "past item",
+      salience: 1.0,
+      createdAt: pastCreatedAt,
+    });
+
+    const decayed = decaySalience(item, now, halfLife);
+    // After exactly one half-life, salience should be approximately 0.5
+    expect(decayed).toBeCloseTo(0.5, 1);
+  });
+
+  it("returns base salience for items created exactly at now", () => {
+    const now = Date.now();
+    const item = normalizeMemoryItem({
+      content: "current item",
+      salience: 0.75,
+      createdAt: new Date(now).toISOString(),
+    });
+
+    const decayed = decaySalience(item, now, 3600);
+    expect(decayed).toBeCloseTo(0.75, 5);
+  });
+});
 
 describe("InMemoryStore", () => {
   it("stores and retrieves items", async () => {
@@ -163,6 +223,18 @@ describe("InMemoryStore", () => {
     const freshResults = await store.query();
     expect(freshResults.find(i => i.id === "ttl-fresh")).toBeDefined();
   });
+
+  it("close() clears items", async () => {
+    const store = new InMemoryStore();
+    await store.put({ id: "a", content: "Hello" });
+    await store.close();
+    expect(await store.get("a")).toBeNull();
+  });
+
+  it("rejects put without content", async () => {
+    const store = new InMemoryStore();
+    await expect(store.put({ id: "a" })).rejects.toThrow("content");
+  });
 });
 
 describe("FileStore", () => {
@@ -219,9 +291,8 @@ describe("FileStore", () => {
     expect((await store2.get("keep"))?.content).toBe("Keep me");
   });
 
-  it("recovers from corrupted file with invalid JSON lines", async () => {
+  it("throws on corrupted file by default", async () => {
     const filePath = tempPath("corrupted.jsonl");
-    // Write a file with one valid line and one corrupted line
     await fs.writeFile(
       filePath,
       '{"id":"good","content":"Valid item","createdAt":"2025-01-01T00:00:00Z"}\n' +
@@ -229,8 +300,23 @@ describe("FileStore", () => {
         '{"id":"also-good","content":"Another valid item","createdAt":"2025-01-01T00:00:00Z"}\n'
     );
     const store = new FileStore(filePath);
-    // Should throw on corrupted JSON — FileStore doesn't skip bad lines
     await expect(store.query()).rejects.toThrow();
+  });
+
+  it("skips corrupted lines when skipCorruptedLines is true", async () => {
+    const filePath = tempPath("corrupted-skip.jsonl");
+    await fs.writeFile(
+      filePath,
+      '{"id":"good","content":"Valid item","createdAt":"2025-01-01T00:00:00Z"}\n' +
+        "{broken json\n" +
+        '{"id":"also-good","content":"Another valid item","createdAt":"2025-01-01T00:00:00Z"}\n'
+    );
+    const store = new FileStore(filePath, { skipCorruptedLines: true });
+    const results = await store.query({ includeExpired: true });
+    expect(results.length).toBe(2);
+    const ids = results.map(r => r.id);
+    expect(ids).toContain("good");
+    expect(ids).toContain("also-good");
   });
 
   it("handles file with only whitespace lines", async () => {
@@ -274,15 +360,63 @@ describe("FileStore", () => {
     const results = await store.query();
     expect(results.length).toBe(3);
   });
+
+  it("close() awaits pending writes", async () => {
+    const filePath = tempPath("close.jsonl");
+    const store = new FileStore(filePath);
+    await store.put({ id: "a", content: "Before close" });
+    await store.close();
+
+    // Data should be persisted after close
+    const store2 = new FileStore(filePath);
+    const item = await store2.get("a");
+    expect(item?.content).toBe("Before close");
+  });
 });
 
 describe("SqliteStore", () => {
+  it("applies limit after JS-side decay filtering", async () => {
+    const store = new SqliteStore(tempPath("limit.db"));
+    const now = Date.now();
+
+    await store.put([
+      {
+        id: "old-high",
+        content: "alpha old",
+        salience: 10,
+        createdAt: new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: "fresh-medium",
+        content: "alpha fresh",
+        salience: 8,
+        createdAt: new Date(now - 60 * 1000).toISOString(),
+      },
+      {
+        id: "fresh-low",
+        content: "alpha fresh second",
+        salience: 7,
+        createdAt: new Date(now - 60 * 1000).toISOString(),
+      },
+    ]);
+
+    const results = await store.query({
+      text: "alpha",
+      halfLifeSeconds: 60 * 60,
+      limit: 2,
+      now,
+    });
+
+    expect(results.map(item => item.id)).toEqual(["fresh-medium", "fresh-low"]);
+    await store.close();
+  });
+
   it("stores and retrieves items", async () => {
     const store = new SqliteStore(":memory:");
     await store.put({ id: "s1", content: "SQLite data" });
     const fetched = await store.get("s1");
     expect(fetched?.content).toBe("SQLite data");
-    store.close();
+    await store.close();
   });
 
   it("handles TTL expiration", async () => {
@@ -296,7 +430,7 @@ describe("SqliteStore", () => {
     });
     const results = await store.query({ now: Date.now() });
     expect(results.length).toBe(0);
-    store.close();
+    await store.close();
   });
 
   it("upserts on duplicate id", async () => {
@@ -305,7 +439,7 @@ describe("SqliteStore", () => {
     await store.put({ id: "s1", content: "Version 2" });
     const fetched = await store.get("s1");
     expect(fetched?.content).toBe("Version 2");
-    store.close();
+    await store.close();
   });
 
   it("batch inserts in transaction", async () => {
@@ -315,7 +449,7 @@ describe("SqliteStore", () => {
       { id: "b2", content: "Second" },
     ]);
     expect(items.length).toBe(2);
-    store.close();
+    await store.close();
   });
 
   it("rejects invalid table names", () => {
@@ -324,10 +458,10 @@ describe("SqliteStore", () => {
     ).toThrow();
   });
 
-  it("accepts valid table names", () => {
+  it("accepts valid table names", async () => {
     const store = new SqliteStore(":memory:", { tableName: "my_items" });
     expect(store).toBeDefined();
-    store.close();
+    await store.close();
   });
 
   it("preserves metadata", async () => {
@@ -339,7 +473,7 @@ describe("SqliteStore", () => {
     });
     const fetched = await store.get("meta");
     expect(fetched?.metadata).toEqual({ key: "value", nested: { a: 1 } });
-    store.close();
+    await store.close();
   });
 
   it("forgets items", async () => {
@@ -348,7 +482,7 @@ describe("SqliteStore", () => {
     const deleted = await store.forget("del");
     expect(deleted).toBe(true);
     expect(await store.get("del")).toBeNull();
-    store.close();
+    await store.close();
   });
 
   it("queries with minSalience filter", async () => {
@@ -364,7 +498,7 @@ describe("SqliteStore", () => {
     expect(ids).toContain("high");
     expect(ids).toContain("medium");
     expect(ids).not.toContain("low");
-    store.close();
+    await store.close();
   });
 
   it("queries with text filter", async () => {
@@ -380,7 +514,27 @@ describe("SqliteStore", () => {
     expect(ids).toContain("a");
     expect(ids).toContain("c");
     expect(ids).not.toContain("b");
-    store.close();
+    await store.close();
+  });
+
+  it("handles LIKE wildcard characters in text query", async () => {
+    const store = new SqliteStore(":memory:");
+    await store.put([
+      { id: "a", content: "100% complete" },
+      { id: "b", content: "100 complete" },
+      { id: "c", content: "a_b value" },
+      { id: "d", content: "axb value" },
+    ]);
+    // The % character should be treated as a literal, not a wildcard
+    const percentResults = await store.query({ text: "100%" });
+    expect(percentResults.length).toBe(1);
+    expect(percentResults[0].id).toBe("a");
+
+    // The _ character should be treated as a literal, not a wildcard
+    const underscoreResults = await store.query({ text: "a_b" });
+    expect(underscoreResults.length).toBe(1);
+    expect(underscoreResults[0].id).toBe("c");
+    await store.close();
   });
 });
 
@@ -397,13 +551,23 @@ describe("createMemoryStore", () => {
     expect(store).toBeInstanceOf(FileStore);
   });
 
+  it("creates file store with skipCorruptedLines", () => {
+    const store = createMemoryStore("file", {
+      path: tempPath("factory-skip.jsonl"),
+      skipCorruptedLines: true,
+    });
+    expect(store).toBeInstanceOf(FileStore);
+  });
+
   it("creates sqlite store", () => {
     const store = createMemoryStore("sqlite", { path: ":memory:" });
     expect(store).toBeInstanceOf(SqliteStore);
   });
 
   it("throws for unknown type", () => {
-    expect(() => createMemoryStore("redis" as any)).toThrow();
+    expect(() => createMemoryStore("postgres" as any)).toThrow(
+      "Unknown memory store type"
+    );
   });
 
   it("throws when file store missing path", () => {
@@ -412,5 +576,9 @@ describe("createMemoryStore", () => {
 
   it("throws when sqlite store missing path", () => {
     expect(() => createMemoryStore("sqlite")).toThrow("path");
+  });
+
+  it("throws when redis store missing url and redisOptions", () => {
+    expect(() => createMemoryStore("redis")).toThrow("url");
   });
 });

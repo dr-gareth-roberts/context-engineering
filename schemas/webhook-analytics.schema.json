@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "WebhookAnalytics",
+  "$id": "webhook-analytics.schema.json",
   "title": "WebhookAnalytics",
   "description": "Analytics payload sent to webhook endpoints after pack/trace operations",
   "type": "object",

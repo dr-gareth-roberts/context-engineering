@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "ContextItem",
+  "$id": "context-item.schema.json",
   "title": "ContextItem",
   "type": "object",
   "required": ["id", "content"],
@@ -10,7 +10,7 @@
     "kind": { "type": "string" },
     "priority": { "type": "number" },
     "recency": { "type": "number" },
-    "tokens": { "type": "number" },
+    "tokens": { "type": "integer" },
     "score": { "type": "number" },
     "metadata": { "type": "object", "additionalProperties": true },
     "compressions": {
@@ -20,11 +20,50 @@
         "required": ["content"],
         "properties": {
           "content": { "type": "string" },
-          "tokens": { "type": "number" },
+          "tokens": { "type": "integer" },
           "note": { "type": "string" }
         },
         "additionalProperties": true
       }
+    },
+    "taskId": {
+      "type": "string",
+      "description": "The BEADS task ID this item belongs to"
+    },
+    "isOutcome": {
+      "type": "boolean",
+      "description": "If true, this item represents a critical outcome/result of a task"
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs of tasks this item depends on"
+    },
+    "supersedes": {
+      "type": "string",
+      "description": "ID of the item this one supersedes (Python SDK)"
+    },
+    "embedding": {
+      "type": "array",
+      "items": { "type": "number" },
+      "description": "Vector embedding for semantic operations (Python SDK)"
+    },
+    "parentId": {
+      "type": "string",
+      "description": "ID of the parent item for hierarchical inclusion (Python SDK)"
+    },
+    "cost": {
+      "type": "number",
+      "description": "Monetary cost associated with this item (Python SDK)"
+    },
+    "latency": {
+      "type": "number",
+      "description": "Latency in seconds associated with this item (Python SDK)"
+    },
+    "links": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "IDs of related items (Python SDK)"
     }
   },
   "additionalProperties": true

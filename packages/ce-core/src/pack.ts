@@ -8,13 +8,8 @@ import type {
 import { createScorer, defaultItemScorer } from "./score.js";
 import { estimateTokens } from "./estimate.js";
 import { eliminateRedundancy } from "./redundancy.js";
-import {
-  ValidationError,
-  BudgetExceededError,
-  EstimationError,
-} from "./errors.js";
-import { ContextItemSchema, BudgetSchema } from "./schemas.js";
-import { z } from "zod";
+import { EstimationError } from "./errors.js";
+import { validatePackInputs } from "./schemas.js";
 import { noopLogger } from "./logger.js";
 
 interface PackResult {
@@ -32,19 +27,20 @@ function applyCompression(
   const compressions = item.compressions ?? [];
   const summarizer = options.summarizer;
 
-  const sorted = compressions
-    .map(compression => ({
-      ...compression,
-      tokens:
-        compression.tokens ??
-        estimateTokens(compression.content, {
-          estimator: options.tokenEstimator,
-        }),
-    }))
-    .sort((a, b) => (a.tokens ?? 0) - (b.tokens ?? 0));
+  // Resolve token counts for all compressions, then sort descending (largest first).
+  // We pick the largest compression that fits to maximize content quality.
+  const withTokens = compressions.map(compression => ({
+    ...compression,
+    tokens:
+      compression.tokens ??
+      estimateTokens(compression.content, {
+        estimator: options.tokenEstimator,
+      }),
+  }));
+  const sorted = withTokens.sort((a, b) => b.tokens - a.tokens);
 
   for (const compression of sorted) {
-    if ((compression.tokens ?? 0) <= remainingTokens) {
+    if (compression.tokens <= remainingTokens) {
       return {
         item: {
           ...item,
@@ -141,39 +137,7 @@ export function internalPack(
   options: PackOptions = {},
   trace = false
 ): PackResult {
-  // Validate budget
-  const budgetResult = BudgetSchema.safeParse(budget);
-  if (!budgetResult.success) {
-    throw new ValidationError(
-      `Invalid budget: ${budgetResult.error.issues.map((i: z.ZodIssue) => i.message).join(", ")}`,
-      budgetResult.error.issues.map((i: z.ZodIssue) => ({
-        path: i.path.join("."),
-        message: i.message,
-      }))
-    );
-  }
-
-  // Validate reserve < max
-  if (
-    budget.reserveTokens !== undefined &&
-    budget.reserveTokens >= budget.maxTokens
-  ) {
-    throw new BudgetExceededError(
-      `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
-    );
-  }
-
-  // Validate items
-  const itemsResult = z.array(ContextItemSchema).safeParse(items);
-  if (!itemsResult.success) {
-    throw new ValidationError(
-      `Invalid items: ${itemsResult.error.issues.map((i: z.ZodIssue) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
-      itemsResult.error.issues.map((i: z.ZodIssue) => ({
-        path: i.path.join("."),
-        message: i.message,
-      }))
-    );
-  }
+  validatePackInputs(items, budget);
 
   const scorer =
     options.scorer ??

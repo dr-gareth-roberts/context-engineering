@@ -7,7 +7,28 @@ function normalize(input: ContextPack | ContextItem[]): ContextItem[] {
 }
 
 /**
+ * Build a Map from id to ContextItem[], grouping duplicates together.
+ * This preserves all items even when duplicate IDs exist.
+ */
+function groupById(items: ContextItem[]): Map<string, ContextItem[]> {
+  const map = new Map<string, ContextItem[]>();
+  for (const item of items) {
+    const group = map.get(item.id);
+    if (group) {
+      group.push(item);
+    } else {
+      map.set(item.id, [item]);
+    }
+  }
+  return map;
+}
+
+/**
  * Compare two context packs or item arrays to find differences.
+ *
+ * Handles duplicate IDs correctly: if "before" has 2 items with id "x"
+ * and "after" has 1 item with id "x", one will appear in "kept" or
+ * "changed" and the other in "removed".
  *
  * @param before - The original context pack or items
  * @param after - The updated context pack or items
@@ -34,33 +55,52 @@ export function diff(
   const beforeItems = normalize(before);
   const afterItems = normalize(after);
 
-  const beforeMap = new Map(beforeItems.map(item => [item.id, item]));
-  const afterMap = new Map(afterItems.map(item => [item.id, item]));
+  const beforeGroups = groupById(beforeItems);
+  const afterGroups = groupById(afterItems);
 
   const added: ContextItem[] = [];
   const removed: ContextItem[] = [];
   const kept: ContextItem[] = [];
   const changed: Array<{ before: ContextItem; after: ContextItem }> = [];
 
-  afterMap.forEach((item, id) => {
-    if (!beforeMap.has(id)) {
-      added.push(item);
-      return;
+  // Process each ID group in "after"
+  for (const [id, afterGroup] of afterGroups) {
+    const beforeGroup = beforeGroups.get(id);
+    if (!beforeGroup) {
+      // All items with this ID are new
+      added.push(...afterGroup);
+      continue;
     }
 
-    const prev = beforeMap.get(id) as ContextItem;
-    if (prev.content !== item.content || prev.tokens !== item.tokens) {
-      changed.push({ before: prev, after: item });
-    } else {
-      kept.push(item);
-    }
-  });
+    // Match items pairwise: compare by position within the group
+    const maxLen = Math.max(afterGroup.length, beforeGroup.length);
+    for (let i = 0; i < maxLen; i++) {
+      const afterItem = afterGroup[i];
+      const beforeItem = beforeGroup[i];
 
-  beforeMap.forEach((item, id) => {
-    if (!afterMap.has(id)) {
-      removed.push(item);
+      if (!beforeItem) {
+        // Extra item in after (more duplicates than before)
+        added.push(afterItem);
+      } else if (!afterItem) {
+        // Extra item in before (fewer duplicates in after)
+        removed.push(beforeItem);
+      } else if (
+        beforeItem.content !== afterItem.content ||
+        beforeItem.tokens !== afterItem.tokens
+      ) {
+        changed.push({ before: beforeItem, after: afterItem });
+      } else {
+        kept.push(afterItem);
+      }
     }
-  });
+  }
+
+  // Items in "before" whose ID is not in "after" at all
+  for (const [id, beforeGroup] of beforeGroups) {
+    if (!afterGroups.has(id)) {
+      removed.push(...beforeGroup);
+    }
+  }
 
   return { added, removed, kept, changed };
 }

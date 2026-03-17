@@ -80,6 +80,25 @@ describe("ce pack", () => {
     expect(data.selected.length).toBeGreaterThan(0);
   });
 
+  it("packs context-pack JSON from stdin", async () => {
+    const packInput = JSON.stringify({
+      selected: [{ id: "a", content: "hello", tokens: 10 }],
+      dropped: [{ id: "b", content: "world", tokens: 20 }],
+    });
+    const { stdout, code } = await run(
+      ["pack", "-i", "-", "-b", "50", "--json"],
+      { input: packInput }
+    );
+    expect(code).toBe(0);
+    const data = JSON.parse(stdout);
+    const itemIds = [
+      ...data.selected.map((item: { id: string }) => item.id),
+      ...data.dropped.map((item: { id: string }) => item.id),
+    ];
+    expect(itemIds).toContain("a");
+    expect(itemIds).toContain("b");
+  });
+
   it("fails with missing input file", async () => {
     const { code } = await run([
       "pack",
@@ -548,5 +567,106 @@ describe("input validation", () => {
     expect(stdout).toContain("ce");
     expect(stdout).toContain("pack");
     expect(stdout).toContain("trace");
+  });
+});
+
+// ─── Regression tests for audit fixes ───────────────────────────────────
+
+describe("loadItems validation for unrecognized JSON (H5)", () => {
+  it("rejects unrecognized JSON shape from stdin with error", async () => {
+    // A plain object with no items/selected/array shape should error, not return []
+    const badInput = JSON.stringify({ foo: "bar", baz: 42 });
+    const { code, stderr } = await run(["pack", "-i", "-", "-b", "100"], {
+      input: badInput,
+    });
+    expect(code).not.toBe(0);
+    // The error output (JSON since non-TTY) should contain the validation message
+    const errorData = JSON.parse(stderr);
+    expect(errorData.error).toContain("Invalid input");
+  });
+
+  it("rejects a plain string value from stdin", async () => {
+    const { code, stderr } = await run(["pack", "-i", "-", "-b", "100"], {
+      input: JSON.stringify("just a string"),
+    });
+    expect(code).not.toBe(0);
+    const errorData = JSON.parse(stderr);
+    expect(errorData.error).toContain("Invalid input");
+  });
+
+  it("rejects a number value from stdin", async () => {
+    const { code, stderr } = await run(["pack", "-i", "-", "-b", "100"], {
+      input: JSON.stringify(42),
+    });
+    expect(code).not.toBe(0);
+    const errorData = JSON.parse(stderr);
+    expect(errorData.error).toContain("Invalid input");
+  });
+});
+
+describe("--json flag on budget command (H1)", () => {
+  it("produces JSON output with --json flag", async () => {
+    const { stdout, code } = await run([
+      "budget",
+      "-t",
+      "hello world tokens",
+      "--json",
+    ]);
+    expect(code).toBe(0);
+    const data = JSON.parse(stdout);
+    expect(data.tokens).toBeGreaterThan(0);
+    expect(data.provider).toBeDefined();
+  });
+
+  it("JSON output includes provider field", async () => {
+    const { stdout, code } = await run([
+      "budget",
+      "-t",
+      "test input",
+      "-p",
+      "openai",
+      "--json",
+    ]);
+    expect(code).toBe(0);
+    const data = JSON.parse(stdout);
+    expect(data.provider).toBe("openai");
+    expect(data.tokens).toBeGreaterThan(0);
+  });
+});
+
+describe("--json flag on lint command (H1)", () => {
+  it("produces JSON output with --json flag for valid data", async () => {
+    const { stdout, code } = await run([
+      "lint",
+      "-s",
+      "context-item",
+      "-i",
+      ITEMS_FILE,
+      "--json",
+    ]);
+    expect(code).toBe(0);
+    const data = JSON.parse(stdout);
+    expect(data.valid).toBe(true);
+  });
+
+  it("produces JSON error output with --json flag for invalid data", async () => {
+    const tmp = path.join(os.tmpdir(), "ce-test-lint-json.json");
+    await fs.writeFile(tmp, JSON.stringify({ noId: true }));
+    try {
+      const { code, stderr } = await run([
+        "lint",
+        "-s",
+        "context-item",
+        "-i",
+        tmp,
+        "--json",
+      ]);
+      expect(code).not.toBe(0);
+      // Error should be JSON since --json forces JSON mode
+      const errorData = JSON.parse(stderr);
+      expect(errorData.error).toContain("Validation failed");
+    } finally {
+      await fs.unlink(tmp).catch(() => {});
+    }
   });
 });

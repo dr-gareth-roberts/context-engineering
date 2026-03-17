@@ -15,7 +15,8 @@ This file helps Autohand understand how to work with this project.
 - **Install**: `pnpm install`
 - **Dev**: `pnpm dev`
 - **Build**: `pnpm build`
-- **Test**: `pnpm test`
+- **Test**: `pnpm test` (root web/tooling smoke test)
+- **Package Tests**: `pnpm test:packages`
 - **Lint**: `pnpm lint`
 - **Format**: `pnpm format`
 

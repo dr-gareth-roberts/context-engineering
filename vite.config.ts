@@ -4,19 +4,18 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig } from "vite";
 
-const plugins = [
-  react(),
-  tailwindcss(),
-  jsxLocPlugin(),
-];
+const plugins = [react(), tailwindcss(), jsxLocPlugin()];
 
 export default defineConfig({
   plugins,
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "packages", "ce-web-client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@": path.resolve(
+        import.meta.dirname,
+        "packages",
+        "ce-web-client",
+        "src"
+      ),
       "@context-engineering/core": path.resolve(
         import.meta.dirname,
         "packages",
@@ -47,10 +46,7 @@ export default defineConfig({
     port: 3000,
     strictPort: false,
     host: true,
-    allowedHosts: [
-      "localhost",
-      "127.0.0.1",
-    ],
+    allowedHosts: ["localhost", "127.0.0.1"],
     fs: {
       strict: true,
       deny: ["**/.*"],

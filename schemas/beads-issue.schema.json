@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "BeadsIssue",
+  "$id": "beads-issue.schema.json",
   "title": "BeadsIssue",
   "description": "A BEADS issue — the core record type in the JSONL format for agent handoff",
   "type": "object",

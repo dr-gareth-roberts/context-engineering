@@ -14,5 +14,5 @@ export interface MemoryStore {
   get(id: string): Promise<MemoryItem | null>;
   query(query?: MemoryQuery): Promise<MemoryItem[]>;
   forget(id: string): Promise<boolean>;
-  close?(): void;
+  close(): Promise<void>;
 }

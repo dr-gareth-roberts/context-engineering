@@ -87,6 +87,12 @@ export function packWithAllocation(
   options: PackOptions = {}
 ): AllocatedPack {
   const effectiveBudget = budget.maxTokens - (budget.reserveTokens ?? 0);
+  const priorityByKind = new Map(
+    allocations.map(alloc => [alloc.kind, alloc.priority ?? 0])
+  );
+
+  // Build a Set of allocated kinds for O(1) lookup (M1 fix)
+  const allocatedKinds = new Set(allocations.map(a => a.kind));
 
   // Group items by kind
   const kindGroups = new Map<string, ContextItem[]>();
@@ -94,8 +100,7 @@ export function packWithAllocation(
 
   for (const item of items) {
     const kind = item.kind ?? "_uncategorized";
-    const alloc = allocations.find(a => a.kind === kind);
-    if (alloc) {
+    if (allocatedKinds.has(kind)) {
       const group = kindGroups.get(kind) ?? [];
       group.push(item);
       kindGroups.set(kind, group);
@@ -123,17 +128,32 @@ export function packWithAllocation(
     allocatedTotal += tokens;
   }
 
-  // Scale if over-allocated
+  // Normalize if over-allocated. Prefer preserving higher-priority kinds.
   if (allocatedTotal > effectiveBudget) {
-    const scale = effectiveBudget / allocatedTotal;
-    kindBudgets.forEach((tokens, kind) => {
-      const alloc = allocations.find(a => a.kind === kind);
-      let scaled = Math.floor(tokens * scale);
-      if (alloc?.minTokens !== undefined) {
-        scaled = Math.max(scaled, alloc.minTokens);
-      }
-      kindBudgets.set(kind, scaled);
-    });
+    let overflow = allocatedTotal - effectiveBudget;
+    const adjustable = [...allocations].sort(
+      (a, b) => (a.priority ?? 0) - (b.priority ?? 0)
+    );
+
+    for (const alloc of adjustable) {
+      if (overflow <= 0) break;
+      const current = kindBudgets.get(alloc.kind) ?? 0;
+      const floor = alloc.minTokens ?? 0;
+      const reducible = Math.max(0, current - floor);
+      if (reducible <= 0) continue;
+      const reduction = Math.min(reducible, overflow);
+      kindBudgets.set(alloc.kind, current - reduction);
+      overflow -= reduction;
+    }
+
+    for (const alloc of adjustable) {
+      if (overflow <= 0) break;
+      const current = kindBudgets.get(alloc.kind) ?? 0;
+      if (current <= 0) continue;
+      const reduction = Math.min(current, overflow);
+      kindBudgets.set(alloc.kind, current - reduction);
+      overflow -= reduction;
+    }
   }
 
   // Phase 2: Pack within each kind's allocation
@@ -197,6 +217,10 @@ export function packWithAllocation(
       result.selected.push(...extraPack.selected);
       result.dropped = extraPack.dropped;
       result.used += extraPack.totalTokens;
+      kindBudgets.set(
+        alloc.kind,
+        (kindBudgets.get(alloc.kind) ?? result.used) + extraPack.totalTokens
+      );
       totalSurplus -= extraPack.totalTokens;
     }
   }
@@ -237,6 +261,14 @@ export function packWithAllocation(
       surplus: Math.max(0, (kindBudgets.get(alloc.kind) ?? 0) - result.used),
     };
   }
+
+  allSelected.sort((a, b) => {
+    const kindDelta =
+      (priorityByKind.get(b.kind ?? "_uncategorized") ?? 0) -
+      (priorityByKind.get(a.kind ?? "_uncategorized") ?? 0);
+    if (kindDelta !== 0) return kindDelta;
+    return (b.priority ?? 0) - (a.priority ?? 0);
+  });
 
   allSelected.push(...uncategorizedResult.selected);
   allDropped.push(...uncategorizedResult.dropped);

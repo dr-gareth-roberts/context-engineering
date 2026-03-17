@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import heapq
 import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -8,7 +9,18 @@ from typing import Any, Dict, List, Optional, Set, Union, cast
 import tiktoken
 from pydantic import BaseModel, ConfigDict, Field
 
+from ._similarity import cosine_similarity as _cosine_similarity
 from .errors import BudgetExceededError, ValidationError
+
+# Cache the tiktoken encoding at module level to avoid repeated lookups.
+_CL100K_ENCODING: tiktoken.Encoding | None = None
+
+
+def _get_cl100k_encoding() -> tiktoken.Encoding:
+    global _CL100K_ENCODING
+    if _CL100K_ENCODING is None:
+        _CL100K_ENCODING = tiktoken.get_encoding("cl100k_base")
+    return _CL100K_ENCODING
 
 
 class Compression(BaseModel):
@@ -155,7 +167,7 @@ def create_scorer(weights: Optional[ScoringWeights] = None):
     return scorer
 
 
-def calculate_weighted_score(item: ContextItem, weights: ScoringWeights = None) -> float:
+def calculate_weighted_score(item: ContextItem, weights: Optional[ScoringWeights] = None) -> float:
     w = weights or ScoringWeights()
     p = item.priority or 0.0
     r = item.recency or 0.0
@@ -167,12 +179,14 @@ def calculate_weighted_score(item: ContextItem, weights: ScoringWeights = None) 
     return score
 
 
-def estimate_tokens(text: str, provider: Optional[str] = None, model: Optional[str] = None) -> int:
+def estimate_tokens(
+    text: Optional[str] = None, provider: Optional[str] = None, model: Optional[str] = None
+) -> int:
     """Estimate the token count for a text string.
 
     Args:
-        text: The text to estimate. Returns 0 for empty/None.
-        provider: "openai" uses tiktoken (cl100k_base). None uses heuristic (words × 1.3).
+        text: The text to estimate. Returns 0 for empty or None.
+        provider: "openai" uses tiktoken (cl100k_base). None uses heuristic (words x 1.3).
         model: Reserved for future model-specific tokenizers.
 
     Returns:
@@ -182,7 +196,7 @@ def estimate_tokens(text: str, provider: Optional[str] = None, model: Optional[s
         return 0
     if provider == "openai":
         try:
-            encoding = tiktoken.get_encoding("cl100k_base")
+            encoding = _get_cl100k_encoding()
             return len(encoding.encode(text))
         except Exception:
             return _heuristic_tokens(text, 1.3)
@@ -192,17 +206,9 @@ def estimate_tokens(text: str, provider: Optional[str] = None, model: Optional[s
 
 
 def _heuristic_tokens(text: str, multiplier: float = 1.3) -> int:
-    words = len(text.strip().split()) if text.strip() else 0
+    stripped = text.strip()
+    words = len(stripped.split()) if stripped else 0
     return max(0, math.ceil(words * multiplier))
-
-
-def _cosine_similarity(v1: List[float], v2: List[float]) -> float:
-    dot_product = sum(a * b for a, b in zip(v1, v2))
-    m1 = math.sqrt(sum(a * a for a in v1))
-    m2 = math.sqrt(sum(a * a for a in v2))
-    if not m1 or not m2:
-        return 0.0
-    return dot_product / (m1 * m2)
 
 
 def _apply_compression(
@@ -239,6 +245,7 @@ async def pack_async(
     processed_items = items
     if redundancy_config is not None:
         from .redundancy import RedundancyEliminator
+
         eliminator = RedundancyEliminator(redundancy_config)
         processed_items = await eliminator.process(items)
 
@@ -321,14 +328,14 @@ def internal_pack(
     weights: Optional[ScoringWeights] = None,
 ) -> Union[ContextPack, ContextTrace]:
     # 1. Scored Pre-pass
-    scored = []
+    scored: List[ContextItem] = []
     for idx, item in enumerate(items):
         if not item.id:
             raise ValidationError(
                 f"Item at index {idx} has empty id",
                 [{"path": f"items[{idx}].id", "message": "id must be a non-empty string"}],
             )
-        for field_name in ("priority", "recency", "tokens"):
+        for field_name in ("priority", "recency"):
             val = getattr(item, field_name, None)
             if val is not None and (math.isnan(val) or math.isinf(val)):
                 raise ValidationError(
@@ -340,6 +347,8 @@ def internal_pack(
                         }
                     ],
                 )
+        # tokens is Optional[int] -- NaN/Inf checks only apply to float fields,
+        # but we still validate the resolved token count below.
         tokens = (
             item.tokens
             if item.tokens is not None
@@ -353,19 +362,15 @@ def internal_pack(
         score = calculate_weighted_score(item, weights)
         scored.append(item.model_copy(update={"tokens": tokens, "score": score}))
 
-    # 2. Negation Resolution (Recursive)
+    # 2. Negation Resolution (Iterative -- safe against long chains)
     negated_ids: Set[str] = set()
-
-    def collect_negated():
-        added = False
+    changed = True
+    while changed:
+        changed = False
         for i in scored:
             if i.supersedes and i.supersedes not in negated_ids:
                 negated_ids.add(i.supersedes)
-                added = True
-        if added:
-            collect_negated()
-
-    collect_negated()
+                changed = True
 
     # 3. Dynamic Ranking Loop
     remaining = budget.max_tokens - (budget.reserve_tokens or 0)
@@ -375,8 +380,11 @@ def internal_pack(
     selected_ids: Set[str] = set()
     w = weights or ScoringWeights()
 
+    # Track which items have links so we know when re-scoring is needed.
+    any_links_in_pool = False
+
     # Pool excludes negated items
-    pool = [i for i in scored if i.id not in negated_ids]
+    pool: List[ContextItem] = []
     for i in scored:
         if i.id in negated_ids:
             dropped.append(i)
@@ -386,21 +394,43 @@ def internal_pack(
                         id=i.id, decision="exclude", score=i.score, reason="negated_by_newer_info"
                     )
                 )
+        else:
+            pool.append(i)
+            if i.links:
+                any_links_in_pool = True
 
-    # IMPORTANT: Initial sort of pool before looping
-    pool.sort(key=lambda x: (x.score or 0, x.recency or 0), reverse=True)
+    # Build a max-heap (negate scores for heapq min-heap).
+    # Heap entries: (-score, -recency, index, item)
+    # The index is a tiebreaker to avoid comparing ContextItem objects.
+    heap: List[tuple[float, float, int, ContextItem]] = []
+    for idx, item in enumerate(pool):
+        heapq.heappush(heap, (-(item.score or 0), -(item.recency or 0), idx, item))
 
-    while pool:
-        # Re-calculate boosts based on CURRENTLY selected items
-        for item in pool:
-            boost = sum(w.relation_boost for sid in selected_ids if sid in item.links)
-            item.score = calculate_weighted_score(item, weights) + boost
+    # Counter for unique heap indices when we re-push items.
+    heap_counter = len(pool)
 
-        # KEY: RE-SORT EVERY TIME we pull from pool to ensure highest boosted item is picked
-        pool.sort(key=lambda x: (x.score or 0, x.recency or 0), reverse=True)
-        item = pool.pop(0)
+    # Track whether selected_ids changed since last boost recalculation.
+    # If no items have links, we never need to re-score.
+    needs_rescore = False
 
-        # A. Hierarchical
+    while heap:
+        # If items have links and selected_ids changed, we must rebuild the heap
+        # with updated boost scores.
+        if any_links_in_pool and needs_rescore:
+            new_heap: List[tuple[float, float, int, ContextItem]] = []
+            for _, _, _, item in heap:
+                boost = sum(w.relation_boost for sid in selected_ids if sid in item.links)
+                item.score = calculate_weighted_score(item, weights) + boost
+                heapq.heappush(
+                    new_heap, (-(item.score or 0), -(item.recency or 0), heap_counter, item)
+                )
+                heap_counter += 1
+            heap = new_heap
+            needs_rescore = False
+
+        _, _, _, item = heapq.heappop(heap)
+
+        # A. Hierarchical exclusion
         if item.parent_id and item.parent_id in selected_ids:
             dropped.append(item)
             if trace:
@@ -414,17 +444,18 @@ def internal_pack(
                 )
             continue
 
-        # B. Redundancy
+        # B. Redundancy check
         if redundancy_threshold is not None and item.embedding:
             is_redundant = False
             for existing in selected:
-                if (
-                    existing.embedding
-                    and _cosine_similarity(item.embedding, existing.embedding)
-                    > redundancy_threshold
-                ):
-                    is_redundant = True
-                    break
+                if existing.embedding:
+                    try:
+                        similarity = _cosine_similarity(item.embedding, existing.embedding)
+                    except ValueError:
+                        similarity = 0.0
+                    if similarity > redundancy_threshold:
+                        is_redundant = True
+                        break
             if is_redundant:
                 dropped.append(item)
                 if trace:
@@ -444,6 +475,7 @@ def internal_pack(
             selected.append(item)
             selected_ids.add(item.id)
             remaining -= tokens
+            needs_rescore = True
             if trace:
                 steps.append(
                     TraceStep(
@@ -463,6 +495,7 @@ def internal_pack(
                 selected.append(compressed)
                 selected_ids.add(item.id)
                 remaining -= compressed.tokens if compressed.tokens is not None else 0
+                needs_rescore = True
                 if trace:
                     steps.append(
                         TraceStep(

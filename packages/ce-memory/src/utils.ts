@@ -3,10 +3,13 @@ import { nanoid } from "nanoid";
 import type { MemoryQuery } from "./types.js";
 
 export function normalizeMemoryItem(item: Partial<MemoryItem>): MemoryItem {
+  if (item.content === undefined || item.content === null) {
+    throw new Error("MemoryItem requires a 'content' field");
+  }
   const nowIso = new Date().toISOString();
   return {
     id: item.id ?? nanoid(),
-    content: item.content ?? "",
+    content: item.content,
     createdAt: item.createdAt ?? nowIso,
     updatedAt: item.updatedAt ?? nowIso,
     salience: item.salience ?? 1,
@@ -29,7 +32,7 @@ export function decaySalience(
 ): number {
   const createdAt = Date.parse(item.createdAt);
   if (Number.isNaN(createdAt)) return item.salience ?? 1;
-  const ageSeconds = (now - createdAt) / 1000;
+  const ageSeconds = Math.max(0, (now - createdAt) / 1000);
   const decayFactor = Math.exp((-Math.LN2 * ageSeconds) / halfLifeSeconds);
   return (item.salience ?? 1) * decayFactor;
 }

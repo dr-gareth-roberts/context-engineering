@@ -13,12 +13,24 @@ export interface ContextQuality {
   density: number;
   /** Topic diversity: ratio of unique bigrams to total bigrams (0-1) */
   diversity: number;
-  /** Freshness: fraction of items with recency > 0.5 (0-1) */
+  /** Freshness: fraction of items with recency > 5 on a 0-10 scale (0-1) */
   freshness: number;
   /** Redundancy: estimated content overlap between items (0-1, lower = better) */
   redundancy: number;
   /** Overall quality score (weighted combination, 0-1) */
   overall: number;
+}
+
+/**
+ * Compute Jaccard similarity between two word sets.
+ */
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  let intersection = 0;
+  for (const word of a) {
+    if (b.has(word)) intersection++;
+  }
+  const union = a.size + b.size - intersection;
+  return union > 0 ? intersection / union : 0;
 }
 
 /**
@@ -53,64 +65,74 @@ export function analyzeContext(items: ContextItem[]): ContextQuality {
     };
   }
 
+  // Pre-compute word arrays once per item to avoid repeated splitting (M14 fix)
+  const itemWords = items.map(item =>
+    item.content
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length > 0)
+  );
+
   const totalTokens = items.reduce(
     (sum, item) => sum + (item.tokens ?? estimateTokens(item.content)),
     0
   );
 
   // Density: unique words / total tokens
-  const allWords = items.flatMap(item =>
-    item.content
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(w => w.length > 0)
-  );
-  const uniqueWords = new Set(allWords);
+  const uniqueWords = new Set<string>();
+  for (const words of itemWords) {
+    for (const w of words) {
+      uniqueWords.add(w);
+    }
+  }
   const density = Math.min(uniqueWords.size / Math.max(totalTokens, 1), 1);
 
   // Diversity: unique bigrams / total bigrams
   const bigrams = new Set<string>();
-  const totalBigrams = { count: 0 };
-  for (const item of items) {
-    const words = item.content
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(w => w.length > 0);
+  let totalBigramCount = 0;
+  for (const words of itemWords) {
     for (let i = 0; i < words.length - 1; i++) {
       bigrams.add(`${words[i]} ${words[i + 1]}`);
-      totalBigrams.count++;
+      totalBigramCount++;
     }
   }
   const diversity =
-    totalBigrams.count > 0 ? Math.min(bigrams.size / totalBigrams.count, 1) : 0;
+    totalBigramCount > 0 ? Math.min(bigrams.size / totalBigramCount, 1) : 0;
 
-  // Freshness: fraction of items with recency > 5 (on 0-10 scale)
+  // Freshness: fraction of items with recency above midpoint (> 5 on 0-10 scale)
   const freshCount = items.filter(item => (item.recency ?? 0) > 5).length;
   const freshness = freshCount / items.length;
 
-  // Redundancy: pairwise word overlap using Jaccard similarity
+  // Redundancy: pairwise word overlap using Jaccard similarity.
+  // For large item sets (> 100), sample pairs to avoid O(n^2) blowup.
+  const itemWordSets = itemWords.map(
+    words => new Set(words.filter(w => w.length > 2))
+  );
+
   let totalOverlap = 0;
   let pairCount = 0;
-  const itemWordSets = items.map(
-    item =>
-      new Set(
-        item.content
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(w => w.length > 2)
-      )
-  );
-  for (let i = 0; i < itemWordSets.length; i++) {
-    for (let j = i + 1; j < itemWordSets.length; j++) {
-      const a = itemWordSets[i];
-      const b = itemWordSets[j];
-      let intersection = 0;
-      a.forEach(word => {
-        if (b.has(word)) intersection++;
-      });
-      const union = a.size + b.size - intersection;
-      if (union > 0) {
-        totalOverlap += intersection / union;
+  const n = itemWordSets.length;
+  const MAX_PAIRS = 5000;
+  const totalPossiblePairs = (n * (n - 1)) / 2;
+
+  if (totalPossiblePairs <= MAX_PAIRS) {
+    // Exhaustive comparison for small sets
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        totalOverlap += jaccardSimilarity(itemWordSets[i], itemWordSets[j]);
+        pairCount++;
+      }
+    }
+  } else {
+    // Sample random pairs for large sets to stay O(n)
+    // Use deterministic sampling based on item count for reproducibility
+    const sampleCount = Math.min(MAX_PAIRS, n * 10);
+    for (let s = 0; s < sampleCount; s++) {
+      // Simple deterministic pair selection using modular arithmetic
+      const i = s % n;
+      const j = (i + 1 + Math.floor(s / n)) % n;
+      if (i !== j) {
+        totalOverlap += jaccardSimilarity(itemWordSets[i], itemWordSets[j]);
         pairCount++;
       }
     }

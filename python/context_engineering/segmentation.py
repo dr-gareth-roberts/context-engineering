@@ -4,15 +4,18 @@ import math
 import re
 import statistics
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import List, Optional
 
+from pydantic import BaseModel
+
+from ._similarity import cosine_similarity
 from .core import ContextItem, estimate_tokens
 from .providers import CerebrasProvider, EmbeddingProvider
 
 
-@dataclass
-class SegmentBoundary:
+class SegmentBoundary(BaseModel):
+    """Boundary metadata for a segment. Pydantic model so it survives model_copy/model_dump."""
+
     is_start: bool = False
     is_end: bool = False
     index: int = 0
@@ -53,7 +56,7 @@ class BoundaryProtector:
         r"\b[A-Z0-9_]{3,}\b",  # CONSTANTS_OR_IDS
     ]
 
-    def __init__(self, custom_entities: List[str] = None):
+    def __init__(self, custom_entities: Optional[List[str]] = None):
         patterns = self.PROTECTED_PATTERNS.copy()
         if custom_entities:
             # Escape and add custom entities as whole-word matches
@@ -146,14 +149,6 @@ class SemanticSegmenter(BaseSegmenter):
         self.model = model
         self.protector = protector or BoundaryProtector()
 
-    def _cosine_similarity(self, v1: List[float], v2: List[float]) -> float:
-        dot_product = sum(a * b for a, b in zip(v1, v2))
-        m1 = math.sqrt(sum(a * a for a in v1))
-        m2 = math.sqrt(sum(a * a for a in v2))
-        if not m1 or not m2:
-            return 0.0
-        return dot_product / (m1 * m2)
-
     def _get_mean_vector(self, vectors: List[List[float]]) -> List[float]:
         if not vectors:
             return []
@@ -173,7 +168,7 @@ class SemanticSegmenter(BaseSegmenter):
         if len(neighborhood) < 2:
             return 0.0
         sims = [
-            self._cosine_similarity(neighborhood[i], neighborhood[i + 1])
+            cosine_similarity(neighborhood[i], neighborhood[i + 1])
             for i in range(len(neighborhood) - 1)
         ]
         return statistics.variance(sims) if len(sims) > 1 else 0.0
@@ -201,7 +196,7 @@ class SemanticSegmenter(BaseSegmenter):
 
             v_prev = self._get_mean_vector(prev_block)
             v_next = self._get_mean_vector(next_block)
-            boundary_scores.append(self._cosine_similarity(v_prev, v_next))
+            boundary_scores.append(cosine_similarity(v_prev, v_next))
 
         chunks = []
         current_chunk_sentences = []
@@ -237,8 +232,11 @@ class SemanticSegmenter(BaseSegmenter):
         if current_chunk_sentences:
             remaining = " ".join(current_chunk_sentences + sentences[len(boundary_scores) :])
             chunks.append(remaining)
-        elif i + 1 < len(sentences):
-            chunks[-1] += " " + sentences[-1]
+        elif boundary_scores and chunks:
+            # The last sentence (after boundary_scores) may not have been added
+            last_sentence_idx = len(boundary_scores)
+            if last_sentence_idx < len(sentences):
+                chunks[-1] += " " + sentences[last_sentence_idx]
 
         return self._create_segments(chunks, doc_id)
 

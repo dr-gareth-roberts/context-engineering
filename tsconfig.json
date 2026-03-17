@@ -1,16 +1,18 @@
 {
-  "include": ["client/src/**/*", "shared/**/*", "server/**/*"],
+  "include": [
+    "packages/ce-web-client/src/**/*",
+    "packages/ce-web-server/**/*.ts"
+  ],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,
     "target": "ES2022",
-    "downlevelIteration": true,
     "module": "ESNext",
     "strict": true,
     "lib": ["esnext", "dom", "dom.iterable"],
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
@@ -18,8 +20,7 @@
     "baseUrl": ".",
     "types": ["node", "vite/client"],
     "paths": {
-      "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"],
+      "@/*": ["./packages/ce-web-client/src/*"],
       "@context-engineering/core": ["./packages/ce-core/src/index.ts"],
       "@context-engineering/memory": ["./packages/ce-memory/src/index.ts"],
       "@context-engineering/providers": ["./packages/ce-providers/src/index.ts"]

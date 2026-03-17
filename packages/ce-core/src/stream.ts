@@ -1,9 +1,7 @@
 import type { Budget, ContextItem, PackOptions } from "./types.js";
-import { BudgetSchema, ContextItemSchema } from "./schemas.js";
-import { ValidationError, BudgetExceededError } from "./errors.js";
+import { validatePackInputs } from "./schemas.js";
 import { createScorer, defaultItemScorer } from "./score.js";
 import { estimateTokens } from "./estimate.js";
-import { z } from "zod";
 
 /**
  * Stream-pack context items, yielding each selected item as it's chosen.
@@ -12,9 +10,13 @@ import { z } from "zod";
  * async generator. Useful for large item sets where you want to start
  * processing selected items before packing completes.
  *
+ * Supports compression when `allowCompression` is set in options:
+ * if an item exceeds the remaining budget, its compressions are tried
+ * (largest fitting first), and a summarizer is consulted as a fallback.
+ *
  * @param items - Context items to pack
  * @param budget - Token budget
- * @param options - Packing options
+ * @param options - Packing options (including allowCompression, summarizer)
  * @yields Selected ContextItems in score order
  * @throws {ValidationError} If items or budget fail validation
  * @throws {BudgetExceededError} If reserveTokens >= maxTokens
@@ -31,36 +33,7 @@ export async function* packStream(
   budget: Budget,
   options: PackOptions = {}
 ): AsyncGenerator<ContextItem> {
-  const budgetResult = BudgetSchema.safeParse(budget);
-  if (!budgetResult.success) {
-    throw new ValidationError(
-      `Invalid budget: ${budgetResult.error.issues.map((i: z.ZodIssue) => i.message).join(", ")}`,
-      budgetResult.error.issues.map((i: z.ZodIssue) => ({
-        path: i.path.join("."),
-        message: i.message,
-      }))
-    );
-  }
-
-  if (
-    budget.reserveTokens !== undefined &&
-    budget.reserveTokens >= budget.maxTokens
-  ) {
-    throw new BudgetExceededError(
-      `reserveTokens (${budget.reserveTokens}) must be less than maxTokens (${budget.maxTokens})`
-    );
-  }
-
-  const itemsResult = z.array(ContextItemSchema).safeParse(items);
-  if (!itemsResult.success) {
-    throw new ValidationError(
-      `Invalid items: ${itemsResult.error.issues.map((i: z.ZodIssue) => i.message).join(", ")}`,
-      itemsResult.error.issues.map((i: z.ZodIssue) => ({
-        path: i.path.join("."),
-        message: i.message,
-      }))
-    );
-  }
+  validatePackInputs(items, budget);
 
   const scorer =
     options.scorer ??
@@ -89,6 +62,66 @@ export async function* packStream(
     if ((item.tokens ?? 0) <= remaining) {
       remaining -= item.tokens ?? 0;
       yield item;
+      continue;
+    }
+
+    // Attempt compression if enabled (C3 fix: match pack() behavior)
+    if (options.allowCompression) {
+      const compressed = tryCompress(item, remaining, options);
+      if (compressed) {
+        remaining -= compressed.tokens ?? 0;
+        yield compressed;
+      }
     }
   }
+}
+
+/**
+ * Try to compress an item to fit within remainingTokens.
+ * Picks the largest compression that fits (best quality).
+ */
+function tryCompress(
+  item: ContextItem,
+  remainingTokens: number,
+  options: PackOptions
+): ContextItem | null {
+  const compressions = item.compressions ?? [];
+
+  // Resolve tokens and sort descending (largest first = best quality)
+  const withTokens = compressions.map(c => ({
+    ...c,
+    tokens:
+      c.tokens ??
+      estimateTokens(c.content, { estimator: options.tokenEstimator }),
+  }));
+  const sorted = withTokens.sort((a, b) => b.tokens - a.tokens);
+
+  for (const compression of sorted) {
+    if (compression.tokens <= remainingTokens) {
+      return {
+        ...item,
+        content: compression.content,
+        tokens: compression.tokens,
+        metadata: {
+          ...item.metadata,
+          compressionNote: compression.note ?? "compression",
+        },
+      };
+    }
+  }
+
+  // Fall back to summarizer
+  if (options.summarizer) {
+    const summary = options.summarizer(item, remainingTokens);
+    if (summary) {
+      const tokens =
+        summary.tokens ??
+        estimateTokens(summary.content, { estimator: options.tokenEstimator });
+      if (tokens <= remainingTokens) {
+        return { ...summary, tokens };
+      }
+    }
+  }
+
+  return null;
 }

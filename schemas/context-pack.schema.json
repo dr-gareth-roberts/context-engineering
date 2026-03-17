@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "ContextPack",
+  "$id": "context-pack.schema.json",
   "title": "ContextPack",
   "type": "object",
   "required": ["budget", "selected", "dropped", "totalTokens"],
@@ -9,20 +9,20 @@
       "type": "object",
       "required": ["maxTokens"],
       "properties": {
-        "maxTokens": { "type": "number" },
-        "reserveTokens": { "type": "number" }
+        "maxTokens": { "type": "integer" },
+        "reserveTokens": { "type": "integer" }
       },
       "additionalProperties": false
     },
     "selected": {
       "type": "array",
-      "items": { "$ref": "ContextItem" }
+      "items": { "$ref": "context-item.schema.json" }
     },
     "dropped": {
       "type": "array",
-      "items": { "$ref": "ContextItem" }
+      "items": { "$ref": "context-item.schema.json" }
     },
-    "totalTokens": { "type": "number" },
+    "totalTokens": { "type": "integer" },
     "stats": { "type": "object", "additionalProperties": true },
     "notes": { "type": "array", "items": { "type": "string" } }
   },

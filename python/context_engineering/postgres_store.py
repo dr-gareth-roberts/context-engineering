@@ -1,35 +1,57 @@
 import json
-from typing import List, Optional
+import logging
+from typing import Any, List, Optional, cast
+
+from .memory import MemoryItem, MemoryQuery, MemoryStore, _normalize, _now_iso
 
 try:
-    import asyncpg
+    import asyncpg  # pyright: ignore[reportMissingImports]
 except ImportError:
     asyncpg = None
 
-from .memory import MemoryItem, MemoryQuery, MemoryStore, _normalize, _now_iso
+Pool = Any
+
+logger = logging.getLogger(__name__)
 
 
 class PostgresMemoryStore(MemoryStore):
     def __init__(self, dsn: str, pool_size: int = 10):
         if asyncpg is None:
-            raise ImportError("asyncpg package is required for PostgresMemoryStore. Install it with `pip install asyncpg`.")
+            raise ImportError(
+                "asyncpg package is required for PostgresMemoryStore. Install it with `pip install asyncpg`."
+            )
         self.dsn = dsn
         self.pool_size = pool_size
-        self._pool = None
+        self._pool: Pool | None = None
+
+    def _require_asyncpg(self) -> Any:
+        if asyncpg is None:
+            raise ImportError(
+                "asyncpg package is required for PostgresMemoryStore. Install it with `pip install asyncpg`."
+            )
+        return cast(Any, asyncpg)
+
+    async def _get_pool(self) -> Pool:
+        if self._pool is None:
+            await self.init()
+        assert self._pool is not None
+        return self._pool
 
     async def init(self):
         if not self._pool:
-            self._pool = await asyncpg.create_pool(dsn=self.dsn, min_size=1, max_size=self.pool_size)
+            asyncpg_mod = self._require_asyncpg()
+            self._pool = await asyncpg_mod.create_pool(
+                dsn=self.dsn, min_size=1, max_size=self.pool_size
+            )
 
         async with self._pool.acquire() as conn:
-            # We assume pgvector extension is installed in the DB: `CREATE EXTENSION IF NOT EXISTS vector;`
-            # For robustness, we won't crash if vector isn't there, but we will store it as a JSONB if needed,
-            # or try to create the extension.
             try:
                 await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            except Exception:
-                # Extension might fail if user doesn't have privileges or pgvector not installed.
-                pass
+            except Exception as exc:
+                logger.warning(
+                    "Could not create pgvector extension (vector search will be unavailable): %s",
+                    exc,
+                )
 
             # Create table
             await conn.execute("""
@@ -52,7 +74,8 @@ class PostgresMemoryStore(MemoryStore):
                     ALTER TABLE ce_memory_items ADD COLUMN embedding vector(1536);
                 """)
             except Exception:
-                pass # Column likely exists or vector type unsupported
+                # Column likely already exists, or vector type unsupported.
+                pass
 
     async def close(self):
         if self._pool:
@@ -60,13 +83,11 @@ class PostgresMemoryStore(MemoryStore):
             self._pool = None
 
     async def aput(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
-        if not self._pool:
-            await self.init()
-
         items = item if isinstance(item, list) else [item]
         normalized = [_normalize(e) for e in items]
 
-        async with self._pool.acquire() as conn:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
             for e in normalized:
                 embedding_val = e.embedding if e.embedding else None
 
@@ -92,31 +113,42 @@ class PostgresMemoryStore(MemoryStore):
 
                 await conn.execute(
                     query,
-                    e.id, e.content, e.created_at, e.updated_at, e.last_accessed_at,
-                    e.salience, e.ttl_seconds, e.is_summary, json.dumps(e.metadata), embedding_val
+                    e.id,
+                    e.content,
+                    e.created_at,
+                    e.updated_at,
+                    e.last_accessed_at,
+                    e.salience,
+                    e.ttl_seconds,
+                    e.is_summary,
+                    json.dumps(e.metadata),
+                    embedding_val,
                 )
         return normalized
 
     async def aget(self, item_id: str) -> Optional[MemoryItem]:
-        if not self._pool:
-            await self.init()
-
-        async with self._pool.acquire() as conn:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
             # Update last accessed
             now_iso = _now_iso()
-            await conn.execute("UPDATE ce_memory_items SET last_accessed_at = $1 WHERE id = $2", now_iso, item_id)
+            await conn.execute(
+                "UPDATE ce_memory_items SET last_accessed_at = $1 WHERE id = $2", now_iso, item_id
+            )
 
             # Since vector column isn't always present/supported identically, we fetch all except embedding or cast embedding to text.
-            row = await conn.fetchrow("""
+            row = await conn.fetchrow(
+                """
                 SELECT id, content, created_at, updated_at, last_accessed_at,
                        salience, ttl_seconds, is_summary, metadata, embedding::text
                 FROM ce_memory_items WHERE id = $1
-            """, item_id)
+            """,
+                item_id,
+            )
 
             if not row:
                 return None
 
-            embedding_str = row['embedding']
+            embedding_str = row["embedding"]
             embedding_list = None
             if embedding_str:
                 try:
@@ -126,22 +158,21 @@ class PostgresMemoryStore(MemoryStore):
                     pass
 
             return MemoryItem(
-                id=row['id'],
-                content=row['content'],
-                createdAt=row['created_at'],
-                updatedAt=row['updated_at'],
+                id=row["id"],
+                content=row["content"],
+                createdAt=row["created_at"],
+                updatedAt=row["updated_at"],
                 lastAccessedAt=now_iso,
-                salience=row['salience'],
-                ttlSeconds=row['ttl_seconds'],
-                isSummary=row['is_summary'],
-                metadata=json.loads(row['metadata']) if isinstance(row['metadata'], str) else row['metadata'],
-                embedding=embedding_list
+                salience=row["salience"],
+                ttlSeconds=row["ttl_seconds"],
+                isSummary=row["is_summary"],
+                metadata=json.loads(row["metadata"])
+                if isinstance(row["metadata"], str)
+                else row["metadata"],
+                embedding=embedding_list,
             )
 
     async def aquery(self, query: Optional[MemoryQuery] = None) -> List[MemoryItem]:
-        if not self._pool:
-            await self.init()
-
         query = query or MemoryQuery()
 
         # Build SQL query dynamically
@@ -177,15 +208,16 @@ class PostgresMemoryStore(MemoryStore):
 
         if query.limit:
             base_sql += f" LIMIT ${idx}"
-            args.append(query.limit * 2) # Fetch extra in case of TTL/salience dropping
+            args.append(query.limit * 2)  # Fetch extra in case of TTL/salience dropping
             idx += 1
 
-        async with self._pool.acquire() as conn:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
             rows = await conn.fetch(base_sql, *args)
 
         items = []
         for row in rows:
-            embedding_str = row['embedding']
+            embedding_str = row["embedding"]
             embedding_list = None
             if embedding_str:
                 try:
@@ -194,28 +226,29 @@ class PostgresMemoryStore(MemoryStore):
                     pass
 
             item = MemoryItem(
-                id=row['id'],
-                content=row['content'],
-                createdAt=row['created_at'],
-                updatedAt=row['updated_at'],
-                lastAccessedAt=row['last_accessed_at'],
-                salience=row['salience'],
-                ttlSeconds=row['ttl_seconds'],
-                isSummary=row['is_summary'],
-                metadata=json.loads(row['metadata']) if isinstance(row['metadata'], str) else row['metadata'],
-                embedding=embedding_list
+                id=row["id"],
+                content=row["content"],
+                createdAt=row["created_at"],
+                updatedAt=row["updated_at"],
+                lastAccessedAt=row["last_accessed_at"],
+                salience=row["salience"],
+                ttlSeconds=row["ttl_seconds"],
+                isSummary=row["is_summary"],
+                metadata=json.loads(row["metadata"])
+                if isinstance(row["metadata"], str)
+                else row["metadata"],
+                embedding=embedding_list,
             )
             items.append(item)
 
         # Apply standard memory python filters (TTL, salience, etc)
         from .memory import _apply_query
+
         return _apply_query(items, query)
 
     async def aforget(self, item_id: str) -> bool:
-        if not self._pool:
-            await self.init()
-
-        async with self._pool.acquire() as conn:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
             status = await conn.execute("DELETE FROM ce_memory_items WHERE id = $1", item_id)
             return not status.endswith("0")
 

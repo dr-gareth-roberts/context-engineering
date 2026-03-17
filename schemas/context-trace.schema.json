@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "ContextTrace",
+  "$id": "context-trace.schema.json",
   "title": "ContextTrace",
   "type": "object",
   "required": ["pack", "steps"],
   "properties": {
-    "pack": { "$ref": "ContextPack" },
+    "pack": { "$ref": "context-pack.schema.json" },
     "steps": {
       "type": "array",
       "items": {
@@ -17,11 +17,11 @@
             "type": "string",
             "enum": ["include", "exclude", "compress"]
           },
-          "tokens": { "type": "number" },
+          "tokens": { "type": "integer" },
           "score": { "type": "number" },
           "reason": { "type": "string" },
           "usedCompression": { "type": "boolean" },
-          "compressedTokens": { "type": "number" }
+          "compressedTokens": { "type": "integer" }
         },
         "additionalProperties": true
       }

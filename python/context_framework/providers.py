@@ -116,19 +116,20 @@ class OllamaChatAdapter:
     ) -> dict[str, Any]:
         use_cloud = self.cloud_mode if cloud_mode is None else cloud_mode
         messages = self.messages(packet)
-        if use_cloud:
-            payload: dict[str, Any] = {
-                "model": model,
-                "messages": messages,
-                "stream": stream,
-            }
-            payload.update(extra)
-            return payload
-
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "stream": stream,
         }
+        if not use_cloud:
+            # Native Ollama /api/chat uses 'options' for model parameters
+            # rather than top-level keys like 'temperature', 'top_p', etc.
+            native_option_keys = {"temperature", "top_p", "top_k", "num_predict", "seed", "stop"}
+            options: dict[str, Any] = {}
+            for key in native_option_keys:
+                if key in extra:
+                    options[key] = extra.pop(key)
+            if options:
+                payload["options"] = options
         payload.update(extra)
         return payload

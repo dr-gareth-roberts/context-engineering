@@ -27,20 +27,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
   /* Custom whiteboard colours */
   --marker-blue: #0066cc;
   --marker-red: #e74c3c;
@@ -65,13 +51,6 @@
 :root {
   --primary: #0066cc;
   --primary-foreground: #ffffff;
-  --sidebar-primary: #0066cc;
-  --sidebar-primary-foreground: #ffffff;
-  --chart-1: #0066cc;
-  --chart-2: #27ae60;
-  --chart-3: #e74c3c;
-  --chart-4: #f39c12;
-  --chart-5: #9b59b6;
   --radius: 0.5rem;
   --background: #fffef5;
   --foreground: #2d3436;
@@ -102,13 +81,6 @@
 .dark {
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #ffffff;
-  --chart-1: #3b82f6;
-  --chart-2: #10b981;
-  --chart-3: #ef4444;
-  --chart-4: #f59e0b;
-  --chart-5: #a855f7;
   --background: #1a1a1a;
   --foreground: #e5e7eb;
   --card: #262626;
@@ -288,22 +260,28 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar (WebKit) */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f3f4;
+  background: var(--muted);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #b2bec3;
+  background: var(--muted-foreground);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #636e72;
+  background: var(--foreground);
+}
+
+/* Custom scrollbar (Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) var(--muted);
 }
 
 /* Print styles for PDF generation */

@@ -20,6 +20,8 @@ logger = structlog.get_logger(__name__)
 
 SummaryBuilder = Callable[[Sequence[ContextItem], int], str]
 
+CONFIDENCE_EVIDENCE_KINDS = {ContextKind.MEMORY, ContextKind.DOCUMENT, ContextKind.SUMMARY}
+
 
 @dataclass(slots=True)
 class WeightConfig:
@@ -478,13 +480,16 @@ class ContextManager:
 
         # Abstention Logic
         if abstain_on_low_confidence and packet.items:
-            max_importance = max(
-                [getattr(i, "importance", 0.0) or 0.0 for i in packet.items] + [0.0]
+            evidence_items = [
+                item for item in packet.items if item.kind in CONFIDENCE_EVIDENCE_KINDS
+            ]
+            evidence_confidence = max(
+                [getattr(i, "importance", 0.0) or 0.0 for i in evidence_items] + [0.0]
             )
-            if max_importance < min_confidence_threshold:
+            if evidence_confidence < min_confidence_threshold:
                 log.warning(
                     "abstaining_due_to_low_confidence",
-                    max_importance=max_importance,
+                    evidence_confidence=evidence_confidence,
                     threshold=min_confidence_threshold,
                 )
                 return [
@@ -598,12 +603,14 @@ class ContextManager:
         if not text:
             return None
 
-        if self._token_counter.count(text) <= max_tokens:
-            return replace(item, text=text, token_count=self._token_counter.count(text))
+        token_count = self._token_counter.count(text)
+        if token_count <= max_tokens:
+            return replace(item, text=text, token_count=token_count)
 
         low = 1
         high = len(text)
         best = ""
+        best_tokens = 0
         while low <= high:
             mid = (low + high) // 2
             candidate = text[:mid].rstrip()
@@ -613,13 +620,14 @@ class ContextManager:
             tokens = self._token_counter.count(candidate)
             if tokens <= max_tokens:
                 best = candidate
+                best_tokens = tokens
                 low = mid + 1
             else:
                 high = mid - 1
 
         if not best:
             return None
-        return replace(item, text=best, token_count=self._token_counter.count(best))
+        return replace(item, text=best, token_count=best_tokens)
 
     @staticmethod
     def _normalize_datetime(value: datetime | None) -> datetime:
@@ -636,6 +644,4 @@ class ContextManager:
 
         total_window = (newest - oldest).total_seconds()
         age_position = (created_at - oldest).total_seconds()
-        if total_window <= 0:
-            return 1.0
         return max(0.0, min(1.0, age_position / total_window))

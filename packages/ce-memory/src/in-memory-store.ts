@@ -28,4 +28,8 @@ export class InMemoryStore implements MemoryStore {
   async forget(id: string): Promise<boolean> {
     return this.items.delete(id);
   }
+
+  async close(): Promise<void> {
+    this.items.clear();
+  }
 }

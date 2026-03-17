@@ -2,12 +2,23 @@ const isTTY = process.stdout.isTTY ?? false;
 let forceJson = false;
 let noColor = false;
 
+// Respect the NO_COLOR standard (https://no-color.org/)
+if (process.env.NO_COLOR !== undefined) {
+  noColor = true;
+}
+
 export function setForceJson(value: boolean) {
   forceJson = value;
 }
 
 export function setNoColor(value: boolean) {
   noColor = value;
+}
+
+/** Reset mutable output state. Useful for tests and library consumers. */
+export function resetOutputState() {
+  forceJson = false;
+  noColor = process.env.NO_COLOR !== undefined;
 }
 
 export function isJsonMode(): boolean {
@@ -26,7 +37,7 @@ const ansi = {
 };
 
 function color(code: string, text: string): string {
-  if (noColor || !isTTY) return text;
+  if (noColor || !isTTY || process.env.NO_COLOR !== undefined) return text;
   return `${code}${text}${ansi.reset}`;
 }
 
@@ -61,12 +72,36 @@ export function outputError(message: string, details?: string): never {
   process.exit(1);
 }
 
+const STDIN_TIMEOUT_MS = 30_000;
+
 export async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = "";
     process.stdin.setEncoding("utf-8");
-    process.stdin.on("data", (chunk: string) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    process.stdin.on("error", reject);
+
+    const timer = setTimeout(() => {
+      process.stdin.removeAllListeners("data");
+      process.stdin.removeAllListeners("end");
+      process.stdin.removeAllListeners("error");
+      reject(
+        new Error(
+          `No input received on stdin after ${STDIN_TIMEOUT_MS / 1000}s. ` +
+            "Did you mean to pipe data? Example: cat items.json | ce pack -i -"
+        )
+      );
+    }, STDIN_TIMEOUT_MS);
+
+    process.stdin.on("data", (chunk: string) => {
+      clearTimeout(timer);
+      data += chunk;
+    });
+    process.stdin.on("end", () => {
+      clearTimeout(timer);
+      resolve(data);
+    });
+    process.stdin.on("error", err => {
+      clearTimeout(timer);
+      reject(err);
+    });
   });
 }

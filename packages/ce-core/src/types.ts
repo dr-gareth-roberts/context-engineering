@@ -1,4 +1,5 @@
 import type { Logger } from "./logger.js";
+import type { RedundancyOptions } from "./redundancy.js";
 
 export interface Budget {
   maxTokens: number;
@@ -117,7 +118,7 @@ export interface PackOptions {
   allowCompression?: boolean;
   weights?: ScoringWeights;
   logger?: Logger;
-  redundancyConfig?: import("./redundancy.js").RedundancyOptions;
+  redundancyConfig?: RedundancyOptions;
 }
 
 export interface PackDiff {

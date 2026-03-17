@@ -87,7 +87,7 @@ describe("diff", () => {
     expect(result).toMatchSnapshot();
   });
 
-  it("handles duplicate IDs by using the last occurrence", () => {
+  it("handles duplicate IDs by matching pairwise within each group", () => {
     const dupesBefore: ContextItem[] = [
       { id: "a", content: "First A", tokens: 10 },
       { id: "a", content: "Second A", tokens: 20 },
@@ -96,11 +96,27 @@ describe("diff", () => {
       { id: "a", content: "Second A", tokens: 20 },
     ];
     const result = diff(dupesBefore, dupesAfter);
-    // Map construction uses last entry for duplicate keys, so "Second A" is the before value
-    expect(result.kept.length).toBe(1);
-    expect(result.kept[0].content).toBe("Second A");
-    expect(result.changed).toEqual([]);
+    // Before has 2 items with id "a", after has 1.
+    // First pair: before[0] ("First A") vs after[0] ("Second A") -> changed
+    // Second pair: before[1] ("Second A") has no after match -> removed
+    expect(result.changed.length).toBe(1);
+    expect(result.changed[0].before.content).toBe("First A");
+    expect(result.changed[0].after.content).toBe("Second A");
+    expect(result.removed.length).toBe(1);
+    expect(result.removed[0].content).toBe("Second A");
+    expect(result.kept).toEqual([]);
     expect(result.added).toEqual([]);
-    expect(result.removed).toEqual([]);
+  });
+
+  it("handles more duplicates in after than before", () => {
+    const before: ContextItem[] = [{ id: "a", content: "A", tokens: 10 }];
+    const after: ContextItem[] = [
+      { id: "a", content: "A", tokens: 10 },
+      { id: "a", content: "A copy", tokens: 15 },
+    ];
+    const result = diff(before, after);
+    expect(result.kept.length).toBe(1);
+    expect(result.added.length).toBe(1);
+    expect(result.added[0].content).toBe("A copy");
   });
 });

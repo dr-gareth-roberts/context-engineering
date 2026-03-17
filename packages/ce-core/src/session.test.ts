@@ -99,6 +99,42 @@ describe("createSession", () => {
     expect(r2.delta!.reuseRatio).toBe(0.5);
   });
 
+  it("treats reordered items as non-reusable prefix", () => {
+    const session = createSession({ budget: { maxTokens: 500 } });
+
+    session.setItems([makeItem("a", 10, 100), makeItem("b", 9, 80)]);
+    const first = session.compile();
+
+    session.setItems([makeItem("b", 10, 80), makeItem("a", 9, 100)]);
+    const second = session.compile();
+
+    expect(second.delta!.keptCount).toBe(2);
+    expect(second.delta!.reusableTokens).toBe(0);
+    expect(second.delta!.reuseRatio).toBe(0);
+    expect(second.cacheKey).toBe(first.cacheKey);
+  });
+
+  it("counts only the unchanged leading prefix as reusable", () => {
+    const session = createSession({ budget: { maxTokens: 500 } });
+
+    session.setItems([
+      { id: "a", content: "stable", priority: 10, tokens: 100 },
+      { id: "b", content: "old", priority: 9, tokens: 80 },
+      { id: "c", content: "also-stable", priority: 8, tokens: 60 },
+    ]);
+    session.compile();
+
+    session.setItems([
+      { id: "a", content: "stable", priority: 10, tokens: 100 },
+      { id: "b", content: "new", priority: 9, tokens: 80 },
+      { id: "c", content: "also-stable", priority: 8, tokens: 60 },
+    ]);
+    const result = session.compile();
+
+    expect(result.delta!.reusableTokens).toBe(100);
+    expect(result.delta!.reuseRatio).toBe(0.417);
+  });
+
   it("reports delta tokens", () => {
     const session = createSession({ budget: { maxTokens: 500 } });
 

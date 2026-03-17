@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from typing import Literal, Protocol, Sequence
+
+_WHITESPACE_RUN_RE = re.compile(r"\s+")
 
 
 def precision_at_k(ranked_ids: Sequence[str], relevant_ids: set[str], k: int) -> float:
@@ -80,13 +83,13 @@ class QuoteOnlyFaithfulnessJudge:
     min_claim_chars: int = 16
 
     async def judge(self, *, claim: str, context: str) -> FaithfulnessVerdict:
-        normalized_claim = (claim or "").strip()
-        normalized_context = context or ""
+        normalized_claim = _WHITESPACE_RUN_RE.sub(" ", (claim or "").strip()).lower()
+        normalized_context = _WHITESPACE_RUN_RE.sub(" ", (context or "")).lower()
         if len(normalized_claim) < self.min_claim_chars:
             return FaithfulnessVerdict(verdict="abstain", reason="Claim too short to judge safely.")
         if normalized_claim in normalized_context:
             return FaithfulnessVerdict(
-                verdict="pass", reason="Claim is a direct substring of context."
+                verdict="pass", reason="Claim is a direct substring of context (case-insensitive)."
             )
         return FaithfulnessVerdict(
             verdict="abstain", reason="No direct textual support found in context."
