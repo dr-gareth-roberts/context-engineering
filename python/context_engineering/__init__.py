@@ -88,6 +88,14 @@ from .recommendations import (
 )
 from .redis_store import RedisMemoryStore
 from .redundancy import RedundancyConfig, RedundancyEliminator
+from .relevance import (
+    QueryContext,
+    QueryInput,
+    compute_relevance,
+    extract_keywords,
+    keyword_relevance,
+    normalize_query,
+)
 from .segmentation import (
     BoundaryProtector,
     HybridSegmenter,
@@ -104,6 +112,20 @@ from .session import (
     create_session,
 )
 from .stream import pack_stream
+from .template import (
+    DEFAULT_SECTION_RULES,
+    AnthropicMessages,
+    OpenAIMessages,
+    PromptMessage,
+    PromptMessages,
+    PromptMessageStats,
+    PromptTemplateConfig,
+    SectionRule,
+    compile_to_messages,
+    format_for_anthropic,
+    format_for_openai,
+    to_messages,
+)
 from .webhook import (
     HandoffReportExtras,
     PackReportExtras,
@@ -247,4 +269,24 @@ __all__ = [
     "fetch_budget_recommendation",
     "fetch_weight_config",
     "recommendation_options_from_env",
+    # Relevance
+    "QueryContext",
+    "QueryInput",
+    "extract_keywords",
+    "normalize_query",
+    "keyword_relevance",
+    "compute_relevance",
+    # Template
+    "SectionRule",
+    "PromptTemplateConfig",
+    "PromptMessage",
+    "PromptMessageStats",
+    "PromptMessages",
+    "AnthropicMessages",
+    "OpenAIMessages",
+    "DEFAULT_SECTION_RULES",
+    "to_messages",
+    "format_for_anthropic",
+    "format_for_openai",
+    "compile_to_messages",
 ]

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { pipeline, ContextPipeline } from "./pipeline.js";
 import { createSession } from "./session.js";
+import { createContextItem } from "./types.js";
 import type { ContextItem, MemoryItem } from "./types.js";
 
 function makeItem(
@@ -252,5 +253,92 @@ describe("pipeline", () => {
     expect(result.stages).toContain("quality");
     expect(result.stages).not.toContain("allocate");
     expect(result.stages).not.toContain("session");
+  });
+});
+
+describe("pipeline withQuery", () => {
+  it("withQuery changes selection order based on relevance", () => {
+    const result = pipeline(1000)
+      .add(
+        createContextItem("irrelevant", "unrelated xyz content", {
+          priority: 5,
+          tokens: 50,
+        }),
+        createContextItem("relevant", "machine learning algorithms", {
+          priority: 5,
+          tokens: 50,
+        })
+      )
+      .withQuery("machine learning")
+      .build();
+
+    expect(result.selected[0].id).toBe("relevant");
+    expect(result.stages).toContain("query");
+  });
+
+  it("stages includes 'query' when withQuery is used", () => {
+    const result = pipeline(1000)
+      .add(createContextItem("a", "content", { priority: 5, tokens: 50 }))
+      .withQuery("test")
+      .build();
+
+    expect(result.stages).toContain("query");
+  });
+});
+
+describe("pipeline template", () => {
+  it("template produces messages on result", () => {
+    const result = pipeline(1000)
+      .add(
+        createContextItem("sys", "system prompt", {
+          kind: "system",
+          priority: 10,
+          tokens: 50,
+        }),
+        createContextItem("q", "user question", {
+          kind: "query",
+          priority: 5,
+          tokens: 50,
+        })
+      )
+      .template()
+      .build();
+
+    expect(result.messages).toBeDefined();
+    expect(result.messages!.messages.length).toBeGreaterThan(0);
+    expect(result.stages).toContain("template");
+  });
+
+  it("template messages have correct roles", () => {
+    const result = pipeline(1000)
+      .add(
+        createContextItem("sys", "system prompt", {
+          kind: "system",
+          priority: 10,
+          tokens: 50,
+        }),
+        createContextItem("q", "user question", {
+          kind: "query",
+          priority: 5,
+          tokens: 50,
+        })
+      )
+      .template()
+      .build();
+
+    const systemMsgs = result.messages!.messages.filter(
+      m => m.role === "system"
+    );
+    const userMsgs = result.messages!.messages.filter(m => m.role === "user");
+    expect(systemMsgs.length).toBeGreaterThan(0);
+    expect(userMsgs.length).toBeGreaterThan(0);
+  });
+
+  it("without template, messages is undefined", () => {
+    const result = pipeline(1000)
+      .add(createContextItem("a", "content", { priority: 5, tokens: 50 }))
+      .build();
+
+    expect(result.messages).toBeUndefined();
   });
 });

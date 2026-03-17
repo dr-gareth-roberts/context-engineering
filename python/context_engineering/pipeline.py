@@ -38,7 +38,9 @@ from .core import Budget, ContextItem, ScoringWeights, estimate_tokens, pack
 from .memory import MemoryItem
 from .placement import place_items
 from .quality import ContextQuality, analyze_context
+from .relevance import QueryInput
 from .session import ContextSession, SessionDelta
+from .template import PromptMessages, PromptTemplateConfig, to_messages
 
 
 @dataclass
@@ -56,6 +58,7 @@ class PipelineResult:
     delta: Optional[SessionDelta] = None
     allocations: Optional[Dict[str, Any]] = None
     allocation_efficiency: Optional[float] = None
+    messages: Optional[PromptMessages] = None
     input_count: int = 0
     stages: List[str] = field(default_factory=list)
 
@@ -77,6 +80,8 @@ class ContextPipeline:
         self._placement_config: Optional[Dict[str, Any]] = None
         self._quality_config: Optional[Dict[str, Any]] = None
         self._session_instance: Optional[ContextSession] = None
+        self._query_config: Optional[Dict[str, Any]] = None
+        self._template_config: Optional[PromptTemplateConfig] = None
         self._stages_applied: List[str] = []
 
     def add(self, *items: ContextItem) -> "ContextPipeline":
@@ -133,6 +138,16 @@ class ContextPipeline:
         self._session_instance = session
         return self
 
+    def with_query(self, query: QueryInput) -> "ContextPipeline":
+        """Set a query for relevance-aware scoring."""
+        self._query_config = {"query": query}
+        return self
+
+    def template(self, config: Optional[PromptTemplateConfig] = None) -> "ContextPipeline":
+        """Configure prompt templating."""
+        self._template_config = config or PromptTemplateConfig()
+        return self
+
     def weights(
         self, priority: float = 1.0, recency: float = 0.0, salience: float = 0.0
     ) -> "ContextPipeline":
@@ -155,6 +170,12 @@ class ContextPipeline:
             if item.tokens is None:
                 item = item.model_copy(update={"tokens": estimate_tokens(item.content)})
             items.append(item)
+
+        # Wire query into pack kwargs
+        pack_query = None
+        if self._query_config:
+            stages.append("query")
+            pack_query = self._query_config["query"]
 
         selected: List[ContextItem] = []
         dropped: List[ContextItem] = []
@@ -206,6 +227,8 @@ class ContextPipeline:
             pack_kwargs: Dict[str, Any] = {}
             if "weights" in self._pack_options:
                 pack_kwargs["weights"] = self._pack_options["weights"]
+            if pack_query is not None:
+                pack_kwargs["query"] = pack_query
             result = pack(items, self._budget, **pack_kwargs)
             selected = list(result.selected)
             dropped = list(result.dropped)
@@ -242,6 +265,12 @@ class ContextPipeline:
             session_result = self._session_instance.compile()
             delta = session_result.delta
 
+        # Stage 5: Template
+        prompt_messages = None
+        if self._template_config is not None:
+            stages.append("template")
+            prompt_messages = to_messages(selected, self._template_config)
+
         return PipelineResult(
             selected=selected,
             dropped=dropped,
@@ -254,6 +283,7 @@ class ContextPipeline:
             delta=delta,
             allocations=allocations,
             allocation_efficiency=allocation_efficiency,
+            messages=prompt_messages,
             input_count=input_count,
             stages=stages,
         )

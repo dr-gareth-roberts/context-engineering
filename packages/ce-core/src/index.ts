@@ -2,7 +2,12 @@ export * from "./errors.js";
 export * from "./types.js";
 export * from "./schemas.js";
 export * from "./estimate.js";
-export * from "./score.js";
+export {
+  createScorer,
+  defaultItemScorer,
+  createCausalScorer,
+  createQueryAwareScorer,
+} from "./score.js";
 export { pack, packAsync } from "./pack.js";
 export * from "./diff.js";
 export * from "./trace.js";
@@ -13,6 +18,7 @@ export * from "./cache.js";
 export * from "./bridge.js";
 export * from "./quality.js";
 export * from "./redundancy.js";
+export * from "./relevance.js";
 export * from "./placement.js";
 export * from "./compaction.js";
 export * from "./cache-topology.js";
@@ -21,6 +27,7 @@ export * from "./session.js";
 export * from "./beads.js";
 export { pipeline, ContextPipeline } from "./pipeline.js";
 export type { PipelineResult } from "./pipeline.js";
+export * from "./template.js";
 export * from "./cost.js";
 export * from "./webhook.js";
 export * from "./recommendations.js";

@@ -127,6 +127,7 @@ class ScoringWeights:
     priority: float = 1.0
     recency: float = 0.7
     salience: float = 0.5
+    relevance: float = 0.0
     cost: float = -0.3
     latency: float = -0.2
     relation_boost: float = 2.0
@@ -266,6 +267,7 @@ def pack(
     provider: Optional[str] = None,
     weights: Optional[ScoringWeights] = None,
     redundancy_threshold: Optional[float] = None,
+    query: Optional[Any] = None,
 ) -> ContextPack:
     """Pack context items into a token budget using greedy score-based selection.
 
@@ -304,6 +306,24 @@ def pack(
             f"reserveTokens ({budget.reserve_tokens}) must be less than "
             f"maxTokens ({budget.max_tokens})"
         )
+    # Wire query relevance into scoring weights
+    effective_weights = weights
+    if query is not None:
+        from .relevance import compute_relevance, normalize_query
+
+        q = normalize_query(query)
+        base_w = weights or ScoringWeights()
+        rel_weight = base_w.relevance if base_w.relevance > 0 else 0.8
+
+        # Pre-compute relevance for each item and inject via score override
+        scored_items: List[ContextItem] = []
+        for item in items:
+            rel = compute_relevance(q, item)
+            base_score = calculate_weighted_score(item, base_w)
+            final_score = base_score + rel * rel_weight
+            scored_items.append(item.model_copy(update={"score": final_score}))
+        items = scored_items
+
     return cast(
         ContextPack,
         internal_pack(
@@ -312,7 +332,7 @@ def pack(
             trace=False,
             allow_compression=allow_compression,
             provider=provider,
-            weights=weights,
+            weights=effective_weights,
             redundancy_threshold=redundancy_threshold,
         ),
     )

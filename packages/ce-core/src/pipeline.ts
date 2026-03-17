@@ -31,11 +31,13 @@
 import type {
   Budget,
   ContextItem,
+  EmbeddingProvider,
   PackOptions,
+  QueryInput,
   ScoringWeights,
 } from "./types.js";
 import type { MemoryItem } from "./types.js";
-import { pack } from "./pack.js";
+import { pack, packAsync } from "./pack.js";
 import { estimateTokens } from "./estimate.js";
 import { memoryToContext, type BridgeOptions } from "./bridge.js";
 import { placeItems, type PlacementStrategy } from "./placement.js";
@@ -43,6 +45,11 @@ import { analyzeContext, type ContextQuality } from "./quality.js";
 import { packWithCacheTopology, type CacheConfig } from "./cache-topology.js";
 import { packWithAllocation, type KindAllocation } from "./allocation.js";
 import { type ContextSession, type SessionDelta } from "./session.js";
+import {
+  toMessages,
+  type PromptMessages,
+  type PromptTemplateConfig,
+} from "./template.js";
 
 /**
  * Result of a pipeline build.
@@ -70,6 +77,8 @@ export interface PipelineResult {
   allocations?: Record<string, unknown>;
   /** Allocation efficiency 0-1 (if allocate was used) */
   allocationEfficiency?: number;
+  /** Prompt messages (if template was used) */
+  messages?: PromptMessages;
   /** Number of input items before packing */
   inputCount: number;
   /** Pipeline stages that were applied */
@@ -94,6 +103,11 @@ export class ContextPipeline {
   private placementConfig?: { strategy?: PlacementStrategy; model?: string };
   private qualityConfig?: { minOverall?: number; warn?: boolean };
   private sessionInstance?: ContextSession;
+  private queryConfig?: {
+    query: QueryInput;
+    embeddingProvider?: EmbeddingProvider;
+  };
+  private templateConfig?: PromptTemplateConfig;
   private stagesApplied: string[] = [];
 
   constructor(budget: Budget | number) {
@@ -175,6 +189,30 @@ export class ContextPipeline {
   }
 
   /**
+   * Configure prompt templating.
+   * When set, the build result includes assembled PromptMessages.
+   */
+  template(config?: PromptTemplateConfig): this {
+    this.templateConfig = config ?? {};
+    return this;
+  }
+
+  /**
+   * Set a query for relevance-aware scoring.
+   * When set, items matching the query score higher.
+   */
+  withQuery(
+    query: QueryInput,
+    options?: { embeddingProvider?: EmbeddingProvider }
+  ): this {
+    this.queryConfig = {
+      query,
+      embeddingProvider: options?.embeddingProvider,
+    };
+    return this;
+  }
+
+  /**
    * Set scoring weights for item prioritization.
    */
   weights(weights: ScoringWeights): this {
@@ -215,6 +253,16 @@ export class ContextPipeline {
         }),
     }));
 
+    // Wire query into pack options
+    const packOpts: PackOptions = { ...this.packOptions };
+    if (this.queryConfig) {
+      stages.push("query");
+      packOpts.query = this.queryConfig.query;
+      if (this.queryConfig.embeddingProvider) {
+        packOpts.embeddingProvider = this.queryConfig.embeddingProvider;
+      }
+    }
+
     let selected: ContextItem[];
     let dropped: ContextItem[];
     let totalTokens: number;
@@ -231,7 +279,7 @@ export class ContextPipeline {
         items,
         this.budget,
         this.allocationConfig,
-        this.packOptions
+        packOpts
       );
       selected = result.selected;
       dropped = result.dropped;
@@ -245,7 +293,7 @@ export class ContextPipeline {
         const cacheResult = packWithCacheTopology(
           selected,
           { maxTokens: totalTokens + 100 }, // generous budget since already packed
-          this.packOptions,
+          packOpts,
           this.cacheTopologyConfig
         );
         selected = cacheResult.selected;
@@ -258,7 +306,7 @@ export class ContextPipeline {
       const result = packWithCacheTopology(
         items,
         this.budget,
-        this.packOptions,
+        packOpts,
         this.cacheTopologyConfig
       );
       selected = result.selected;
@@ -269,7 +317,7 @@ export class ContextPipeline {
       cacheableTokens = result.cacheableTokens;
     } else {
       stages.push("pack");
-      const result = pack(items, this.budget, this.packOptions);
+      const result = pack(items, this.budget, packOpts);
       selected = result.selected;
       dropped = result.dropped;
       totalTokens = result.totalTokens;
@@ -326,6 +374,13 @@ export class ContextPipeline {
       delta = sessionResult.delta;
     }
 
+    // Stage 5: Template
+    let promptMessages: PromptMessages | undefined;
+    if (this.templateConfig) {
+      stages.push("template");
+      promptMessages = toMessages(selected, this.templateConfig);
+    }
+
     return {
       selected,
       dropped,
@@ -338,6 +393,103 @@ export class ContextPipeline {
       delta,
       allocations,
       allocationEfficiency,
+      messages: promptMessages,
+      inputCount,
+      stages,
+    };
+  }
+
+  /**
+   * Async build that supports embedding-based query awareness.
+   * Use this when an embeddingProvider is configured via withQuery().
+   */
+  async buildAsync(): Promise<PipelineResult> {
+    // If no embedding provider, just delegate to sync build
+    if (!this.queryConfig?.embeddingProvider) {
+      return this.build();
+    }
+
+    const inputCount = this.items.length;
+    const stages: string[] = [...this.stagesApplied];
+
+    // Ensure all items have token estimates
+    const items = this.items.map(item => ({
+      ...item,
+      tokens:
+        item.tokens ??
+        estimateTokens(item.content, {
+          estimator: this.packOptions.tokenEstimator,
+        }),
+    }));
+
+    const packOpts: PackOptions = { ...this.packOptions };
+    if (this.queryConfig) {
+      stages.push("query");
+      packOpts.query = this.queryConfig.query;
+      packOpts.embeddingProvider = this.queryConfig.embeddingProvider;
+    }
+
+    // Use packAsync which handles embedding enrichment
+    const result = await packAsync(items, this.budget, packOpts);
+    let selected = result.selected;
+    const dropped = result.dropped;
+    let totalTokens = result.totalTokens;
+
+    // Apply remaining stages (placement, quality, session) same as build()
+    if (this.placementConfig) {
+      stages.push("place");
+      selected = placeItems(selected, {
+        strategy: this.placementConfig.strategy,
+        model: this.placementConfig.model,
+      });
+    }
+
+    let quality: ContextQuality | undefined;
+    if (this.qualityConfig) {
+      stages.push("quality");
+      quality = analyzeContext(selected);
+
+      if (
+        this.qualityConfig.minOverall !== undefined &&
+        quality.overall < this.qualityConfig.minOverall &&
+        selected.length > 1
+      ) {
+        while (
+          selected.length > 1 &&
+          quality.overall < this.qualityConfig.minOverall
+        ) {
+          let minIdx = 0;
+          let minScore = selected[0].score ?? 0;
+          for (let i = 1; i < selected.length; i++) {
+            const s = selected[i].score ?? 0;
+            if (s < minScore) {
+              minScore = s;
+              minIdx = i;
+            }
+          }
+          const [removed] = selected.splice(minIdx, 1);
+          dropped.push(removed);
+          totalTokens -= removed.tokens ?? 0;
+          quality = analyzeContext(selected);
+        }
+      }
+    }
+
+    let delta: SessionDelta | null | undefined;
+    if (this.sessionInstance) {
+      stages.push("session");
+      this.sessionInstance.setItems(selected);
+      const sessionResult = this.sessionInstance.compile();
+      delta = sessionResult.delta;
+    }
+
+    return {
+      selected,
+      dropped,
+      totalTokens,
+      budget: this.budget,
+      quality,
+      delta,
       inputCount,
       stages,
     };
