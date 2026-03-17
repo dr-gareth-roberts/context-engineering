@@ -1,8 +1,4 @@
-import type { ContextItem } from "./types.js";
-
-export interface EmbeddingProvider {
-  embed(texts: string[]): Promise<number[][]>;
-}
+import type { ContextItem, EmbeddingProvider } from "./types.js";
 
 export interface RedundancyOptions {
   provider: EmbeddingProvider;
@@ -35,7 +31,7 @@ export async function eliminateRedundancy(
   const strategy = options.strategy ?? "recent";
   const provider = options.provider;
 
-  const texts = items.map((item) => item.content);
+  const texts = items.map(item => item.content);
   const embeddings = await provider.embed(texts);
 
   const clusters: number[][] = [];
@@ -65,7 +61,7 @@ export async function eliminateRedundancy(
       continue;
     }
 
-    const clusterItems = cluster.map((i) => items[i]);
+    const clusterItems = cluster.map(i => items[i]);
 
     if (strategy === "recent" || strategy === "summarize") {
       let bestItem = clusterItems[0];
@@ -86,6 +82,6 @@ export async function eliminateRedundancy(
     }
   }
 
-  const finalIds = new Set(survivingItems.map((item) => item.id));
-  return items.filter((item) => finalIds.has(item.id));
+  const finalIds = new Set(survivingItems.map(item => item.id));
+  return items.filter(item => finalIds.has(item.id));
 }

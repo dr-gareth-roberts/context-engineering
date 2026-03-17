@@ -1,10 +1,17 @@
-import type { ContextItem, ItemScorer, ScoringWeights } from "./types.js";
+import type {
+  ContextItem,
+  ItemScorer,
+  QueryInput,
+  ScoringWeights,
+} from "./types.js";
 import type { BeadsIssue } from "./beads.js";
+import { computeRelevance, normalizeQuery } from "./relevance.js";
 
 const DEFAULT_WEIGHTS: Required<ScoringWeights> = {
   priority: 1.0,
   recency: 0.7,
   salience: 0.5,
+  relevance: 0.0,
 };
 
 /**
@@ -36,6 +43,38 @@ export function createScorer(weights: ScoringWeights = {}): ItemScorer {
 
 /** Default item scorer using standard weights (priority=1.0, recency=0.7, salience=0.5). */
 export const defaultItemScorer: ItemScorer = createScorer();
+
+/**
+ * Create a query-aware scorer that adds relevance to the base score.
+ *
+ * @param query - The query to score against
+ * @param weights - Scoring weights (relevance defaults to 0.8)
+ * @returns An ItemScorer that incorporates query relevance
+ */
+export function createQueryAwareScorer(
+  query: QueryInput,
+  weights: ScoringWeights = {}
+): ItemScorer {
+  const w = { ...DEFAULT_WEIGHTS, relevance: 0.8, ...weights };
+  const queryCtx = normalizeQuery(query);
+
+  return (item: ContextItem) => {
+    if (typeof item.score === "number") return item.score;
+
+    const priority = item.priority ?? 0;
+    const recency = item.recency ?? 0;
+    const salience =
+      typeof item.metadata?.salience === "number" ? item.metadata.salience : 0;
+    const relevance = computeRelevance(queryCtx, item);
+
+    return (
+      priority * w.priority +
+      recency * w.recency +
+      salience * w.salience +
+      relevance * (w.relevance ?? 0)
+    );
+  };
+}
 
 /**
  * Create a causal graph-aware scorer based on BEADS issues.

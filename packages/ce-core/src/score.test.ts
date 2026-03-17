@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { defaultItemScorer, createScorer } from "./score.js";
+import {
+  defaultItemScorer,
+  createScorer,
+  createQueryAwareScorer,
+} from "./score.js";
 import type { ContextItem } from "./types.js";
 
 const item: ContextItem = {
@@ -61,5 +65,48 @@ describe("createScorer", () => {
     const scorer = createScorer({ priority: 1, recency: 0, salience: 0 });
     const score = scorer(item);
     expect(score).toBeCloseTo(10 * 1);
+  });
+});
+
+describe("createQueryAwareScorer", () => {
+  it("produces same result as default when relevance weight is 0", () => {
+    const scorer = createQueryAwareScorer("unrelated query", { relevance: 0 });
+    const defaultScore = defaultItemScorer(item);
+    const queryScore = scorer(item);
+    expect(queryScore).toBeCloseTo(defaultScore);
+  });
+
+  it("boosts items matching the query", () => {
+    const scorer = createQueryAwareScorer("Hello world");
+    const matching: ContextItem = {
+      id: "match",
+      content: "Hello world content",
+      priority: 5,
+    };
+    const nonMatching: ContextItem = {
+      id: "nomatch",
+      content: "completely unrelated xyz",
+      priority: 5,
+    };
+    expect(scorer(matching)).toBeGreaterThan(scorer(nonMatching));
+  });
+
+  it("uses custom relevance weight", () => {
+    const scorer = createQueryAwareScorer("Hello", { relevance: 2.0 });
+    const matching: ContextItem = {
+      id: "m",
+      content: "Hello there",
+      priority: 0,
+      recency: 0,
+    };
+    const score = scorer(matching);
+    // With relevance=2.0 and matching keyword, score should be > 0
+    expect(score).toBeGreaterThan(0);
+  });
+
+  it("returns explicit score when set", () => {
+    const scorer = createQueryAwareScorer("test");
+    const scored: ContextItem = { id: "s", content: "test", score: 42 };
+    expect(scorer(scored)).toBe(42);
   });
 });

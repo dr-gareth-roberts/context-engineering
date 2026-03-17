@@ -6,6 +6,18 @@ export interface Budget {
   reserveTokens?: number;
 }
 
+export interface QueryContext {
+  text: string;
+  keywords?: string[];
+  embedding?: number[];
+}
+
+export type QueryInput = string | QueryContext;
+
+export interface EmbeddingProvider {
+  embed(texts: string[]): Promise<number[][]>;
+}
+
 export interface Compression {
   content: string;
   tokens?: number;
@@ -22,6 +34,7 @@ export interface ContextItem {
   score?: number;
   metadata?: Record<string, unknown>;
   compressions?: Compression[];
+  embedding?: number[];
   /** The BEADS task ID this item belongs to */
   taskId?: string;
   /** If true, this item represents a critical outcome/result of a task */
@@ -109,6 +122,7 @@ export interface ScoringWeights {
   priority?: number;
   recency?: number;
   salience?: number;
+  relevance?: number;
 }
 
 export interface PackOptions {
@@ -119,6 +133,8 @@ export interface PackOptions {
   weights?: ScoringWeights;
   logger?: Logger;
   redundancyConfig?: RedundancyOptions;
+  query?: QueryInput;
+  embeddingProvider?: EmbeddingProvider;
 }
 
 export interface PackDiff {

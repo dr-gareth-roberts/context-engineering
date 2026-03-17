@@ -5,9 +5,14 @@ import type {
   PackOptions,
   TraceStep,
 } from "./types.js";
-import { createScorer, defaultItemScorer } from "./score.js";
+import {
+  createScorer,
+  createQueryAwareScorer,
+  defaultItemScorer,
+} from "./score.js";
 import { estimateTokens } from "./estimate.js";
 import { eliminateRedundancy } from "./redundancy.js";
+import { enrichWithEmbeddings, normalizeQuery } from "./relevance.js";
 import { EstimationError } from "./errors.js";
 import { validatePackInputs } from "./schemas.js";
 import { noopLogger } from "./logger.js";
@@ -125,10 +130,25 @@ export async function internalPackAsync(
   trace = false
 ): Promise<PackResult> {
   let processedItems = items;
+  let processedOptions = options;
+
   if (options.redundancyConfig) {
     processedItems = await eliminateRedundancy(items, options.redundancyConfig);
   }
-  return internalPack(processedItems, budget, options, trace);
+
+  // Enrich with embeddings if an embedding provider and query are present
+  if (options.embeddingProvider && options.query) {
+    const query = normalizeQuery(options.query);
+    const enriched = await enrichWithEmbeddings(
+      processedItems,
+      query,
+      options.embeddingProvider
+    );
+    processedItems = enriched.items;
+    processedOptions = { ...options, query: enriched.query };
+  }
+
+  return internalPack(processedItems, budget, processedOptions, trace);
 }
 
 export function internalPack(
@@ -141,7 +161,11 @@ export function internalPack(
 
   const scorer =
     options.scorer ??
-    (options.weights ? createScorer(options.weights) : defaultItemScorer);
+    (options.query
+      ? createQueryAwareScorer(options.query, options.weights)
+      : options.weights
+        ? createScorer(options.weights)
+        : defaultItemScorer);
   const tokenEstimator = options.tokenEstimator;
   const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
 

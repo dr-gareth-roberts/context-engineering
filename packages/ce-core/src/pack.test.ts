@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { pack } from "./pack.js";
+import { pack, packAsync } from "./pack.js";
 import {
   ValidationError,
   BudgetExceededError,
@@ -236,5 +236,65 @@ describe("NaN/Infinity validation", () => {
 
   it("rejects NaN in budget maxTokens", () => {
     expect(() => pack([], { maxTokens: NaN })).toThrow(ValidationError);
+  });
+});
+
+describe("pack with query", () => {
+  it("with no query produces identical output to default", () => {
+    const items = [
+      createContextItem("a", "alpha content", { priority: 5 }),
+      createContextItem("b", "beta content", { priority: 3 }),
+    ];
+    const budget = { maxTokens: 1000 };
+
+    const withoutQuery = pack(items, budget);
+    const withQuery = pack(items, budget, {});
+
+    expect(withoutQuery.selected.map(i => i.id)).toEqual(
+      withQuery.selected.map(i => i.id)
+    );
+  });
+
+  it("with query reorders items by relevance", () => {
+    const items = [
+      createContextItem("irrelevant", "unrelated xyz content", { priority: 5 }),
+      createContextItem("relevant", "machine learning algorithms", {
+        priority: 5,
+      }),
+    ];
+    const budget = { maxTokens: 100 };
+
+    const result = pack(items, budget, { query: "machine learning" });
+
+    // The relevant item should be selected first (higher score)
+    expect(result.selected[0].id).toBe("relevant");
+  });
+
+  it("packAsync calls embedding provider when present", async () => {
+    const embedCalls: string[][] = [];
+    const mockProvider = {
+      async embed(texts: string[]) {
+        embedCalls.push(texts);
+        return texts.map(() => [0.5, 0.5, 0.5]);
+      },
+    };
+
+    const items = [
+      createContextItem("a", "alpha", { priority: 5 }),
+      createContextItem("b", "beta", { priority: 3 }),
+    ];
+
+    await packAsync(
+      items,
+      { maxTokens: 1000 },
+      {
+        query: "test query",
+        embeddingProvider: mockProvider,
+      }
+    );
+
+    expect(embedCalls.length).toBe(1);
+    // Should have embedded 2 items + 1 query = 3 texts
+    expect(embedCalls[0]).toHaveLength(3);
   });
 });
