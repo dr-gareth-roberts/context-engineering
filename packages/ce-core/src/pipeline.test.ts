@@ -341,4 +341,65 @@ describe("pipeline template", () => {
 
     expect(result.messages).toBeUndefined();
   });
+
+  it("buildAsync supports allocation", async () => {
+    const result = await pipeline(500)
+      .add(makeItem("s1", "system", 10, 50))
+      .add(makeItem("r1", "retrieval", 5, 100))
+      .add(makeItem("r2", "retrieval", 3, 100))
+      .allocate([
+        { kind: "system", targetRatio: 0.2, minTokens: 50 },
+        { kind: "retrieval", targetRatio: 0.8 },
+      ])
+      .buildAsync();
+
+    expect(result.stages).toContain("allocate");
+    expect(result.allocationEfficiency).toBeDefined();
+    expect(result.totalTokens).toBeLessThanOrEqual(500);
+  });
+
+  it("buildAsync supports cache topology", async () => {
+    const result = await pipeline(500)
+      .add(makeItem("s1", "system", 10, 50))
+      .add(makeItem("r1", "retrieval", 5, 100))
+      .cacheTopology({ provider: "anthropic" })
+      .buildAsync();
+
+    expect(result.stages).toContain("cacheTopology");
+    expect(result.cacheKey).toBeDefined();
+    expect(result.cacheEfficiency).toBeDefined();
+  });
+
+  it("buildAsync supports template", async () => {
+    const result = await pipeline(1000)
+      .add(
+        createContextItem("a", "content", {
+          priority: 5,
+          tokens: 50,
+          kind: "system",
+        })
+      )
+      .template({ systemPrefix: "You are a helper." })
+      .buildAsync();
+
+    expect(result.stages).toContain("template");
+    expect(result.messages).toBeDefined();
+  });
+
+  it("buildAsync with allocation + cache topology combined", async () => {
+    const result = await pipeline(500)
+      .add(makeItem("s1", "system", 10, 50))
+      .add(makeItem("r1", "retrieval", 5, 100))
+      .allocate([
+        { kind: "system", targetRatio: 0.2, minTokens: 50 },
+        { kind: "retrieval", targetRatio: 0.8 },
+      ])
+      .cacheTopology()
+      .buildAsync();
+
+    expect(result.stages).toContain("allocate");
+    expect(result.stages).toContain("cacheTopology");
+    expect(result.cacheKey).toBeDefined();
+    expect(result.allocationEfficiency).toBeDefined();
+  });
 });

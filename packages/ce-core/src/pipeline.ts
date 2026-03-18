@@ -42,8 +42,16 @@ import { estimateTokens } from "./estimate.js";
 import { memoryToContext, type BridgeOptions } from "./bridge.js";
 import { placeItems, type PlacementStrategy } from "./placement.js";
 import { analyzeContext, type ContextQuality } from "./quality.js";
-import { packWithCacheTopology, type CacheConfig } from "./cache-topology.js";
-import { packWithAllocation, type KindAllocation } from "./allocation.js";
+import {
+  packWithCacheTopology,
+  packWithCacheTopologyAsync,
+  type CacheConfig,
+} from "./cache-topology.js";
+import {
+  packWithAllocation,
+  packWithAllocationAsync,
+  type KindAllocation,
+} from "./allocation.js";
 import { type ContextSession, type SessionDelta } from "./session.js";
 import {
   toMessages,
@@ -229,6 +237,47 @@ export class ContextPipeline {
   }
 
   /**
+   * Apply quality gate: analyze items and drop lowest-scored until threshold met.
+   * Mutates selected and dropped arrays in place.
+   */
+  private applyQualityGate(
+    selected: ContextItem[],
+    dropped: ContextItem[],
+    totalTokens: number
+  ): { quality?: ContextQuality; totalTokens: number } {
+    if (!this.qualityConfig) return { totalTokens };
+
+    let quality = analyzeContext(selected);
+
+    if (
+      this.qualityConfig.minOverall !== undefined &&
+      quality.overall < this.qualityConfig.minOverall &&
+      selected.length > 1
+    ) {
+      while (
+        selected.length > 1 &&
+        quality.overall < this.qualityConfig.minOverall
+      ) {
+        let minIdx = 0;
+        let minScore = selected[0].score ?? 0;
+        for (let i = 1; i < selected.length; i++) {
+          const s = selected[i].score ?? 0;
+          if (s < minScore) {
+            minScore = s;
+            minIdx = i;
+          }
+        }
+        const [removed] = selected.splice(minIdx, 1);
+        dropped.push(removed);
+        totalTokens -= removed.tokens ?? 0;
+        quality = analyzeContext(selected);
+      }
+    }
+
+    return { quality, totalTokens };
+  }
+
+  /**
    * Build the pipeline and return the result.
    *
    * Stages are applied in this order:
@@ -333,37 +382,10 @@ export class ContextPipeline {
     }
 
     // Stage 3: Quality gate
-    let quality: ContextQuality | undefined;
-    if (this.qualityConfig) {
-      stages.push("quality");
-      quality = analyzeContext(selected);
-
-      if (
-        this.qualityConfig.minOverall !== undefined &&
-        quality.overall < this.qualityConfig.minOverall &&
-        selected.length > 1
-      ) {
-        while (
-          selected.length > 1 &&
-          quality.overall < this.qualityConfig.minOverall
-        ) {
-          // Drop lowest-scored item, not last positional item
-          let minIdx = 0;
-          let minScore = selected[0].score ?? 0;
-          for (let i = 1; i < selected.length; i++) {
-            const s = selected[i].score ?? 0;
-            if (s < minScore) {
-              minScore = s;
-              minIdx = i;
-            }
-          }
-          const [removed] = selected.splice(minIdx, 1);
-          dropped.push(removed);
-          totalTokens -= removed.tokens ?? 0;
-          quality = analyzeContext(selected);
-        }
-      }
-    }
+    const qualityResult = this.applyQualityGate(selected, dropped, totalTokens);
+    const quality = qualityResult.quality;
+    totalTokens = qualityResult.totalTokens;
+    if (quality) stages.push("quality");
 
     // Stage 4: Session tracking
     let delta: SessionDelta | null | undefined;
@@ -400,32 +422,12 @@ export class ContextPipeline {
   }
 
   /**
-   * Async build that supports embedding-based query awareness.
-   * Use this when an embeddingProvider is configured via withQuery().
+   * Async build with full parity to build().
+   *
+   * Supports all stages including allocation, cache topology, and template.
+   * Uses async pack variants that support embedding-based redundancy.
    */
   async buildAsync(): Promise<PipelineResult> {
-    // If no embedding provider, just delegate to sync build
-    if (!this.queryConfig?.embeddingProvider) {
-      return this.build();
-    }
-
-    // Warn about stages that buildAsync does not support
-    if (this.allocationConfig) {
-      console.warn(
-        "pipeline.buildAsync(): allocation is not supported in async mode and will be ignored"
-      );
-    }
-    if (this.cacheTopologyConfig) {
-      console.warn(
-        "pipeline.buildAsync(): cacheTopology is not supported in async mode and will be ignored"
-      );
-    }
-    if (this.templateConfig) {
-      console.warn(
-        "pipeline.buildAsync(): template is not supported in async mode and will be ignored"
-      );
-    }
-
     const inputCount = this.items.length;
     const stages: string[] = [...this.stagesApplied];
 
@@ -439,20 +441,77 @@ export class ContextPipeline {
         }),
     }));
 
+    // Wire query into pack options
     const packOpts: PackOptions = { ...this.packOptions };
     if (this.queryConfig) {
       stages.push("query");
       packOpts.query = this.queryConfig.query;
-      packOpts.embeddingProvider = this.queryConfig.embeddingProvider;
+      if (this.queryConfig.embeddingProvider) {
+        packOpts.embeddingProvider = this.queryConfig.embeddingProvider;
+      }
     }
 
-    // Use packAsync which handles embedding enrichment
-    const result = await packAsync(items, this.budget, packOpts);
-    let selected = result.selected;
-    const dropped = result.dropped;
-    let totalTokens = result.totalTokens;
+    let selected: ContextItem[];
+    let dropped: ContextItem[];
+    let totalTokens: number;
+    let cacheKey: string | undefined;
+    let cacheEfficiency: number | undefined;
+    let cacheableTokens: number | undefined;
+    let allocations: Record<string, unknown> | undefined;
+    let allocationEfficiency: number | undefined;
 
-    // Apply remaining stages (placement, quality, session) same as build()
+    // Stage 1: Pack (allocation → cache topology → standard)
+    if (this.allocationConfig) {
+      stages.push("allocate");
+      const result = await packWithAllocationAsync(
+        items,
+        this.budget,
+        this.allocationConfig,
+        packOpts
+      );
+      selected = result.selected;
+      dropped = result.dropped;
+      totalTokens = result.totalTokens;
+      allocations = result.allocations as unknown as Record<string, unknown>;
+      allocationEfficiency = result.allocationEfficiency;
+
+      // If also cache topology, reorder the selected items
+      if (this.cacheTopologyConfig) {
+        stages.push("cacheTopology");
+        const cacheResult = await packWithCacheTopologyAsync(
+          selected,
+          { maxTokens: totalTokens + 100 },
+          packOpts,
+          this.cacheTopologyConfig
+        );
+        selected = cacheResult.selected;
+        cacheKey = cacheResult.cacheKey;
+        cacheEfficiency = cacheResult.cacheEfficiency;
+        cacheableTokens = cacheResult.cacheableTokens;
+      }
+    } else if (this.cacheTopologyConfig) {
+      stages.push("cacheTopology");
+      const result = await packWithCacheTopologyAsync(
+        items,
+        this.budget,
+        packOpts,
+        this.cacheTopologyConfig
+      );
+      selected = result.selected;
+      dropped = result.dropped;
+      totalTokens = result.totalTokens;
+      cacheKey = result.cacheKey;
+      cacheEfficiency = result.cacheEfficiency;
+      cacheableTokens = result.cacheableTokens;
+    } else {
+      stages.push("pack");
+      const result = await packAsync(items, this.budget, packOpts);
+      selected = result.selected;
+      dropped = result.dropped;
+      totalTokens = result.totalTokens;
+    }
+
+    // Stage 2: Placement
     if (this.placementConfig) {
       stages.push("place");
       selected = placeItems(selected, {
@@ -461,37 +520,13 @@ export class ContextPipeline {
       });
     }
 
-    let quality: ContextQuality | undefined;
-    if (this.qualityConfig) {
-      stages.push("quality");
-      quality = analyzeContext(selected);
+    // Stage 3: Quality gate
+    const qualityResult = this.applyQualityGate(selected, dropped, totalTokens);
+    const quality = qualityResult.quality;
+    totalTokens = qualityResult.totalTokens;
+    if (quality) stages.push("quality");
 
-      if (
-        this.qualityConfig.minOverall !== undefined &&
-        quality.overall < this.qualityConfig.minOverall &&
-        selected.length > 1
-      ) {
-        while (
-          selected.length > 1 &&
-          quality.overall < this.qualityConfig.minOverall
-        ) {
-          let minIdx = 0;
-          let minScore = selected[0].score ?? 0;
-          for (let i = 1; i < selected.length; i++) {
-            const s = selected[i].score ?? 0;
-            if (s < minScore) {
-              minScore = s;
-              minIdx = i;
-            }
-          }
-          const [removed] = selected.splice(minIdx, 1);
-          dropped.push(removed);
-          totalTokens -= removed.tokens ?? 0;
-          quality = analyzeContext(selected);
-        }
-      }
-    }
-
+    // Stage 4: Session tracking
     let delta: SessionDelta | null | undefined;
     if (this.sessionInstance) {
       stages.push("session");
@@ -500,13 +535,26 @@ export class ContextPipeline {
       delta = sessionResult.delta;
     }
 
+    // Stage 5: Template
+    let promptMessages: PromptMessages | undefined;
+    if (this.templateConfig) {
+      stages.push("template");
+      promptMessages = toMessages(selected, this.templateConfig);
+    }
+
     return {
       selected,
       dropped,
       totalTokens,
       budget: this.budget,
       quality,
+      cacheKey,
+      cacheEfficiency,
+      cacheableTokens,
       delta,
+      allocations,
+      allocationEfficiency,
+      messages: promptMessages,
       inputCount,
       stages,
     };
