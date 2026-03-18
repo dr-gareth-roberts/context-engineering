@@ -317,6 +317,7 @@ def pack(
     provider: Optional[str] = None,
     weights: Optional[ScoringWeights] = None,
     redundancy_threshold: Optional[float] = None,
+    redundancy_config: Optional[Any] = None,
     query: Optional[Any] = None,
 ) -> ContextPack:
     """Pack context items into a token budget using greedy score-based selection.
@@ -331,6 +332,8 @@ def pack(
         provider: Token estimator — None (heuristic), "openai", or "anthropic".
         weights: Custom scoring weights for priority, recency, salience.
         redundancy_threshold: Cosine similarity threshold for redundancy detection.
+        redundancy_config: RedundancyConfig for keyword-based deduplication
+            (when no embedding_provider is set) or embedding-based (async path).
 
     Returns:
         ContextPack with selected items, dropped items, and totalTokens.
@@ -356,6 +359,18 @@ def pack(
             f"reserveTokens ({budget.reserve_tokens}) must be less than "
             f"maxTokens ({budget.max_tokens})"
         )
+
+    # Sync keyword-based redundancy elimination when no embedding provider
+    if redundancy_config is not None and not getattr(redundancy_config, "embedding_provider", None):
+        from .redundancy import eliminate_redundancy_sync
+
+        items = eliminate_redundancy_sync(
+            items,
+            threshold=getattr(redundancy_config, "threshold", 0.8),
+            strategy=getattr(redundancy_config, "strategy", "recent"),
+            tokenizer=getattr(redundancy_config, "tokenizer", None),
+        )
+
     # Wire query relevance into scoring weights
     effective_weights = weights
     if query is not None:
