@@ -31,3 +31,4 @@ export * from "./template.js";
 export * from "./cost.js";
 export * from "./webhook.js";
 export * from "./recommendations.js";
+export * from "./bm25.js";

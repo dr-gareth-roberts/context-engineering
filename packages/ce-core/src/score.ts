@@ -6,6 +6,8 @@ import type {
 } from "./types.js";
 import type { BeadsIssue } from "./beads.js";
 import { computeRelevance, normalizeQuery } from "./relevance.js";
+import { createBM25Index } from "./bm25.js";
+import type { BM25Index } from "./bm25.js";
 
 const DEFAULT_WEIGHTS: Required<ScoringWeights> = {
   priority: 1.0,
@@ -49,14 +51,24 @@ export const defaultItemScorer: ItemScorer = createScorer();
  *
  * @param query - The query to score against
  * @param weights - Scoring weights (relevance defaults to 0.8)
+ * @param items - Optional items array; when provided, builds a BM25 index for corpus-aware scoring
  * @returns An ItemScorer that incorporates query relevance
  */
 export function createQueryAwareScorer(
   query: QueryInput,
-  weights: ScoringWeights = {}
+  weights: ScoringWeights = {},
+  items?: ContextItem[]
 ): ItemScorer {
   const w = { ...DEFAULT_WEIGHTS, relevance: 0.8, ...weights };
   const queryCtx = normalizeQuery(query);
+
+  let bm25Index: BM25Index | undefined;
+  if (items) {
+    bm25Index = createBM25Index();
+    for (const item of items) {
+      bm25Index.add(item.id, item.content);
+    }
+  }
 
   return (item: ContextItem) => {
     if (typeof item.score === "number") return item.score;
@@ -65,7 +77,10 @@ export function createQueryAwareScorer(
     const recency = item.recency ?? 0;
     const salience =
       typeof item.metadata?.salience === "number" ? item.metadata.salience : 0;
-    const relevance = computeRelevance(queryCtx, item);
+    const relevance = computeRelevance(queryCtx, item, {
+      scoringMethod: bm25Index ? "bm25" : undefined,
+      index: bm25Index,
+    });
 
     return (
       priority * w.priority +
@@ -107,7 +122,8 @@ export function createCausalScorer(
 
     const priority = item.priority ?? 0;
     const recency = item.recency ?? 0;
-    const salience = (item.metadata?.salience as number) ?? 0;
+    const salience =
+      typeof item.metadata?.salience === "number" ? item.metadata.salience : 0;
 
     let multiplier = 1.0;
 
