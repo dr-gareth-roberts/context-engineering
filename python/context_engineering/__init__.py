@@ -21,6 +21,11 @@ from .beads import (
     read_beads_jsonl,
     write_beads_jsonl,
 )
+from .bm25 import (
+    BM25Index,
+    create_bm25_index,
+    unicode_tokenize,
+)
 from .bridge import BridgeOptions, memory_to_context, to_context_item
 from .cache import create_cached_estimator
 from .cache_topology import (
@@ -40,6 +45,7 @@ from .core import (
     ContextTrace,
     ScoringWeights,
     create_context_item,
+    create_query_aware_scorer,
     create_scorer,
     diff,
     estimate_tokens,
@@ -143,6 +149,10 @@ __all__ = [
     "BudgetExceededError",
     "EstimationError",
     "ValidationDetail",
+    # BM25
+    "BM25Index",
+    "create_bm25_index",
+    "unicode_tokenize",
     # Core types
     "Budget",
     "ContextItem",
@@ -154,6 +164,7 @@ __all__ = [
     "ScoringWeights",
     # Core functions
     "create_context_item",
+    "create_query_aware_scorer",
     "create_scorer",
     "pack",
     "pack_async",

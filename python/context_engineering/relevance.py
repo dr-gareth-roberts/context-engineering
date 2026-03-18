@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import List, Optional, Set, Union
 
 from ._similarity import cosine_similarity
+from .bm25 import BM25Index, create_bm25_index, unicode_tokenize
 from .core import ContextItem
 
 STOPWORDS: Set[str] = {
@@ -91,8 +91,8 @@ QueryInput = Union[str, QueryContext]
 
 def extract_keywords(text: str) -> Set[str]:
     """Extract meaningful keywords from text, filtering stopwords and single chars."""
-    tokens = re.findall(r"[a-z0-9]+", text.lower())
-    return {t for t in tokens if t not in STOPWORDS and len(t) > 1}
+    words = unicode_tokenize(text)
+    return {w for w in words if w not in STOPWORDS}
 
 
 def normalize_query(input: QueryInput) -> QueryContext:
@@ -115,21 +115,42 @@ def keyword_relevance(query: QueryContext, item: ContextItem) -> float:
     query_kws = set(query.keywords)
     item_kws = extract_keywords(item.content)
 
-    if not query_kws:
-        return 0.0
-
     overlap = query_kws & item_kws
     return len(overlap) / len(query_kws)
 
 
-def compute_relevance(query: QueryContext, item: ContextItem) -> float:
+def compute_relevance(
+    query: QueryContext,
+    item: ContextItem,
+    *,
+    scoring_method: str = "bm25",
+    index: Optional[BM25Index] = None,
+) -> float:
     """Compute relevance between query and item.
 
-    Uses cosine similarity when both have embeddings, otherwise falls back
-    to keyword relevance.
+    Uses cosine similarity when both have embeddings, then BM25 (default)
+    or keyword matching as fallback.
+
+    Args:
+        query: Normalized query context.
+        item: Context item to score.
+        scoring_method: "bm25" (default) or "keyword".
+        index: Pre-built BM25 index for corpus-aware scoring.
     """
     if query.embedding is not None and hasattr(item, "embedding") and item.embedding is not None:
         score = cosine_similarity(query.embedding, item.embedding)
         return max(0.0, min(1.0, score))
 
-    return keyword_relevance(query, item)
+    if scoring_method == "keyword":
+        return keyword_relevance(query, item)
+
+    # BM25 scoring
+    if index is not None:
+        raw = index.score(query.text, item.id)
+        return raw / (raw + 1) if raw > 0 else 0.0
+
+    # No index provided -- build a single-document index on the fly
+    idx = create_bm25_index()
+    idx.add(item.id, item.content)
+    raw = idx.score(query.text, item.id)
+    return raw / (raw + 1) if raw > 0 else 0.0
