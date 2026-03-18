@@ -16,6 +16,7 @@ import type { Budget, ContextItem, ContextPack, PackOptions } from "./types.js";
 import { pack } from "./pack.js";
 import { estimateTokens } from "./estimate.js";
 import { hash64 } from "./hash.js";
+import { CacheConfigSchema, validateWithSchema } from "./schemas.js";
 
 /** Volatility level for cache partitioning. */
 export type Volatility = "static" | "session" | "request";
@@ -145,6 +146,8 @@ export function packWithCacheTopology(
   options: PackOptions = {},
   cacheConfig: CacheConfig = {}
 ): CacheAwarePack {
+  validateWithSchema(CacheConfigSchema, cacheConfig, "cacheConfig");
+
   const estimator = options.tokenEstimator;
 
   // 1. Classify items by volatility

@@ -11,6 +11,7 @@
 
 import type { Budget, ContextItem, ContextPack, PackOptions } from "./types.js";
 import { pack } from "./pack.js";
+import { KindAllocationSchema, validateWithSchema } from "./schemas.js";
 
 /**
  * Budget constraint for a single item kind.
@@ -86,6 +87,14 @@ export function packWithAllocation(
   allocations: KindAllocation[],
   options: PackOptions = {}
 ): AllocatedPack {
+  for (let i = 0; i < allocations.length; i++) {
+    validateWithSchema(
+      KindAllocationSchema,
+      allocations[i],
+      `allocations[${i}]`
+    );
+  }
+
   const effectiveBudget = budget.maxTokens - (budget.reserveTokens ?? 0);
   const priorityByKind = new Map(
     allocations.map(alloc => [alloc.kind, alloc.priority ?? 0])
