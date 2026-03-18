@@ -1,5 +1,7 @@
 """Tests for differential context sessions."""
 
+import threading
+
 from context_engineering.core import Budget, ContextItem
 from context_engineering.session import create_session
 
@@ -210,3 +212,28 @@ class TestCreateSession:
         assert result.delta is not None
         assert result.delta.reusable_tokens == 100
         assert result.delta.reuse_ratio == 0.417
+
+
+def test_concurrent_compile_is_thread_safe():
+    session = create_session(Budget(max_tokens=10000))
+    for i in range(20):
+        session.add_items([ContextItem(id=f"item-{i}", content=f"content {i}", tokens=10)])
+
+    results = []
+    errors = []
+
+    def do_compile():
+        try:
+            result = session.compile()
+            results.append(result)
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=do_compile) for _ in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(errors) == 0, f"Thread errors: {errors}"
+    assert len(results) == 10
