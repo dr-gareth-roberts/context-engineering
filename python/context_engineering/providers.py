@@ -3,9 +3,11 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Callable, List, Optional, Protocol
 
 import httpx
+
+from .core import ContextItem, estimate_tokens
 
 
 @dataclass
@@ -203,3 +205,55 @@ class AnthropicProvider:
             input_tokens=usage.get("input_tokens"),
             output_tokens=usage.get("output_tokens"),
         )
+
+
+_DEFAULT_SUMMARIZE_PROMPT = (
+    "Summarize the following conversation turns into a concise paragraph "
+    "that preserves key facts, decisions, and action items. "
+    "Omit pleasantries and filler."
+)
+
+
+class LLMProvider(Protocol):
+    """Protocol for providers that can generate text."""
+
+    def generate(
+        self,
+        messages: List[LLMMessage],
+        model: str = ...,
+        max_tokens: int = ...,
+        temperature: float = ...,
+    ) -> LLMResult: ...
+
+
+def create_llm_summarizer(
+    provider: LLMProvider,
+    model: Optional[str] = None,
+    max_output_tokens: int = 256,
+    prompt: str = _DEFAULT_SUMMARIZE_PROMPT,
+) -> Callable[[ContextItem, int], ContextItem | None]:
+    """Create a synchronous LLM summarizer for use with compaction.
+
+    Returns a callable (item, target_tokens) -> ContextItem | None.
+    Returns None on provider errors.
+    """
+
+    def summarize(item: ContextItem, _target_tokens: int) -> ContextItem | None:
+        try:
+            result = provider.generate(
+                messages=[
+                    LLMMessage(role="system", content=prompt),
+                    LLMMessage(role="user", content=item.content),
+                ],
+                model=model or "",
+                max_tokens=max_output_tokens,
+            )
+            content = result.text
+            if not content:
+                return None
+            tokens = estimate_tokens(content)
+            return item.model_copy(update={"content": content, "tokens": tokens})
+        except Exception:
+            return None
+
+    return summarize

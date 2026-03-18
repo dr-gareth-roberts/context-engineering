@@ -34,7 +34,7 @@ from .cache_topology import (
     classify_volatility,
     pack_with_cache_topology,
 )
-from .compaction import CompileResult, ContextManager, Turn, create_context_manager
+from .compaction import AsyncSummarizer, CompileResult, ContextManager, Turn, create_context_manager
 from .core import (
     Budget,
     Compression,
@@ -82,6 +82,7 @@ from .providers import (
     EmbeddingResult,
     LLMMessage,
     OpenAIProvider,
+    create_llm_summarizer,
 )
 from .quality import ContextQuality, analyze_context, analyze_context_pack
 from .recommendations import (
@@ -191,6 +192,7 @@ __all__ = [
     "LLMMessage",
     "EmbeddingResult",
     "EmbeddingProvider",
+    "create_llm_summarizer",
     # Framework
     "AgentContextManager",
     # Segmentation
@@ -215,6 +217,7 @@ __all__ = [
     "analyze_context",
     "analyze_context_pack",
     # Compaction
+    "AsyncSummarizer",
     "Turn",
     "CompileResult",
     "ContextManager",

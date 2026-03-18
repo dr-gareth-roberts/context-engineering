@@ -5,6 +5,7 @@ import pytest
 from context_engineering.compaction import create_context_manager
 from context_engineering.core import Budget, ContextItem
 from context_engineering.errors import ValidationError
+from context_engineering.providers import LLMResult, create_llm_summarizer
 
 
 def _word_estimator(text: str) -> int:
@@ -214,3 +215,132 @@ class TestCreateContextManagerValidation:
     def test_accepts_small_positive_max_tokens(self):
         mgr = create_context_manager(budget=Budget(maxTokens=1))
         assert mgr is not None
+
+
+class TestCompileAsync:
+    @pytest.mark.asyncio
+    async def test_calls_summarizer_for_older_turns(self):
+        calls = []
+
+        async def mock_summarizer(item, target_tokens):
+            calls.append(item.content)
+            return item.model_copy(update={"content": "summary", "tokens": 5})
+
+        mgr = create_context_manager(
+            budget=Budget(maxTokens=200),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            async_summarizer=mock_summarizer,
+            token_estimator=_word_estimator,
+        )
+        for i in range(5):
+            mgr.add_turn("user", f"turn content {i} with enough words")
+
+        result = await mgr.compile_async()
+        assert len(calls) > 0
+        assert result.total_tokens < 200
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_truncation_on_none(self):
+        async def null_summarizer(item, target_tokens):
+            return None
+
+        mgr = create_context_manager(
+            budget=Budget(maxTokens=200),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            async_summarizer=null_summarizer,
+            token_estimator=_word_estimator,
+        )
+        for i in range(5):
+            mgr.add_turn("user", f"turn {i}")
+
+        result = await mgr.compile_async()
+        assert len(result.turns) > 0
+
+    @pytest.mark.asyncio
+    async def test_batches_older_turns(self):
+        call_count = 0
+
+        async def mock_summarizer(item, target_tokens):
+            nonlocal call_count
+            call_count += 1
+            return item.model_copy(update={"content": f"summary {call_count}", "tokens": 5})
+
+        mgr = create_context_manager(
+            budget=Budget(maxTokens=500),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            async_summarizer=mock_summarizer,
+            batch_size=5,
+            token_estimator=_word_estimator,
+        )
+        for i in range(11):
+            mgr.add_turn("user", f"turn {i} content here")
+
+        await mgr.compile_async()
+        assert call_count == 2  # 10 older turns / batch_size 5 = 2 batches
+
+    @pytest.mark.asyncio
+    async def test_falls_back_on_summarizer_error(self):
+        async def error_summarizer(item, target_tokens):
+            raise RuntimeError("API error")
+
+        mgr = create_context_manager(
+            budget=Budget(maxTokens=200),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            async_summarizer=error_summarizer,
+            token_estimator=_word_estimator,
+        )
+        for i in range(5):
+            mgr.add_turn("user", f"turn {i}")
+
+        result = await mgr.compile_async()
+        assert len(result.turns) > 0
+
+    @pytest.mark.asyncio
+    async def test_sync_compile_ignores_async_summarizer(self):
+        async def boom(item, target_tokens):
+            raise RuntimeError("should not be called")
+
+        mgr = create_context_manager(
+            budget=Budget(maxTokens=200),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            async_summarizer=boom,
+            token_estimator=_word_estimator,
+        )
+        for i in range(5):
+            mgr.add_turn("user", f"turn {i}")
+
+        # sync compile should not call async summarizer
+        result = mgr.compile()
+        assert len(result.turns) > 0
+
+
+class TestCreateLLMSummarizer:
+    def test_returns_summarized_content(self):
+        class MockProvider:
+            def generate(self, messages, model="", max_tokens=256, temperature=0.2):
+                return LLMResult(
+                    text="Concise summary of the conversation.",
+                    model="test",
+                    input_tokens=100,
+                    output_tokens=20,
+                )
+
+        summarizer = create_llm_summarizer(provider=MockProvider())
+        item = ContextItem(id="batch1", content="Long conversation content...", tokens=500)
+        result = summarizer(item, 50)
+        assert result is not None
+        assert result.content == "Concise summary of the conversation."
+
+    def test_returns_none_on_error(self):
+        class ErrorProvider:
+            def generate(self, messages, model="", max_tokens=256, temperature=0.2):
+                raise RuntimeError("API error")
+
+        summarizer = create_llm_summarizer(provider=ErrorProvider())
+        result = summarizer(ContextItem(id="x", content="text"), 50)
+        assert result is None
