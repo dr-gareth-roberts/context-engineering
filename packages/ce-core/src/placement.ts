@@ -1,4 +1,5 @@
 import type { ContextItem } from "./types.js";
+import { PlacementOptionsSchema, validateWithSchema } from "./schemas.js";
 
 /**
  * Attention profile for a model family.
@@ -74,6 +75,10 @@ export function placeItems(
   items: ContextItem[],
   options?: PlacementOptions
 ): ContextItem[] {
+  if (options) {
+    validateWithSchema(PlacementOptionsSchema, options, "placement options");
+  }
+
   const strategy = options?.strategy ?? "score-order";
   if (strategy === "score-order" || items.length <= 2) return [...items];
 

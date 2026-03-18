@@ -29,6 +29,55 @@ export const BudgetSchema = z.object({
   reserveTokens: z.number().nonnegative().finite().optional(),
 });
 
+export const KindAllocationSchema = z.object({
+  kind: z.string().min(1),
+  targetRatio: z.number().min(0).max(1).optional(),
+  minTokens: z.number().int().nonnegative().optional(),
+  maxTokens: z.number().int().positive().optional(),
+  priority: z.number().int().nonnegative().optional(),
+});
+
+export const CacheConfigSchema = z.object({
+  provider: z.enum(["anthropic", "openai", "auto"]).optional(),
+  minPrefixTokens: z.number().int().nonnegative().optional(),
+  markBreakpoints: z.boolean().optional(),
+});
+
+export const PlacementOptionsSchema = z.object({
+  model: z.string().optional(),
+  strategy: z.enum(["score-order", "attention-optimized"]).optional(),
+});
+
+export const CompactionOptionsSchema = z.object({
+  budget: BudgetSchema,
+  summarizeAfterTurns: z.number().int().positive().optional(),
+  preserveRecentTurns: z.number().int().nonnegative().optional(),
+  systemPrompt: z.string().optional(),
+});
+
+/**
+ * Generic validation helper that throws a ValidationError on failure.
+ *
+ * @throws {ValidationError} If data does not match the schema
+ */
+export function validateWithSchema<T>(
+  schema: z.ZodType<T>,
+  data: unknown,
+  label: string
+): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    throw new ValidationError(
+      `Invalid ${label}: ${result.error.issues.map((i: z.ZodIssue) => `${i.path.join(".")}: ${i.message}`).join(", ")}`,
+      result.error.issues.map((i: z.ZodIssue) => ({
+        path: i.path.join("."),
+        message: i.message,
+      }))
+    );
+  }
+  return result.data;
+}
+
 /**
  * Validate pack inputs (items and budget). Shared by pack() and packStream().
  *

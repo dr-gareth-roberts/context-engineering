@@ -7,6 +7,7 @@ import type {
 import type { BeadsIssue } from "./beads.js";
 import { defaultTokenEstimator } from "./estimate.js";
 import { createCausalScorer } from "./score.js";
+import { CompactionOptionsSchema, validateWithSchema } from "./schemas.js";
 
 export interface Turn {
   role: "user" | "assistant" | "tool" | "system";
@@ -85,6 +86,18 @@ export interface ContextManager {
 export function createContextManager(
   options: CompactionOptions
 ): ContextManager {
+  // Validate the serializable subset of options (excludes function fields)
+  validateWithSchema(
+    CompactionOptionsSchema,
+    {
+      budget: options.budget,
+      summarizeAfterTurns: options.summarizeAfterTurns,
+      preserveRecentTurns: options.preserveRecentTurns,
+      systemPrompt: options.systemPrompt,
+    },
+    "compaction options"
+  );
+
   const estimate = options.tokenEstimator ?? defaultTokenEstimator;
   const summarizeAfter = options.summarizeAfterTurns ?? 5;
   const preserveRecent = options.preserveRecentTurns ?? 2;
