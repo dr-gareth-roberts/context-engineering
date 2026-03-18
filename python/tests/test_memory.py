@@ -172,6 +172,74 @@ class TestFileStore:
             assert store2.get("remove") is None
             assert store2.get("keep") is not None
 
+    def test_file_store_creates_and_removes_lock_file(self):
+        """Lock file is created during write and removed after."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "locking.jsonl")
+            lock_path = path + ".lock"
+            store = FileStore(path)
+
+            # Before any operation, no lock file
+            assert not os.path.exists(lock_path)
+
+            store.put(MemoryItem(id="l1", content="Locked write", createdAt=_now_iso()))
+
+            # After operation completes, lock file is cleaned up
+            assert not os.path.exists(lock_path)
+
+            # Data was written correctly
+            assert store.get("l1").content == "Locked write"
+
+            # Forget also acquires and releases the lock
+            store.forget("l1")
+            assert not os.path.exists(lock_path)
+
+    def test_file_store_lock_cleanup_on_error(self):
+        """Lock file is removed even when the write operation raises."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "error_lock.jsonl")
+            lock_path = path + ".lock"
+            store = FileStore(path)
+
+            # Seed the store so _load succeeds
+            store.put(MemoryItem(id="seed", content="seed", createdAt=_now_iso()))
+
+            # Monkey-patch _persist to raise after lock is acquired
+            original_persist = store._persist
+
+            def failing_persist():
+                raise IOError("disk full")
+
+            store._persist = failing_persist
+
+            try:
+                store.put(MemoryItem(id="fail", content="Should fail", createdAt=_now_iso()))
+            except IOError:
+                pass
+
+            # Lock file must be cleaned up despite the error
+            assert not os.path.exists(lock_path)
+
+            # Restore and verify store still works
+            store._persist = original_persist
+            store.put(MemoryItem(id="ok", content="Recovery", createdAt=_now_iso()))
+            assert store.get("ok").content == "Recovery"
+            assert not os.path.exists(lock_path)
+
+    def test_file_store_disable_locking(self):
+        """When disable_locking=True, no lock file is created."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = os.path.join(temp_dir, "no_lock.jsonl")
+            lock_path = path + ".lock"
+            store = FileStore(path, disable_locking=True)
+
+            store.put(MemoryItem(id="nl1", content="No lock", createdAt=_now_iso()))
+            assert not os.path.exists(lock_path)
+            assert store.get("nl1").content == "No lock"
+
+            store.forget("nl1")
+            assert not os.path.exists(lock_path)
+
 
 class TestSqliteStore:
     def test_put_and_get(self):
