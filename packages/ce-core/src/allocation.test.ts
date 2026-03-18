@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { packWithAllocation } from "./allocation.js";
+import { packWithAllocation, packWithAllocationAsync } from "./allocation.js";
 import type { ContextItem } from "./types.js";
+import { createContextItem } from "./types.js";
 
 function makeItem(
   id: string,
@@ -171,5 +172,69 @@ describe("packWithAllocation", () => {
       ...result.dropped.map(i => i.id),
     ]);
     expect(allIds.size).toBe(4);
+  });
+});
+
+describe("packWithAllocationAsync", () => {
+  it("produces same structure as sync version", async () => {
+    const items = [
+      createContextItem("code1", "function hello() {}", {
+        kind: "code",
+        priority: 8,
+      }),
+      createContextItem("doc1", "README content", {
+        kind: "docs",
+        priority: 5,
+      }),
+    ];
+    const budget = { maxTokens: 1000 };
+    const allocations = [
+      { kind: "code", targetRatio: 0.6 },
+      { kind: "docs", targetRatio: 0.4 },
+    ];
+    const result = await packWithAllocationAsync(items, budget, allocations);
+    expect(result.selected).toBeDefined();
+    expect(result.dropped).toBeDefined();
+    expect(result.totalTokens).toBeGreaterThan(0);
+    expect(result.allocations).toBeDefined();
+  });
+
+  it("returns same results as sync for identical inputs", async () => {
+    const items = [
+      makeItem("s1", "system", 10, 50),
+      makeItem("r1", "retrieval", 7, 100),
+      makeItem("r2", "retrieval", 6, 100),
+      makeItem("c1", "conversation", 5, 100),
+    ];
+    const budget = { maxTokens: 300 };
+    const allocations = [
+      { kind: "system", targetRatio: 0.2 },
+      { kind: "retrieval", targetRatio: 0.5 },
+      { kind: "conversation", targetRatio: 0.3 },
+    ];
+
+    const syncResult = packWithAllocation(items, budget, allocations);
+    const asyncResult = await packWithAllocationAsync(
+      items,
+      budget,
+      allocations
+    );
+
+    expect(asyncResult.selected.map(i => i.id)).toEqual(
+      syncResult.selected.map(i => i.id)
+    );
+    expect(asyncResult.totalTokens).toBe(syncResult.totalTokens);
+    expect(asyncResult.allocationEfficiency).toBe(
+      syncResult.allocationEfficiency
+    );
+  });
+
+  it("handles empty items gracefully", async () => {
+    const result = await packWithAllocationAsync([], { maxTokens: 200 }, [
+      { kind: "system", targetRatio: 1.0 },
+    ]);
+
+    expect(result.selected).toHaveLength(0);
+    expect(result.totalTokens).toBe(0);
   });
 });

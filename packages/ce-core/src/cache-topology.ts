@@ -13,7 +13,7 @@
  */
 
 import type { Budget, ContextItem, ContextPack, PackOptions } from "./types.js";
-import { pack } from "./pack.js";
+import { pack, packAsync } from "./pack.js";
 import { estimateTokens } from "./estimate.js";
 import { hash64 } from "./hash.js";
 import { CacheConfigSchema, validateWithSchema } from "./schemas.js";
@@ -205,6 +205,158 @@ export function packWithCacheTopology(
       : { selected: [], dropped: requestItems, totalTokens: 0 };
 
   // 5. Compose final ordered list: static → session → request
+  const selected = [
+    ...selectedStatic,
+    ...sessionPack.selected,
+    ...requestPack.selected,
+  ];
+
+  const selectedStaticIds = new Set(selectedStatic.map(i => i.id));
+  const dropped = [
+    ...staticItems.filter(i => !selectedStaticIds.has(i.id)),
+    ...sessionPack.dropped,
+    ...requestPack.dropped,
+  ];
+
+  // 6. Add breakpoint markers if configured
+  if (cacheConfig.markBreakpoints) {
+    const staticEnd = selectedStatic.length;
+    const sessionEnd = staticEnd + sessionPack.selected.length;
+
+    if (staticEnd > 0 && staticEnd < selected.length) {
+      selected[staticEnd - 1] = {
+        ...selected[staticEnd - 1],
+        metadata: {
+          ...selected[staticEnd - 1].metadata,
+          _cacheBreakpoint: "static-end",
+        },
+      };
+    }
+    if (sessionEnd > staticEnd && sessionEnd < selected.length) {
+      selected[sessionEnd - 1] = {
+        ...selected[sessionEnd - 1],
+        metadata: {
+          ...selected[sessionEnd - 1].metadata,
+          _cacheBreakpoint: "session-end",
+        },
+      };
+    }
+  }
+
+  // 7. Compute cache key from stable prefix content
+  const staticContent = selectedStatic
+    .map(i => `${i.id}:${i.content}`)
+    .join("|");
+  const cacheKey = hash64(staticContent);
+
+  const staticTokens = selectedStatic.reduce(
+    (sum, i) => sum + (i.tokens ?? 0),
+    0
+  );
+  const totalTokens = selected.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
+
+  return {
+    budget,
+    selected,
+    dropped,
+    totalTokens,
+    stats: {
+      staticCount: selectedStatic.length,
+      sessionCount: sessionPack.selected.length,
+      requestCount: requestPack.selected.length,
+      remainingTokens: Math.max(0, maxTokens - totalTokens),
+    },
+    cacheKey,
+    cacheableTokens: staticTokens,
+    volatileTokens: totalTokens - staticTokens,
+    cacheEfficiency:
+      totalTokens > 0
+        ? Math.round((staticTokens / totalTokens) * 1000) / 1000
+        : 0,
+    partitionBoundaries: [
+      selectedStatic.length,
+      selectedStatic.length + sessionPack.selected.length,
+    ],
+  };
+}
+
+/**
+ * Async variant of packWithCacheTopology.
+ *
+ * Same logic as packWithCacheTopology but delegates to packAsync() internally,
+ * supporting async operations like embedding-based redundancy elimination.
+ *
+ * @param items - Context items to pack (should have `kind` set for best results)
+ * @param budget - Token budget
+ * @param options - Standard pack options (supports embeddingProvider, redundancyConfig)
+ * @param cacheConfig - Cache-specific configuration
+ * @returns Promise<CacheAwarePack> with cache metadata
+ */
+export async function packWithCacheTopologyAsync(
+  items: ContextItem[],
+  budget: Budget,
+  options: PackOptions = {},
+  cacheConfig: CacheConfig = {}
+): Promise<CacheAwarePack> {
+  validateWithSchema(CacheConfigSchema, cacheConfig, "cacheConfig");
+
+  const estimator = options.tokenEstimator;
+
+  // 1. Classify items by volatility
+  const staticItems: ContextItem[] = [];
+  const sessionItems: ContextItem[] = [];
+  const requestItems: ContextItem[] = [];
+
+  for (const item of items) {
+    const volatility = classifyVolatility(item);
+    switch (volatility) {
+      case "static":
+        staticItems.push(item);
+        break;
+      case "session":
+        sessionItems.push(item);
+        break;
+      case "request":
+        requestItems.push(item);
+        break;
+    }
+  }
+
+  // 2. Sort static items deterministically by id (not by score)
+  // This ensures the same items always produce the same prefix
+  staticItems.sort((a, b) => a.id.localeCompare(b.id));
+
+  // 3. Sort session items by recency (most recent last, for conversation order)
+  sessionItems.sort((a, b) => (a.recency ?? 0) - (b.recency ?? 0));
+
+  // 4. Pack within each partition using score-based selection
+  const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
+  let remaining = maxTokens;
+
+  // Static items: include all that fit (they're high-value and cacheable)
+  const selectedStatic: ContextItem[] = [];
+  for (const item of staticItems) {
+    const tokens = item.tokens ?? estimateTokens(item.content, { estimator });
+    if (tokens <= remaining) {
+      selectedStatic.push({ ...item, tokens });
+      remaining -= tokens;
+    }
+  }
+
+  // Session items: include by score within remaining budget
+  const sessionPack =
+    remaining > 0
+      ? await packAsync(sessionItems, { maxTokens: remaining }, options)
+      : { selected: [], dropped: sessionItems, totalTokens: 0 };
+  remaining -= sessionPack.totalTokens;
+
+  // Request items: pack by score into whatever's left
+  const requestPack =
+    remaining > 0
+      ? await packAsync(requestItems, { maxTokens: remaining }, options)
+      : { selected: [], dropped: requestItems, totalTokens: 0 };
+
+  // 5. Compose final ordered list: static -> session -> request
   const selected = [
     ...selectedStatic,
     ...sessionPack.selected,
