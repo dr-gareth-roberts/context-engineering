@@ -11,7 +11,7 @@ import {
   defaultItemScorer,
 } from "./score.js";
 import { estimateTokens } from "./estimate.js";
-import { eliminateRedundancy } from "./redundancy.js";
+import { eliminateRedundancy, eliminateRedundancySync } from "./redundancy.js";
 import { enrichWithEmbeddings, normalizeQuery } from "./relevance.js";
 import { EstimationError } from "./errors.js";
 import { validatePackInputs } from "./schemas.js";
@@ -157,6 +157,11 @@ export function internalPack(
   options: PackOptions = {},
   trace = false
 ): PackResult {
+  // Sync Jaccard redundancy elimination when no embedding provider is configured
+  if (options.redundancyConfig && !options.redundancyConfig.embeddingProvider) {
+    items = eliminateRedundancySync(items, options.redundancyConfig);
+  }
+
   validatePackInputs(items, budget);
 
   const scorer =
