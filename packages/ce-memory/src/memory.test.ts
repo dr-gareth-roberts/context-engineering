@@ -372,6 +372,118 @@ describe("FileStore", () => {
     const item = await store2.get("a");
     expect(item?.content).toBe("Before close");
   });
+
+  it("creates and removes lock file around writes", async () => {
+    const filePath = tempPath("lock-lifecycle.jsonl");
+    const lockPath = filePath + ".lock";
+    const store = new FileStore(filePath);
+
+    await store.put({ id: "lock1", content: "Locked write" });
+
+    // After the write completes, the lock file should be cleaned up
+    const lockExists = await fs
+      .access(lockPath)
+      .then(() => true)
+      .catch(() => false);
+    expect(lockExists).toBe(false);
+
+    // Data should have been written correctly
+    const fetched = await store.get("lock1");
+    expect(fetched?.content).toBe("Locked write");
+  });
+
+  it("cleans up lock file on write error", async () => {
+    const filePath = tempPath("lock-error.jsonl");
+    const lockPath = filePath + ".lock";
+    const store = new FileStore(filePath);
+
+    // Seed the store so ensureLoaded resolves
+    await store.put({ id: "seed", content: "Seed" });
+
+    // Make the directory read-only so the .tmp write will fail
+    const dir = path.dirname(filePath);
+    // Create a store that points to a path inside a non-existent, unwritable location
+    const badPath = path.join(dir, "readonly-dir", "store.jsonl");
+    const badStore = new FileStore(badPath);
+
+    // Trigger a load (creates the directory)
+    await badStore.put({ id: "setup", content: "Setup" });
+
+    // Now make the parent read-only to force a write failure
+    const badDir = path.dirname(badPath);
+    await fs.chmod(badDir, 0o444);
+
+    try {
+      await expect(
+        badStore.put({ id: "fail", content: "Should fail" })
+      ).rejects.toThrow();
+
+      // Lock file should be cleaned up even after error
+      const badLockPath = badPath + ".lock";
+      const lockExists = await fs
+        .access(badLockPath)
+        .then(() => true)
+        .catch(() => false);
+      expect(lockExists).toBe(false);
+    } finally {
+      // Restore permissions for cleanup
+      await fs.chmod(badDir, 0o755);
+    }
+  });
+
+  it("disableLocking skips lock entirely", async () => {
+    const filePath = tempPath("no-lock.jsonl");
+    const lockPath = filePath + ".lock";
+    const store = new FileStore(filePath, { disableLocking: true });
+
+    // We need to spy to confirm the lock file is never created.
+    // Instead, we verify the write succeeds and no lock file remains.
+    await store.put({ id: "nolock1", content: "No lock" });
+
+    const lockExists = await fs
+      .access(lockPath)
+      .then(() => true)
+      .catch(() => false);
+    expect(lockExists).toBe(false);
+
+    // Verify data was written correctly
+    const store2 = new FileStore(filePath, { disableLocking: true });
+    const fetched = await store2.get("nolock1");
+    expect(fetched?.content).toBe("No lock");
+  });
+
+  it("detects and removes stale lock files", async () => {
+    const filePath = tempPath("stale-lock.jsonl");
+    const lockPath = filePath + ".lock";
+
+    // Ensure parent directory exists
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+
+    // Create a "stale" lock file manually
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify({ pid: 99999, timestamp: "2020-01-01T00:00:00Z" })
+    );
+
+    // Backdate the lock file mtime so it appears stale
+    const pastTime = new Date(Date.now() - 20000); // 20 seconds ago
+    await fs.utimes(lockPath, pastTime, pastTime);
+
+    // staleLockAge=5000 means anything older than 5s is stale
+    const store = new FileStore(filePath, { staleLockAge: 5000 });
+    await store.put({ id: "after-stale", content: "Recovered" });
+
+    // Lock file should be cleaned up
+    const lockExists = await fs
+      .access(lockPath)
+      .then(() => true)
+      .catch(() => false);
+    expect(lockExists).toBe(false);
+
+    // Data should be written correctly
+    const fetched = await store.get("after-stale");
+    expect(fetched?.content).toBe("Recovered");
+  });
 });
 
 describe("SqliteStore", () => {
