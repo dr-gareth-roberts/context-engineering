@@ -93,7 +93,7 @@ from .recommendations import (
     recommendation_options_from_env,
 )
 from .redis_store import RedisMemoryStore
-from .redundancy import RedundancyConfig, RedundancyEliminator
+from .redundancy import RedundancyConfig, RedundancyEliminator, eliminate_redundancy_sync
 from .relevance import (
     QueryContext,
     QueryInput,
@@ -175,6 +175,7 @@ __all__ = [
     # Redundancy
     "RedundancyConfig",
     "RedundancyEliminator",
+    "eliminate_redundancy_sync",
     # Memory
     "MemoryItem",
     "MemoryQuery",
