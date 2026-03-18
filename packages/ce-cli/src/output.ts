@@ -92,7 +92,6 @@ export async function readStdin(): Promise<string> {
     }, STDIN_TIMEOUT_MS);
 
     process.stdin.on("data", (chunk: string) => {
-      clearTimeout(timer);
       data += chunk;
     });
     process.stdin.on("end", () => {

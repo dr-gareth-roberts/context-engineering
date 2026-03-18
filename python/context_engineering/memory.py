@@ -112,7 +112,7 @@ def _apply_query(items: List[MemoryItem], query: MemoryQuery) -> List[MemoryItem
 
         # 2. Salience Calculation (with time decay)
         salience = item.salience or 1.0
-        if query.half_life_seconds:
+        if query.half_life_seconds and query.half_life_seconds > 0:
             try:
                 c_ms = int(datetime.fromisoformat(item.created_at).timestamp() * 1000)
                 age_s = (now_ms - c_ms) / 1000
@@ -270,7 +270,8 @@ class FileStore(MemoryStore):
             if item:
                 item.last_accessed_at = _now_iso()
                 self._persist()
-            return item
+                return item.model_copy()
+            return None
 
     def get(self, item_id: str) -> Optional[MemoryItem]:
         return self._sync_get(item_id)
@@ -295,14 +296,14 @@ class FileStore(MemoryStore):
     def forget(self, item_id: str) -> bool:
         return self._sync_forget(item_id)
 
-    async def consolidate(self, summarizer, threshold=0.3):
+    async def consolidate(self, summarizer, salience_threshold=0.3):
         # Read cold items under the lock, copy out what we need
         with self._lock:
             self._load()
             cold_items = [
                 (item_id, item.content)
                 for item_id, item in self._items.items()
-                if (item.salience or 1.0) < threshold and not item.is_summary
+                if (item.salience or 1.0) < salience_threshold and not item.is_summary
             ]
 
         # Perform async summarizer work outside the lock
@@ -318,7 +319,7 @@ class FileStore(MemoryStore):
                     item = self._items[item_id]
                     item.content = f"[Flashcard] {summary}"
                     item.is_summary = True
-                    item.salience = threshold + 0.1
+                    item.salience = salience_threshold + 0.1
                     item.updated_at = _now_iso()
             if results:
                 self._persist()
@@ -440,12 +441,12 @@ class SqliteStore(MemoryStore):
         with self._lock:
             self.conn.close()
 
-    async def consolidate(self, summarizer, threshold=0.3):
+    async def consolidate(self, summarizer, salience_threshold=0.3):
         # Read cold items under the lock, then release before async work
         with self._lock:
             cold = self.conn.execute(
                 "SELECT id, content FROM memory_items WHERE salience < ? AND is_summary = 0",
-                (threshold,),
+                (salience_threshold,),
             ).fetchall()
 
         # Perform async summarizer work outside the lock
@@ -460,6 +461,6 @@ class SqliteStore(MemoryStore):
                 with self.conn:
                     self.conn.execute(
                         "UPDATE memory_items SET content = ?, is_summary = 1, salience = ?, updated_at = ? WHERE id = ?",
-                        (f"[Flashcard] {s}", threshold + 0.1, _now_iso(), i_id),
+                        (f"[Flashcard] {s}", salience_threshold + 0.1, _now_iso(), i_id),
                     )
         return len(cold)

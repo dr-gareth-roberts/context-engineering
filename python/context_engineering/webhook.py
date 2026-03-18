@@ -190,11 +190,6 @@ def _fire_webhook(
     t.start()
 
 
-def _strip_none(d: Dict[str, Any]) -> Dict[str, Any]:
-    """Remove None values from a dict for cleaner payloads."""
-    return {k: v for k, v in d.items() if v is not None}
-
-
 def _build_analytics_payload(
     pack: ContextPack,
     event_type: str,

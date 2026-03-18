@@ -9,7 +9,7 @@ Context Engineering Toolkit — dual TypeScript/Python SDKs + CLI for LLM contex
 ## Commands
 
 ```bash
-# Testing (389 TS + 398 Python = 787 tests)
+# Testing (353 TS + 487 Python = 840 tests)
 pnpm test:all                           # All TS package tests (Vitest)
 cd packages/ce-core && npx vitest run   # Single package
 npx vitest run src/pack.test.ts         # Single file (from package dir)
@@ -36,10 +36,10 @@ packages/ce-core       Core algorithms — the tight center of the toolkit
 packages/ce-memory     Memory stores: InMemoryStore, FileStore (JSONL), SqliteStore
 packages/ce-providers  OpenAI + Anthropic adapters, token estimators
 packages/ce-cli        CLI (`ce`) — 11 commands, TTY-aware output
+packages/ce-web-client React 19 docs + demos web app
+packages/ce-web-server Minimal Express server for the web app
 python/                Python SDK — shares core API with TS + Python-only extras
 schemas/               JSON Schemas shared across languages
-client/                React 19 docs + demos web app
-server/                Minimal Express server for the web app
 ```
 
 ### Package Dependencies
@@ -129,7 +129,7 @@ Python CLI: `python -m context_engineering <command>` — full parity.
 
 ## Conventions
 
-- **pnpm 10.4.1** (enforced). ESM throughout with `.js` import extensions.
+- **pnpm 10.30.3** (enforced). ESM throughout with `.js` import extensions.
 - **TypeScript:** Strict mode, Node16 module resolution
 - **Python:** 3.10+, Pydantic models, type hints
 - **Formatting:** Prettier (double quotes, semicolons, 2-space, 80 chars)
@@ -143,5 +143,5 @@ Python CLI: `python -m context_engineering <command>` — full parity.
 @context-engineering/core      → packages/ce-core/src/
 @context-engineering/memory    → packages/ce-memory/src/
 @context-engineering/providers → packages/ce-providers/src/
-@/*           → client/src/*
+@/*           → packages/ce-web-client/src/*
 ```

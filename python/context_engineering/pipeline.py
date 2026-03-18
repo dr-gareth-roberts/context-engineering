@@ -187,9 +187,18 @@ class ContextPipeline:
         allocation_efficiency = None
 
         # Stage 1: Pack (allocation -> cache topology -> standard)
+        pack_options = {}
+        if pack_query is not None:
+            pack_options["query"] = pack_query
+
         if self._allocation_config:
             stages.append("allocate")
-            result = pack_with_allocation(items, self._budget, self._allocation_config)
+            result = pack_with_allocation(
+                items,
+                self._budget,
+                self._allocation_config,
+                options=pack_options if pack_options else None,
+            )
             selected = list(result.selected)
             dropped = list(result.dropped)
             total_tokens = result.total_tokens
@@ -201,6 +210,7 @@ class ContextPipeline:
                 cache_result = pack_with_cache_topology(
                     selected,
                     Budget(max_tokens=total_tokens + 100),
+                    options=pack_options if pack_options else None,
                     cache_config=self._cache_topology_config,
                 )
                 selected = list(cache_result.selected)
@@ -213,6 +223,7 @@ class ContextPipeline:
             result = pack_with_cache_topology(
                 items,
                 self._budget,
+                options=pack_options if pack_options else None,
                 cache_config=self._cache_topology_config,
             )
             selected = list(result.selected)
@@ -252,9 +263,11 @@ class ContextPipeline:
             min_overall = self._quality_config.get("min_overall")
             if min_overall is not None and quality.overall < min_overall and len(selected) > 1:
                 while len(selected) > 1 and quality.overall < min_overall:
-                    removed = selected.pop()
-                    dropped.append(removed)
-                    total_tokens -= removed.tokens or 0
+                    # Find the item with the lowest score
+                    worst = min(selected, key=lambda x: x.score or 0.0)
+                    selected.remove(worst)
+                    dropped.append(worst)
+                    total_tokens -= worst.tokens or 0
                     quality = analyze_context(selected)
 
         # Stage 4: Session tracking

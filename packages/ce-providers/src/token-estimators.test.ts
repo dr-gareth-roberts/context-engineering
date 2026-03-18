@@ -43,10 +43,8 @@ describe("openaiTokenEstimator", () => {
   });
 
   it("uses cl100k_base for older models when specified", () => {
-    // Use a longer string where the two encodings produce different token counts
-    const text =
-      "The quick brown fox jumps over the lazy dog. " +
-      "Pack my box with five dozen liquor jugs.";
+    // CJK + emoji text reliably produces different token counts between cl100k and o200k
+    const text = "こんにちは世界 🎉🎊🎈🎁🎀🎇🎆✨ Hello World";
     const modern = openaiTokenEstimator(text);
     const legacy = openaiTokenEstimator(text, {
       model: "gpt-3.5-turbo",

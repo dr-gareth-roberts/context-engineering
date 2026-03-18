@@ -83,7 +83,10 @@ class BaseSegmenter(ABC):
 
 class StructuralSegmenter(BaseSegmenter):
     def __init__(
-        self, use_markdown: bool = True, max_tokens: int = 500, protector: BoundaryProtector = None
+        self,
+        use_markdown: bool = True,
+        max_tokens: int = 500,
+        protector: Optional[BoundaryProtector] = None,
     ):
         self.use_markdown = use_markdown
         self.max_tokens = max_tokens
@@ -139,7 +142,7 @@ class SemanticSegmenter(BaseSegmenter):
         threshold: float = 0.7,
         max_tokens: int = 1000,
         model: str = "text-embedding-3-small",
-        protector: BoundaryProtector = None,
+        protector: Optional[BoundaryProtector] = None,
     ):
         self.provider = embedding_provider
         self.min_window = min_window
@@ -251,7 +254,7 @@ class PerplexitySegmenter(BaseSegmenter):
         z_threshold: float = 2.0,
         max_tokens: int = 800,
         model: str = "llama3.1-8b",
-        protector: BoundaryProtector = None,
+        protector: Optional[BoundaryProtector] = None,
     ):
         self.provider = cerebras_provider
         self.z_threshold = z_threshold
@@ -310,7 +313,7 @@ class HybridSegmenter(BaseSegmenter):
         max_tokens: int = 1000,
         semantic_threshold: float = 0.7,
         perplexity_z_threshold: float = 2.0,
-        protector: BoundaryProtector = None,
+        protector: Optional[BoundaryProtector] = None,
     ):
         self.protector = protector or BoundaryProtector()
         self.structural = StructuralSegmenter(max_tokens=max_tokens * 2, protector=self.protector)
