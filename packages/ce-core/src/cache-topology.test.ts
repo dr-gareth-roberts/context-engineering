@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { classifyVolatility, packWithCacheTopology } from "./cache-topology.js";
+import {
+  classifyVolatility,
+  packWithCacheTopology,
+  packWithCacheTopologyAsync,
+} from "./cache-topology.js";
 import type { ContextItem } from "./types.js";
+import { createContextItem } from "./types.js";
 
 function makeItem(
   id: string,
@@ -200,5 +205,51 @@ describe("packWithCacheTopology", () => {
     const result = packWithCacheTopology(items, { maxTokens: 500 });
     expect(result.partitionBoundaries[0]).toBe(2); // 2 static items
     expect(result.partitionBoundaries[1]).toBe(3); // 2 static + 1 session
+  });
+});
+
+describe("packWithCacheTopologyAsync", () => {
+  it("produces same structure as sync version", async () => {
+    const items = [
+      {
+        ...createContextItem("sys", "system prompt"),
+        metadata: { volatility: "static" },
+      },
+      {
+        ...createContextItem("msg", "user message"),
+        metadata: { volatility: "request" },
+      },
+    ];
+    const budget = { maxTokens: 1000 };
+    const result = await packWithCacheTopologyAsync(items, budget);
+    expect(result.selected).toBeDefined();
+    expect(result.cacheKey).toBeDefined();
+    expect(result.totalTokens).toBeGreaterThan(0);
+  });
+
+  it("returns same results as sync for identical inputs", async () => {
+    const items = [
+      makeItem("sys", "system", 10, 100),
+      makeItem("mem", "memory", 5, 100),
+      makeItem("q", "query", 8, 100),
+    ];
+    const budget = { maxTokens: 500 };
+
+    const syncResult = packWithCacheTopology(items, budget);
+    const asyncResult = await packWithCacheTopologyAsync(items, budget);
+
+    expect(asyncResult.selected.map(i => i.id)).toEqual(
+      syncResult.selected.map(i => i.id)
+    );
+    expect(asyncResult.totalTokens).toBe(syncResult.totalTokens);
+    expect(asyncResult.cacheKey).toBe(syncResult.cacheKey);
+    expect(asyncResult.cacheEfficiency).toBe(syncResult.cacheEfficiency);
+  });
+
+  it("handles empty items gracefully", async () => {
+    const result = await packWithCacheTopologyAsync([], { maxTokens: 500 });
+    expect(result.selected).toHaveLength(0);
+    expect(result.totalTokens).toBe(0);
+    expect(result.cacheEfficiency).toBe(0);
   });
 });
