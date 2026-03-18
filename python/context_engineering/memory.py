@@ -5,9 +5,11 @@ import json
 import os
 import sqlite3
 import threading
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional
 
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
@@ -215,11 +217,21 @@ class InMemoryStore(MemoryStore):
 
 
 class FileStore(MemoryStore):
-    def __init__(self, file_path: str) -> None:
+    def __init__(
+        self,
+        file_path: str,
+        lock_timeout: float = 5.0,
+        stale_lock_age: float = 10.0,
+        disable_locking: bool = False,
+    ) -> None:
         self.file_path = file_path
         self._items: Dict[str, MemoryItem] = {}
         self._loaded = False
         self._lock = threading.Lock()
+        self._lock_timeout = lock_timeout
+        self._stale_lock_age = stale_lock_age
+        self._disable_locking = disable_locking
+        self._lock_path = self.file_path + ".lock"
 
     def _load(self):
         if self._loaded:
@@ -250,15 +262,75 @@ class FileStore(MemoryStore):
                 f.write(i.model_dump_json(by_alias=True) + "\n")
         os.replace(tmp_path, self.file_path)
 
+    @contextmanager
+    def _with_file_lock(self) -> Generator[None, None, None]:
+        """Advisory file lock using exclusive file creation.
+
+        Uses os.open with O_CREAT | O_EXCL for atomic lock acquisition.
+        Writes PID + timestamp for debugging. Retries with exponential
+        backoff and detects stale locks via mtime.
+        """
+        if self._disable_locking:
+            yield
+            return
+
+        backoff = 0.05  # 50ms base
+        deadline = time.monotonic() + self._lock_timeout
+
+        while True:
+            try:
+                fd = os.open(self._lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    os.write(fd, f"pid={os.getpid()} ts={time.time()}\n".encode())
+                finally:
+                    os.close(fd)
+                break
+            except FileExistsError:
+                # Check for stale lock
+                try:
+                    mtime = os.path.getmtime(self._lock_path)
+                    if time.time() - mtime > self._stale_lock_age:
+                        logger.warning(
+                            "Removing stale lock file %s (age=%.1fs)",
+                            self._lock_path,
+                            time.time() - mtime,
+                        )
+                        try:
+                            os.unlink(self._lock_path)
+                        except FileNotFoundError:
+                            pass  # Another process beat us to it
+                        continue
+                except FileNotFoundError:
+                    # Lock was released between our open attempt and stat
+                    continue
+
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        f"Could not acquire file lock {self._lock_path} "
+                        f"within {self._lock_timeout}s"
+                    )
+
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 1.0)
+
+        try:
+            yield
+        finally:
+            try:
+                os.unlink(self._lock_path)
+            except FileNotFoundError:
+                pass
+
     def _sync_put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
-        with self._lock:
-            self._load()
-            items = item if isinstance(item, list) else [item]
-            normalized = [_normalize(entry) for entry in items]
-            for entry in normalized:
-                self._items[entry.id] = entry
-            self._persist()
-            return normalized
+        with self._with_file_lock():
+            with self._lock:
+                self._load()
+                items = item if isinstance(item, list) else [item]
+                normalized = [_normalize(entry) for entry in items]
+                for entry in normalized:
+                    self._items[entry.id] = entry
+                self._persist()
+                return normalized
 
     def put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
         return self._sync_put(item)
@@ -286,12 +358,13 @@ class FileStore(MemoryStore):
         return self._sync_query(query)
 
     def _sync_forget(self, item_id: str) -> bool:
-        with self._lock:
-            self._load()
-            removed = self._items.pop(item_id, None) is not None
-            if removed:
-                self._persist()
-            return removed
+        with self._with_file_lock():
+            with self._lock:
+                self._load()
+                removed = self._items.pop(item_id, None) is not None
+                if removed:
+                    self._persist()
+                return removed
 
     def forget(self, item_id: str) -> bool:
         return self._sync_forget(item_id)
