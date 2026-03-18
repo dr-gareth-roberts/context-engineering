@@ -73,7 +73,46 @@ class TestComputeRelevance:
         score = compute_relevance(q, item)
         assert abs(score - 1.0) < 0.01
 
-    def test_falls_back_to_keywords(self):
+    def test_falls_back_to_bm25_by_default(self):
+        """Default scoring_method is bm25, not keyword."""
         q = QueryContext(text="machine learning", keywords=["machine", "learning"])
         item = create_context_item("d", "machine learning rocks")
-        assert compute_relevance(q, item) == 1.0
+        score = compute_relevance(q, item)
+        assert score > 0
+        assert score <= 1.0
+
+    def test_explicit_keyword_mode(self):
+        q = QueryContext(text="machine learning", keywords=["machine", "learning"])
+        item = create_context_item("d", "machine learning rocks")
+        score = compute_relevance(q, item, scoring_method="keyword")
+        assert score == 1.0
+
+    def test_bm25_with_index_scores_matching_higher(self):
+        from context_engineering.bm25 import create_bm25_index
+
+        idx = create_bm25_index()
+        idx.add("match", "context engineering token budget")
+        idx.add("nomatch", "cooking pasta recipes")
+        q = QueryContext(text="context engineering")
+        s1 = compute_relevance(q, create_context_item("match", "x"), index=idx)
+        s2 = compute_relevance(q, create_context_item("nomatch", "x"), index=idx)
+        assert s1 > s2
+
+    def test_bm25_on_the_fly_single_doc(self):
+        q = QueryContext(text="token budget")
+        item = create_context_item("doc", "token budget allocation strategy")
+        score = compute_relevance(q, item, scoring_method="bm25")
+        assert score > 0
+        assert score <= 1.0
+
+    def test_bm25_returns_zero_for_unrelated(self):
+        q = QueryContext(text="quantum physics")
+        item = create_context_item("doc", "cooking pasta recipes")
+        score = compute_relevance(q, item, scoring_method="bm25")
+        assert score == 0.0
+
+    def test_embedding_takes_priority_over_bm25(self):
+        q = QueryContext(text="test", keywords=["test"], embedding=[1.0, 0.0, 0.0])
+        item = create_context_item("d", "unrelated", embedding=[1.0, 0.0, 0.0])
+        score = compute_relevance(q, item)
+        assert abs(score - 1.0) < 0.01

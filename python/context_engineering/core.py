@@ -168,6 +168,56 @@ def create_scorer(weights: Optional[ScoringWeights] = None):
     return scorer
 
 
+def create_query_aware_scorer(
+    query,
+    weights: Optional[ScoringWeights] = None,
+    items: Optional[List[ContextItem]] = None,
+):
+    """Create a query-aware scorer that adds relevance to the base score.
+
+    Args:
+        query: The query to score against (string or QueryContext).
+        weights: Scoring weights (relevance defaults to 0.8).
+        items: Optional items list; when provided, builds a BM25 index
+               for corpus-aware scoring.
+
+    Returns:
+        A callable ``(ContextItem) -> float``.
+    """
+    from .bm25 import BM25Index, create_bm25_index
+    from .relevance import compute_relevance, normalize_query
+
+    w = weights or ScoringWeights()
+    rel_weight = w.relevance if w.relevance > 0 else 0.8
+    query_ctx = normalize_query(query)
+
+    bm25_index: Optional[BM25Index] = None
+    if items is not None:
+        bm25_index = create_bm25_index()
+        for item in items:
+            bm25_index.add(item.id, item.content)
+
+    def scorer(item: ContextItem) -> float:
+        if item.score is not None:
+            return item.score
+
+        p = item.priority or 0.0
+        r = item.recency or 0.0
+        s = float(item.metadata.get("salience", 0.0))
+
+        base_score = (p * w.priority) + (r * w.recency) + (s * w.salience)
+
+        relevance = compute_relevance(
+            query_ctx,
+            item,
+            scoring_method="bm25" if bm25_index else "bm25",
+            index=bm25_index,
+        )
+        return base_score + relevance * rel_weight
+
+    return scorer
+
+
 def calculate_weighted_score(item: ContextItem, weights: Optional[ScoringWeights] = None) -> float:
     w = weights or ScoringWeights()
     p = item.priority or 0.0
@@ -309,16 +359,22 @@ def pack(
     # Wire query relevance into scoring weights
     effective_weights = weights
     if query is not None:
+        from .bm25 import create_bm25_index
         from .relevance import compute_relevance, normalize_query
 
         q = normalize_query(query)
         base_w = weights or ScoringWeights()
         rel_weight = base_w.relevance if base_w.relevance > 0 else 0.8
 
+        # Build BM25 index over all items for corpus-aware scoring
+        bm25_index = create_bm25_index()
+        for item in items:
+            bm25_index.add(item.id, item.content)
+
         # Pre-compute relevance for each item and inject via score override
         scored_items: List[ContextItem] = []
         for item in items:
-            rel = compute_relevance(q, item)
+            rel = compute_relevance(q, item, index=bm25_index)
             base_score = calculate_weighted_score(item, base_w)
             final_score = base_score + rel * rel_weight
             scored_items.append(item.model_copy(update={"score": final_score}))
@@ -440,7 +496,8 @@ def internal_pack(
             new_heap: List[tuple[float, float, int, ContextItem]] = []
             for _, _, _, item in heap:
                 boost = sum(w.relation_boost for sid in selected_ids if sid in item.links)
-                item.score = calculate_weighted_score(item, weights) + boost
+                new_score = calculate_weighted_score(item, weights) + boost
+                item = item.model_copy(update={"score": new_score})
                 heapq.heappush(
                     new_heap, (-(item.score or 0), -(item.recency or 0), heap_counter, item)
                 )
@@ -606,7 +663,7 @@ def simulate_budgets(
     items: List[ContextItem], min_budget: int, max_budget: int, step: int = 100, **kwargs: Any
 ) -> Dict[int, List[str]]:
     results = {}
-    for b in range(min_budget, max_budget + step, step):
+    for b in range(min_budget, max_budget + 1, step):
         packed = pack(items, Budget(maxTokens=b), **kwargs)
         results[b] = [i.id for i in packed.selected]
     return results
