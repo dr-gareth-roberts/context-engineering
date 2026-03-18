@@ -8,6 +8,7 @@ import {
   computeRelevance,
   enrichWithEmbeddings,
 } from "./relevance.js";
+import { createBM25Index } from "./bm25.js";
 import { createContextItem } from "./types.js";
 import type { QueryContext, EmbeddingProvider } from "./types.js";
 
@@ -144,14 +145,89 @@ describe("computeRelevance", () => {
     expect(score).toBeCloseTo(1.0);
   });
 
-  it("falls back to keywords when no embeddings", () => {
+  it("falls back to BM25 by default when no embeddings", () => {
     const query: QueryContext = {
       text: "machine learning",
       keywords: ["machine", "learning"],
     };
     const item = createContextItem("doc", "machine learning rocks");
     const score = computeRelevance(query, item);
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeLessThanOrEqual(1);
+  });
+
+  it("uses keyword scoring when explicitly requested", () => {
+    const query: QueryContext = {
+      text: "machine learning",
+      keywords: ["machine", "learning"],
+    };
+    const item = createContextItem("doc", "machine learning rocks");
+    const score = computeRelevance(query, item, { scoringMethod: "keyword" });
     expect(score).toBe(1.0);
+  });
+});
+
+describe("computeRelevance with BM25", () => {
+  it("uses BM25 by default (no options)", () => {
+    const query: QueryContext = { text: "context engineering" };
+    const item = createContextItem("x", "context engineering for LLMs");
+    const score = computeRelevance(query, item);
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeLessThanOrEqual(1);
+  });
+
+  it("uses keyword scoring when explicitly requested", () => {
+    const query: QueryContext = {
+      text: "context engineering",
+      keywords: ["context", "engineering"],
+    };
+    const item = createContextItem("x", "context engineering for LLMs");
+    const score = computeRelevance(query, item, { scoringMethod: "keyword" });
+    expect(score).toBeGreaterThan(0);
+  });
+
+  it("BM25 with index scores matching docs higher", () => {
+    const idx = createBM25Index();
+    idx.add("match", "context engineering token budget");
+    idx.add("nomatch", "cooking pasta recipes");
+    const query: QueryContext = { text: "context engineering" };
+    const s1 = computeRelevance(query, createContextItem("match", "x"), {
+      scoringMethod: "bm25",
+      index: idx,
+    });
+    const s2 = computeRelevance(query, createContextItem("nomatch", "x"), {
+      scoringMethod: "bm25",
+      index: idx,
+    });
+    expect(s1).toBeGreaterThan(s2);
+  });
+
+  it("BM25 without index builds single-doc index on the fly", () => {
+    const query: QueryContext = { text: "token budget" };
+    const item = createContextItem("doc", "token budget allocation strategy");
+    const score = computeRelevance(query, item, { scoringMethod: "bm25" });
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeLessThanOrEqual(1);
+  });
+
+  it("BM25 returns 0 for completely unrelated content", () => {
+    const query: QueryContext = { text: "quantum physics" };
+    const item = createContextItem("doc", "cooking pasta recipes");
+    const score = computeRelevance(query, item, { scoringMethod: "bm25" });
+    expect(score).toBe(0);
+  });
+
+  it("embedding path takes priority over BM25", () => {
+    const query: QueryContext = {
+      text: "test",
+      keywords: ["test"],
+      embedding: [1, 0, 0],
+    };
+    const item = createContextItem("doc", "unrelated words", {
+      embedding: [1, 0, 0],
+    });
+    const score = computeRelevance(query, item);
+    expect(score).toBeCloseTo(1.0);
   });
 });
 

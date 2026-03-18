@@ -4,6 +4,8 @@ import type {
   QueryContext,
   QueryInput,
 } from "./types.js";
+import { createBM25Index, unicodeTokenize } from "./bm25.js";
+import type { BM25Index } from "./bm25.js";
 
 const STOPWORDS = new Set([
   "a",
@@ -91,8 +93,8 @@ export function normalizeQuery(input: QueryInput): QueryContext {
  * Extract keywords from text: tokenize, lowercase, filter stopwords.
  */
 export function extractKeywords(text: string): Set<string> {
-  const words = text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
-  return new Set(words.filter(w => w.length > 1 && !STOPWORDS.has(w)));
+  const words = unicodeTokenize(text);
+  return new Set(words.filter(w => !STOPWORDS.has(w)));
 }
 
 /**
@@ -148,17 +150,45 @@ export function embeddingRelevance(
 }
 
 /**
+ * Options for computeRelevance scoring method.
+ */
+export interface RelevanceOptions {
+  /** Scoring method: "bm25" (default) or "keyword" */
+  scoringMethod?: "keyword" | "bm25";
+  /** Pre-built BM25 index for corpus-aware scoring */
+  index?: BM25Index;
+}
+
+/**
  * Compute relevance of an item to a query.
- * Uses embedding similarity if available, falls back to keyword matching.
+ * Uses embedding similarity if available, then BM25 (default) or keyword matching.
  */
 export function computeRelevance(
   query: QueryContext,
-  item: ContextItem
+  item: ContextItem,
+  options?: RelevanceOptions
 ): number {
   if (query.embedding && item.embedding) {
     return embeddingRelevance(query.embedding, item.embedding);
   }
-  return keywordRelevance(query, item);
+
+  const method = options?.scoringMethod ?? "bm25";
+
+  if (method === "keyword") {
+    return keywordRelevance(query, item);
+  }
+
+  // BM25 scoring
+  if (options?.index) {
+    const rawScore = options.index.score(query.text, item.id);
+    return rawScore / (rawScore + 1);
+  }
+
+  // No index provided — build a single-document index on the fly
+  const idx = createBM25Index();
+  idx.add(item.id, item.content);
+  const rawScore = idx.score(query.text, item.id);
+  return rawScore / (rawScore + 1);
 }
 
 /**

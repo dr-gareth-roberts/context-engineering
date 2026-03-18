@@ -162,7 +162,7 @@ export function internalPack(
   const scorer =
     options.scorer ??
     (options.query
-      ? createQueryAwareScorer(options.query, options.weights)
+      ? createQueryAwareScorer(options.query, options.weights, items)
       : options.weights
         ? createScorer(options.weights)
         : defaultItemScorer);
