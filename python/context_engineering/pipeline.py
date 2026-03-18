@@ -31,10 +31,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
-from .allocation import KindAllocation, pack_with_allocation
+from .allocation import KindAllocation, pack_with_allocation, pack_with_allocation_async
 from .bridge import BridgeOptions, memory_to_context
-from .cache_topology import CacheConfig, pack_with_cache_topology
-from .core import Budget, ContextItem, ScoringWeights, estimate_tokens, pack
+from .cache_topology import CacheConfig, pack_with_cache_topology, pack_with_cache_topology_async
+from .core import Budget, ContextItem, ScoringWeights, estimate_tokens, pack, pack_async
 from .memory import MemoryItem
 from .placement import place_items
 from .quality import ContextQuality, analyze_context
@@ -159,17 +159,50 @@ class ContextPipeline:
         )
         return self
 
-    def build(self) -> PipelineResult:
-        """Build the pipeline and return the result."""
-        input_count = len(self._items)
-        stages = list(self._stages_applied)
-
-        # Ensure all items have token estimates
+    def _prepare_items(self) -> List[ContextItem]:
+        """Ensure all items have token estimates."""
         items = []
         for item in self._items:
             if item.tokens is None:
                 item = item.model_copy(update={"tokens": estimate_tokens(item.content)})
             items.append(item)
+        return items
+
+    def _apply_quality_gate(
+        self,
+        selected: List[ContextItem],
+        dropped: List[ContextItem],
+        total_tokens: int,
+    ) -> tuple:
+        """Apply quality gate: analyze items and drop lowest-scored until threshold met.
+
+        Mutates selected and dropped lists in place.
+
+        Returns:
+            Tuple of (quality, total_tokens) where quality is ContextQuality or None.
+        """
+        if self._quality_config is None:
+            return None, total_tokens
+
+        quality = analyze_context(selected)
+
+        min_overall = self._quality_config.get("min_overall")
+        if min_overall is not None and quality.overall < min_overall and len(selected) > 1:
+            while len(selected) > 1 and quality.overall < min_overall:
+                worst = min(selected, key=lambda x: x.score or 0.0)
+                selected.remove(worst)
+                dropped.append(worst)
+                total_tokens -= worst.tokens or 0
+                quality = analyze_context(selected)
+
+        return quality, total_tokens
+
+    def build(self) -> PipelineResult:
+        """Build the pipeline and return the result."""
+        input_count = len(self._items)
+        stages = list(self._stages_applied)
+
+        items = self._prepare_items()
 
         # Wire query into pack kwargs
         pack_query = None
@@ -255,20 +288,139 @@ class ContextPipeline:
             )
 
         # Stage 3: Quality gate
-        quality = None
-        if self._quality_config is not None:
+        quality, total_tokens = self._apply_quality_gate(selected, dropped, total_tokens)
+        if quality is not None:
             stages.append("quality")
-            quality = analyze_context(selected)
 
-            min_overall = self._quality_config.get("min_overall")
-            if min_overall is not None and quality.overall < min_overall and len(selected) > 1:
-                while len(selected) > 1 and quality.overall < min_overall:
-                    # Find the item with the lowest score
-                    worst = min(selected, key=lambda x: x.score or 0.0)
-                    selected.remove(worst)
-                    dropped.append(worst)
-                    total_tokens -= worst.tokens or 0
-                    quality = analyze_context(selected)
+        # Stage 4: Session tracking
+        delta = None
+        if self._session_instance:
+            stages.append("session")
+            self._session_instance.set_items(selected)
+            session_result = self._session_instance.compile()
+            delta = session_result.delta
+
+        # Stage 5: Template
+        prompt_messages = None
+        if self._template_config is not None:
+            stages.append("template")
+            prompt_messages = to_messages(selected, self._template_config)
+
+        return PipelineResult(
+            selected=selected,
+            dropped=dropped,
+            total_tokens=total_tokens,
+            budget=self._budget,
+            quality=quality,
+            cache_key=cache_key,
+            cache_efficiency=cache_efficiency,
+            cacheable_tokens=cacheable_tokens,
+            delta=delta,
+            allocations=allocations,
+            allocation_efficiency=allocation_efficiency,
+            messages=prompt_messages,
+            input_count=input_count,
+            stages=stages,
+        )
+
+    async def build_async(self) -> PipelineResult:
+        """Async build with full parity to build().
+
+        Supports all stages including allocation, cache topology, and template.
+        Uses async pack variants that support embedding-based redundancy.
+        """
+        input_count = len(self._items)
+        stages = list(self._stages_applied)
+
+        items = self._prepare_items()
+
+        # Wire query into pack kwargs
+        pack_query = None
+        if self._query_config:
+            stages.append("query")
+            pack_query = self._query_config["query"]
+
+        selected: List[ContextItem] = []
+        dropped: List[ContextItem] = []
+        total_tokens = 0
+        cache_key = None
+        cache_efficiency = None
+        cacheable_tokens = None
+        allocations = None
+        allocation_efficiency = None
+
+        # Stage 1: Pack (allocation -> cache topology -> standard)
+        pack_options: Dict[str, Any] = {}
+        if pack_query is not None:
+            pack_options["query"] = pack_query
+        if "weights" in self._pack_options:
+            pack_options["weights"] = self._pack_options["weights"]
+
+        if self._allocation_config:
+            stages.append("allocate")
+            result = await pack_with_allocation_async(
+                items,
+                self._budget,
+                self._allocation_config,
+                options=pack_options if pack_options else None,
+            )
+            selected = list(result.selected)
+            dropped = list(result.dropped)
+            total_tokens = result.total_tokens
+            allocations = {k: v.__dict__ for k, v in result.allocations.items()}
+            allocation_efficiency = result.allocation_efficiency
+
+            if self._cache_topology_config:
+                stages.append("cacheTopology")
+                cache_result = await pack_with_cache_topology_async(
+                    selected,
+                    Budget(max_tokens=total_tokens + 100),
+                    options=pack_options if pack_options else None,
+                    cache_config=self._cache_topology_config,
+                )
+                selected = list(cache_result.selected)
+                cache_key = cache_result.cache_key
+                cache_efficiency = cache_result.cache_efficiency
+                cacheable_tokens = cache_result.cacheable_tokens
+
+        elif self._cache_topology_config:
+            stages.append("cacheTopology")
+            result = await pack_with_cache_topology_async(
+                items,
+                self._budget,
+                options=pack_options if pack_options else None,
+                cache_config=self._cache_topology_config,
+            )
+            selected = list(result.selected)
+            dropped = list(result.dropped)
+            total_tokens = result.total_tokens
+            cache_key = result.cache_key
+            cache_efficiency = result.cache_efficiency
+            cacheable_tokens = result.cacheable_tokens
+
+        else:
+            stages.append("pack")
+            async_kwargs: Dict[str, Any] = {}
+            if "weights" in self._pack_options:
+                async_kwargs["weights"] = self._pack_options["weights"]
+            result = await pack_async(items, self._budget, **async_kwargs)
+            selected = list(result.selected)
+            dropped = list(result.dropped)
+            total_tokens = result.total_tokens
+
+        # Stage 2: Placement
+        if self._placement_config:
+            stages.append("place")
+            selected = place_items(
+                selected,
+                strategy=self._placement_config.get("strategy", "score-order"),
+                model=self._placement_config.get("model"),
+            )
+
+        # Stage 3: Quality gate
+        quality, total_tokens = self._apply_quality_gate(selected, dropped, total_tokens)
+        if quality is not None:
+            stages.append("quality")
 
         # Stage 4: Session tracking
         delta = None
