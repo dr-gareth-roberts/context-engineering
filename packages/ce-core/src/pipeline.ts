@@ -409,6 +409,23 @@ export class ContextPipeline {
       return this.build();
     }
 
+    // Warn about stages that buildAsync does not support
+    if (this.allocationConfig) {
+      console.warn(
+        "pipeline.buildAsync(): allocation is not supported in async mode and will be ignored"
+      );
+    }
+    if (this.cacheTopologyConfig) {
+      console.warn(
+        "pipeline.buildAsync(): cacheTopology is not supported in async mode and will be ignored"
+      );
+    }
+    if (this.templateConfig) {
+      console.warn(
+        "pipeline.buildAsync(): template is not supported in async mode and will be ignored"
+      );
+    }
+
     const inputCount = this.items.length;
     const stages: string[] = [...this.stagesApplied];
 

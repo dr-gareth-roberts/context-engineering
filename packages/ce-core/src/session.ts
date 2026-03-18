@@ -172,13 +172,15 @@ export function createSession(options: SessionOptions): ContextSession {
       position: i,
     }));
 
+    // Compute unchanged prefix (used for both delta and cache key)
+    const reusablePrefix = unchangedPrefix(previousManifest, currentManifest);
+
     // Compute delta from previous
     let delta: SessionDelta | null = null;
 
     if (compileCount > 0) {
       const prevMap = new Map(previousManifest.map(e => [e.id, e]));
       const currMap = new Map(currentManifest.map(e => [e.id, e]));
-      const reusablePrefix = unchangedPrefix(previousManifest, currentManifest);
       const reusablePrefixIds = new Set(reusablePrefix.map(entry => entry.id));
 
       const added: ContextItem[] = [];
@@ -240,10 +242,9 @@ export function createSession(options: SessionOptions): ContextSession {
       };
     }
 
-    // Generate cache key from unchanged items
-    const prefix = unchangedPrefix(previousManifest, currentManifest);
+    // Generate cache key from unchanged items (reuse already-computed prefix)
     const cacheKey = hash64(
-      prefix
+      reusablePrefix
         .map(entry => `${entry.position}:${entry.id}:${entry.contentHash}`)
         .join(",") || "empty"
     );

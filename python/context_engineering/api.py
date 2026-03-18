@@ -18,6 +18,7 @@ class ScoringWeightsModel(BaseModel):
     priority: float = 1.0
     recency: float = 0.7
     salience: float = 0.5
+    relevance: float = 0.0
     cost: float = -0.3
     latency: float = -0.2
     relation_boost: float = 2.0
@@ -27,6 +28,7 @@ class ScoringWeightsModel(BaseModel):
             priority=self.priority,
             recency=self.recency,
             salience=self.salience,
+            relevance=self.relevance,
             cost=self.cost,
             latency=self.latency,
             relation_boost=self.relation_boost,

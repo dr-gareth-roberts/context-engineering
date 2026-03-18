@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from .core import Budget, ContextItem, estimate_tokens, pack
 
@@ -103,7 +103,6 @@ class ContextSession:
         self._pack_options = pack_options or {}
         self._current_items: List[ContextItem] = []
         self._previous_manifest: List[ManifestEntry] = []
-        self._previous_selected_ids: Set[str] = set()
         self._compile_count = 0
 
     def set_items(self, items: List[ContextItem]) -> None:
@@ -210,7 +209,6 @@ class ContextSession:
 
         # Update state for next compile
         self._previous_manifest = current_manifest
-        self._previous_selected_ids = {e.id for e in current_manifest}
         self._compile_count += 1
 
         return SessionPack(
@@ -234,7 +232,6 @@ class ContextSession:
         """Reset the session."""
         self._current_items = []
         self._previous_manifest = []
-        self._previous_selected_ids = set()
         self._compile_count = 0
 
 

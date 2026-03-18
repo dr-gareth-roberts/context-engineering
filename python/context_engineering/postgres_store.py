@@ -250,7 +250,7 @@ class PostgresMemoryStore(MemoryStore):
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             status = await conn.execute("DELETE FROM ce_memory_items WHERE id = $1", item_id)
-            return not status.endswith("0")
+            return int(status.split()[-1]) > 0
 
     def put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
         raise NotImplementedError("PostgresMemoryStore is async-only. Use aput().")

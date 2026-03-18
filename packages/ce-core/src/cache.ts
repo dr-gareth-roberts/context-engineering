@@ -36,7 +36,10 @@ export function createCachedEstimator(
         ? `${text}\0${opts.model ?? ""}\0${opts.provider ?? ""}`
         : text;
     if (cache.has(key)) {
-      return cache.get(key) as number;
+      const cached = cache.get(key)!;
+      cache.delete(key);
+      cache.set(key, cached);
+      return cached;
     }
 
     const result = estimator(text, opts);

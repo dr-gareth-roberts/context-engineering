@@ -15,7 +15,6 @@ export class FileStore implements MemoryStore {
   private items = new Map<string, MemoryItem>();
   private writeQueue: Promise<void> = Promise.resolve();
   private loadPromise: Promise<void> | null = null;
-
   constructor(filePath: string, options: FileStoreOptions = {}) {
     this.filePath = filePath;
     this.options = options;
@@ -52,19 +51,27 @@ export class FileStore implements MemoryStore {
     }
   }
 
-  private persist(): Promise<void> {
+  private persistWithMutation(mutation: () => void): Promise<void> {
     // Serialize writes through a queue to prevent concurrent .tmp file races.
-    // The .catch(() => {}) on the assignment ensures a failed write does not
-    // permanently poison the queue -- subsequent writes can still proceed.
+    // Mutation is applied inside the queue so in-memory state only changes
+    // after a successful write. On failure, we roll back.
     const write = this.writeQueue.then(async () => {
-      const lines = Array.from(this.items.values()).map(item =>
-        JSON.stringify(item)
-      );
-      const content = lines.join("\n") + (lines.length ? "\n" : "");
-      // Atomic write: write to temp file, then rename.
-      const tmpPath = this.filePath + ".tmp";
-      await fs.writeFile(tmpPath, content);
-      await fs.rename(tmpPath, this.filePath);
+      const snapshot = new Map(this.items);
+      mutation();
+      try {
+        const lines = Array.from(this.items.values()).map(item =>
+          JSON.stringify(item)
+        );
+        const content = lines.join("\n") + (lines.length ? "\n" : "");
+        // Atomic write: write to temp file, then rename.
+        const tmpPath = this.filePath + ".tmp";
+        await fs.writeFile(tmpPath, content);
+        await fs.rename(tmpPath, this.filePath);
+      } catch (error) {
+        // Roll back in-memory state to match what's on disk
+        this.items = snapshot;
+        throw error;
+      }
     });
     // Keep the queue alive even if this write fails
     this.writeQueue = write.catch(() => {});
@@ -77,10 +84,11 @@ export class FileStore implements MemoryStore {
     await this.ensureLoaded();
     const list = Array.isArray(item) ? item : [item];
     const normalized = list.map(entry => normalizeMemoryItem(entry));
-    for (const entry of normalized) {
-      this.items.set(entry.id, entry);
-    }
-    await this.persist();
+    await this.persistWithMutation(() => {
+      for (const entry of normalized) {
+        this.items.set(entry.id, entry);
+      }
+    });
     return normalized;
   }
 
@@ -96,9 +104,14 @@ export class FileStore implements MemoryStore {
 
   async forget(id: string): Promise<boolean> {
     await this.ensureLoaded();
-    const deleted = this.items.delete(id);
-    await this.persist();
-    return deleted;
+    let existed = false;
+    await this.persistWithMutation(() => {
+      existed = this.items.has(id);
+      if (existed) {
+        this.items.delete(id);
+      }
+    });
+    return existed;
   }
 
   async close(): Promise<void> {

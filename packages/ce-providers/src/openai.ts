@@ -14,19 +14,14 @@ const DEFAULT_CHAT_MODEL = "gpt-4o-mini";
 const DEFAULT_EMBED_MODEL = "text-embedding-3-small";
 
 /**
- * Models that use max_completion_tokens instead of the deprecated max_tokens.
+ * Whether a model uses max_completion_tokens instead of the deprecated max_tokens.
+ * Only o-series reasoning models require this parameter.
+ * Uses prefix matching for robustness against date-suffixed variants (e.g. o3-mini-2025-01-31).
  * See: https://platform.openai.com/docs/api-reference/chat/create
  */
-const USES_MAX_COMPLETION_TOKENS = new Set([
-  "o1",
-  "o1-mini",
-  "o3",
-  "o3-mini",
-  "o4-mini",
-  "gpt-4.1",
-  "gpt-4.1-mini",
-  "gpt-4.1-nano",
-]);
+function usesMaxCompletionTokens(model: string): boolean {
+  return /^o[134]-/.test(model) || model === "o1" || model === "o3";
+}
 
 export interface OpenAIProviderOptions {
   apiKey?: string;
@@ -73,7 +68,7 @@ export class OpenAIProvider implements LLMProvider {
     };
 
     if (options.maxTokens !== undefined) {
-      if (USES_MAX_COMPLETION_TOKENS.has(model)) {
+      if (usesMaxCompletionTokens(model)) {
         params.max_completion_tokens = options.maxTokens;
       } else {
         params.max_tokens = options.maxTokens;

@@ -153,7 +153,7 @@ describe("OpenAIProvider", () => {
     });
   });
 
-  it("generate uses max_completion_tokens for reasoning models", async () => {
+  it("generate uses max_tokens for non-reasoning models like gpt-4.1", async () => {
     const provider = new OpenAIProvider({ apiKey: "test-key" });
     const createMock = vi.fn().mockResolvedValue({
       choices: [{ message: { content: "ok" } }],
@@ -173,7 +173,7 @@ describe("OpenAIProvider", () => {
     expect(createMock).toHaveBeenCalledWith({
       model: "gpt-4.1",
       messages: [{ role: "user", content: "Hi" }],
-      max_completion_tokens: 200,
+      max_tokens: 200,
     });
   });
 
