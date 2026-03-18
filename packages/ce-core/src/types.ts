@@ -62,20 +62,12 @@ export function createContextItem(
   return { id, content, ...overrides };
 }
 
-export interface ContextPlan {
-  budget: Budget;
-  items: ContextItem[];
-  strategy?: string;
-  options?: Record<string, unknown>;
-}
-
 export interface ContextPack {
   budget: Budget;
   selected: ContextItem[];
   dropped: ContextItem[];
   totalTokens: number;
   stats?: Record<string, unknown>;
-  notes?: string[];
 }
 
 export type TraceDecision = "include" | "exclude" | "compress";
@@ -116,6 +108,11 @@ export interface ItemScorer {
 
 export interface Summarizer {
   (item: ContextItem, targetTokens: number): ContextItem | null;
+}
+
+/** Async summarizer for LLM-based compaction. Used by compileAsync(). */
+export interface AsyncSummarizer {
+  (item: ContextItem, targetTokens: number): Promise<ContextItem | null>;
 }
 
 export interface ScoringWeights {

@@ -1,24 +1,107 @@
+import { cosineSimilarity } from "./relevance.js";
+import { unicodeTokenize } from "./bm25.js";
 import type { ContextItem, EmbeddingProvider } from "./types.js";
 
 export interface RedundancyOptions {
-  provider: EmbeddingProvider;
-  similarityThreshold?: number;
-  strategy?: "recent" | "summarize";
+  /** Similarity threshold. Default: 0.85 (embedding), 0.8 (Jaccard) */
+  threshold?: number;
+  /** Strategy for picking surviving item in a cluster */
+  strategy?: "recent" | "highest-priority";
+  /** Embedding provider for cosine similarity. If omitted, Jaccard fallback is used. */
+  embeddingProvider?: EmbeddingProvider;
+  /** Custom tokenizer for Jaccard mode */
+  tokenizer?: (text: string) => string[];
 }
 
-function cosineSimilarity(v1: number[], v2: number[]): number {
-  let dotProduct = 0;
-  let magnitude1 = 0;
-  let magnitude2 = 0;
-  for (let i = 0; i < v1.length; i++) {
-    dotProduct += v1[i] * v2[i];
-    magnitude1 += v1[i] * v1[i];
-    magnitude2 += v2[i] * v2[i];
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 1;
+  let intersection = 0;
+  for (const word of a) {
+    if (b.has(word)) intersection++;
   }
-  magnitude1 = Math.sqrt(magnitude1);
-  magnitude2 = Math.sqrt(magnitude2);
-  if (magnitude1 === 0 || magnitude2 === 0) return 0;
-  return dotProduct / (magnitude1 * magnitude2);
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+function resolveSurvivor(
+  clusterItems: ContextItem[],
+  strategy: "recent" | "highest-priority"
+): ContextItem {
+  if (strategy === "highest-priority") {
+    return clusterItems.reduce((best, item) => {
+      const itemPriority = item.priority ?? 0;
+      const bestPriority = best.priority ?? 0;
+      if (itemPriority > bestPriority) return item;
+      if (
+        itemPriority === bestPriority &&
+        (item.recency ?? 0) > (best.recency ?? 0)
+      )
+        return item;
+      return best;
+    });
+  }
+  // "recent" strategy
+  return clusterItems.reduce((best, item) => {
+    const itemRecency = item.recency ?? 0;
+    const bestRecency = best.recency ?? 0;
+    if (itemRecency > bestRecency) return item;
+    if (
+      itemRecency === bestRecency &&
+      (item.priority ?? 0) > (best.priority ?? 0)
+    )
+      return item;
+    return best;
+  });
+}
+
+export function eliminateRedundancySync(
+  items: ContextItem[],
+  options: Omit<RedundancyOptions, "embeddingProvider"> = {}
+): ContextItem[] {
+  if (items.length <= 1) return items;
+
+  const threshold = options.threshold ?? 0.8;
+  const strategy = options.strategy ?? "recent";
+  const tokenize = options.tokenizer ?? unicodeTokenize;
+
+  // Tokenize all items
+  const wordSets = items.map(item => new Set(tokenize(item.content)));
+
+  // Leader clustering
+  const clusters: number[][] = [];
+  for (let i = 0; i < items.length; i++) {
+    let added = false;
+    for (const cluster of clusters) {
+      const similarity = jaccardSimilarity(wordSets[i], wordSets[cluster[0]]);
+      if (similarity >= threshold) {
+        cluster.push(i);
+        added = true;
+        break;
+      }
+    }
+    if (!added) {
+      clusters.push([i]);
+    }
+  }
+
+  // Resolve clusters
+  const survivingItems: ContextItem[] = [];
+  for (const cluster of clusters) {
+    if (cluster.length === 1) {
+      survivingItems.push(items[cluster[0]]);
+    } else {
+      survivingItems.push(
+        resolveSurvivor(
+          cluster.map(i => items[i]),
+          strategy
+        )
+      );
+    }
+  }
+
+  // Maintain original order
+  const finalIds = new Set(survivingItems.map(item => item.id));
+  return items.filter(item => finalIds.has(item.id));
 }
 
 export async function eliminateRedundancy(
@@ -27,9 +110,14 @@ export async function eliminateRedundancy(
 ): Promise<ContextItem[]> {
   if (!items.length) return [];
 
-  const threshold = options.similarityThreshold ?? 0.92;
+  // If no embedding provider, fall back to sync Jaccard
+  if (!options.embeddingProvider) {
+    return eliminateRedundancySync(items, options);
+  }
+
+  const threshold = options.threshold ?? 0.85;
   const strategy = options.strategy ?? "recent";
-  const provider = options.provider;
+  const provider = options.embeddingProvider;
 
   const texts = items.map(item => item.content);
   const embeddings = await provider.embed(texts);
@@ -62,24 +150,7 @@ export async function eliminateRedundancy(
     }
 
     const clusterItems = cluster.map(i => items[i]);
-
-    if (strategy === "recent" || strategy === "summarize") {
-      let bestItem = clusterItems[0];
-      for (const item of clusterItems) {
-        const itemRecency = item.recency ?? 0;
-        const bestRecency = bestItem.recency ?? 0;
-        if (itemRecency > bestRecency) {
-          bestItem = item;
-        } else if (itemRecency === bestRecency) {
-          const itemPriority = item.priority ?? 0;
-          const bestPriority = bestItem.priority ?? 0;
-          if (itemPriority > bestPriority) {
-            bestItem = item;
-          }
-        }
-      }
-      survivingItems.push(bestItem);
-    }
+    survivingItems.push(resolveSurvivor(clusterItems, strategy));
   }
 
   const finalIds = new Set(survivingItems.map(item => item.id));
