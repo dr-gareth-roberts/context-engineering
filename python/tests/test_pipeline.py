@@ -1,5 +1,7 @@
 """Tests for composable context pipeline."""
 
+import pytest
+
 from context_engineering.allocation import KindAllocation
 from context_engineering.core import Budget, ContextItem
 from context_engineering.pipeline import create_pipeline
@@ -173,3 +175,175 @@ class TestPipeline:
         assert "cacheTopology" in result.stages
         assert "quality" in result.stages
         assert "allocate" not in result.stages
+
+
+class TestPipelineAsync:
+    @pytest.mark.asyncio
+    async def test_build_async_basic(self):
+        """Basic async build works and produces same results as sync."""
+        result = await (
+            create_pipeline(500)
+            .add(make_item("a", "system", 10, 50), make_item("b", "retrieval", 7, 50))
+            .build_async()
+        )
+        assert len(result.selected) == 2
+        assert result.total_tokens == 100
+        assert result.budget.max_tokens == 500
+        assert result.input_count == 2
+        assert "pack" in result.stages
+
+    @pytest.mark.asyncio
+    async def test_build_async_empty(self):
+        """Async build with no items returns empty result."""
+        result = await create_pipeline(500).build_async()
+        assert len(result.selected) == 0
+        assert result.total_tokens == 0
+
+    @pytest.mark.asyncio
+    async def test_build_async_budget_constraint(self):
+        """Async build respects budget constraints."""
+        result = await (
+            create_pipeline(100)
+            .add(make_item("a", "system", 10, 60), make_item("b", "retrieval", 5, 60))
+            .build_async()
+        )
+        assert result.total_tokens <= 100
+        assert len(result.dropped) > 0
+
+    @pytest.mark.asyncio
+    async def test_build_async_with_allocation(self):
+        """Allocation stage works in async build."""
+        result = await (
+            create_pipeline(300)
+            .add(
+                make_item("s", "system", 10, 50),
+                make_item("r1", "retrieval", 7, 100),
+                make_item("r2", "retrieval", 6, 100),
+            )
+            .allocate(
+                [
+                    KindAllocation(kind="system", target_ratio=0.3),
+                    KindAllocation(kind="retrieval", target_ratio=0.7),
+                ]
+            )
+            .build_async()
+        )
+        assert "allocate" in result.stages
+        assert result.allocations is not None
+        assert len(result.selected) > 0
+
+    @pytest.mark.asyncio
+    async def test_build_async_with_cache_topology(self):
+        """Cache topology stage works in async build."""
+        result = await (
+            create_pipeline(500)
+            .add(make_item("sys", "system", 10, 100), make_item("q", "query", 8, 50))
+            .cache_topology(provider="anthropic")
+            .build_async()
+        )
+        assert "cacheTopology" in result.stages
+        assert result.cache_key is not None
+        assert result.cache_efficiency is not None
+
+    @pytest.mark.asyncio
+    async def test_build_async_cache_topology_ordering(self):
+        """Async cache topology orders static items before volatile ones."""
+        result = await (
+            create_pipeline(500)
+            .add(make_item("q", "query", 8, 50), make_item("sys", "system", 10, 50))
+            .cache_topology()
+            .build_async()
+        )
+        assert result.selected[0].id == "sys"
+        assert result.selected[1].id == "q"
+
+    @pytest.mark.asyncio
+    async def test_build_async_combined(self):
+        """Allocation + cache topology + quality gate work together in async build."""
+        result = await (
+            create_pipeline(500)
+            .add(
+                make_item("sys", "system", 10, 100),
+                make_item("mem", "memory", 5, 80),
+                make_item("doc", "retrieval", 7, 80),
+                make_item("q", "query", 8, 50),
+            )
+            .allocate(
+                [
+                    KindAllocation(kind="system", target_ratio=0.3),
+                    KindAllocation(kind="memory", target_ratio=0.2),
+                    KindAllocation(kind="retrieval", target_ratio=0.3),
+                    KindAllocation(kind="query", target_ratio=0.2),
+                ]
+            )
+            .cache_topology(provider="anthropic")
+            .quality_gate(min_overall=0.0)
+            .build_async()
+        )
+        assert "allocate" in result.stages
+        assert "cacheTopology" in result.stages
+        assert "quality" in result.stages
+        assert result.allocations is not None
+        assert result.cache_key is not None
+        assert result.quality is not None
+        assert len(result.selected) > 0
+
+    @pytest.mark.asyncio
+    async def test_build_async_with_placement(self):
+        """Placement stage works in async build."""
+        result = await (
+            create_pipeline(500)
+            .add(
+                make_item("a", "system", 10, 50),
+                make_item("b", "retrieval", 7, 50),
+            )
+            .place("score-order")
+            .build_async()
+        )
+        assert "place" in result.stages
+
+    @pytest.mark.asyncio
+    async def test_build_async_with_session(self):
+        """Session tracking works in async build."""
+        session = create_session(Budget(max_tokens=500))
+
+        r1 = await (
+            create_pipeline(500)
+            .add(make_item("a", "system", 10, 50))
+            .session(session)
+            .build_async()
+        )
+        assert "session" in r1.stages
+        assert r1.delta is None
+
+        r2 = await (
+            create_pipeline(500)
+            .add(make_item("a", "system", 10, 50))
+            .session(session)
+            .build_async()
+        )
+        assert r2.delta is not None
+        assert r2.delta.kept_count == 1
+
+    @pytest.mark.asyncio
+    async def test_build_async_parity_with_sync(self):
+        """Async build produces equivalent results to sync build."""
+        pipeline_config = create_pipeline(500).add(
+            make_item("sys", "system", 10, 100),
+            make_item("doc", "retrieval", 7, 80),
+            make_item("q", "query", 8, 50),
+        )
+
+        sync_result = pipeline_config.build()
+
+        # Rebuild pipeline (build consumes state)
+        pipeline_config2 = create_pipeline(500).add(
+            make_item("sys", "system", 10, 100),
+            make_item("doc", "retrieval", 7, 80),
+            make_item("q", "query", 8, 50),
+        )
+        async_result = await pipeline_config2.build_async()
+
+        assert len(sync_result.selected) == len(async_result.selected)
+        assert sync_result.total_tokens == async_result.total_tokens
+        assert sync_result.stages == async_result.stages

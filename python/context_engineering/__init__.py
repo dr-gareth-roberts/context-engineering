@@ -3,6 +3,7 @@ from .allocation import (
     KindAllocation,
     KindResult,
     pack_with_allocation,
+    pack_with_allocation_async,
 )
 from .beads import (
     BeadsBridgeOptions,
@@ -33,6 +34,7 @@ from .cache_topology import (
     CacheConfig,
     classify_volatility,
     pack_with_cache_topology,
+    pack_with_cache_topology_async,
 )
 from .compaction import AsyncSummarizer, CompileResult, ContextManager, Turn, create_context_manager
 from .core import (
@@ -231,11 +233,13 @@ __all__ = [
     "CacheAwarePack",
     "classify_volatility",
     "pack_with_cache_topology",
+    "pack_with_cache_topology_async",
     # Allocation
     "KindAllocation",
     "KindResult",
     "AllocatedPack",
     "pack_with_allocation",
+    "pack_with_allocation_async",
     # Session
     "SessionDelta",
     "SessionPack",
