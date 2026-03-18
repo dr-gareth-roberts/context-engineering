@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
 from .core import Budget, ContextItem, estimate_tokens, pack
+from .errors import ValidationError
 
 Volatility = Literal["static", "session", "request"]
 
@@ -117,7 +118,21 @@ def pack_with_cache_topology(
         print(result.cache_key)        # stable across requests with same static items
         print(result.cache_efficiency)  # 0.0 - 1.0
     """
+    _VALID_PROVIDERS = {"anthropic", "openai", "auto"}
+    if cache_config is not None and cache_config.provider is not None:
+        if cache_config.provider not in _VALID_PROVIDERS:
+            raise ValidationError(
+                "Invalid cache config",
+                details=[
+                    {
+                        "path": "cache_config.provider",
+                        "message": f"provider must be one of {sorted(_VALID_PROVIDERS)} or None",
+                    }
+                ],
+            )
+
     config = cache_config or CacheConfig()
+    pack_kwargs = dict(options or {})
 
     # 1. Classify items by volatility
     static_items: List[ContextItem] = []
@@ -155,7 +170,7 @@ def pack_with_cache_topology(
 
     # Session items: pack by score within remaining budget
     if remaining > 0 and session_items:
-        session_pack = pack(session_items, Budget(max_tokens=remaining))
+        session_pack = pack(session_items, Budget(max_tokens=remaining), **pack_kwargs)
         session_selected = session_pack.selected
         session_dropped = session_pack.dropped
         remaining -= session_pack.total_tokens
@@ -165,7 +180,7 @@ def pack_with_cache_topology(
 
     # Request items: pack by score into whatever's left
     if remaining > 0 and request_items:
-        request_pack = pack(request_items, Budget(max_tokens=remaining))
+        request_pack = pack(request_items, Budget(max_tokens=remaining), **pack_kwargs)
         request_selected = request_pack.selected
         request_dropped = request_pack.dropped
     else:
@@ -174,9 +189,9 @@ def pack_with_cache_topology(
 
     # 5. Compose final ordered list: static -> session -> request
     selected = selected_static + session_selected + request_selected
-    dropped = (
-        [i for i in static_items if i not in selected_static] + session_dropped + request_dropped
-    )
+    selected_ids = {i.id for i in selected_static}
+    dropped_static = [i for i in static_items if i.id not in selected_ids]
+    dropped = dropped_static + session_dropped + request_dropped
 
     # 6. Add breakpoint markers if configured
     if config.mark_breakpoints:

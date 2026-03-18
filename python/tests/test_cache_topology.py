@@ -1,11 +1,14 @@
 """Tests for cache-topology-aware packing."""
 
+import pytest
+
 from context_engineering.cache_topology import (
     CacheConfig,
     classify_volatility,
     pack_with_cache_topology,
 )
 from context_engineering.core import Budget, ContextItem
+from context_engineering.errors import ValidationError
 
 
 def make_item(id: str, kind: str, priority: float, tokens: int) -> ContextItem:
@@ -152,3 +155,53 @@ class TestPackWithCacheTopology:
         result = pack_with_cache_topology(items, Budget(max_tokens=500))
         assert result.partition_boundaries[0] == 2  # 2 static items
         assert result.partition_boundaries[1] == 3  # 2 static + 1 session
+
+
+class TestPackWithCacheTopologyValidation:
+    def test_rejects_invalid_provider(self):
+        with pytest.raises(ValidationError) as exc_info:
+            pack_with_cache_topology(
+                [],
+                Budget(maxTokens=1000),
+                cache_config=CacheConfig(provider="unknown-provider"),
+            )
+        assert exc_info.value.code == "VALIDATION_ERROR"
+        assert any("provider" in d.path for d in exc_info.value.details)
+
+    def test_accepts_valid_provider_anthropic(self):
+        result = pack_with_cache_topology(
+            [],
+            Budget(maxTokens=1000),
+            cache_config=CacheConfig(provider="anthropic"),
+        )
+        assert result.total_tokens == 0
+
+    def test_accepts_valid_provider_openai(self):
+        result = pack_with_cache_topology(
+            [],
+            Budget(maxTokens=1000),
+            cache_config=CacheConfig(provider="openai"),
+        )
+        assert result.total_tokens == 0
+
+    def test_accepts_valid_provider_auto(self):
+        result = pack_with_cache_topology(
+            [],
+            Budget(maxTokens=1000),
+            cache_config=CacheConfig(provider="auto"),
+        )
+        assert result.total_tokens == 0
+
+    def test_accepts_none_provider(self):
+        # None means no specific provider — should not raise
+        result = pack_with_cache_topology(
+            [],
+            Budget(maxTokens=1000),
+            cache_config=CacheConfig(provider=None),
+        )
+        assert result.total_tokens == 0
+
+    def test_accepts_no_cache_config(self):
+        # No cache_config at all — should not raise
+        result = pack_with_cache_topology([], Budget(maxTokens=1000))
+        assert result.total_tokens == 0

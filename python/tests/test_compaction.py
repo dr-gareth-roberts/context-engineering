@@ -1,7 +1,10 @@
 """Tests for the compaction module: multi-turn context management."""
 
+import pytest
+
 from context_engineering.compaction import create_context_manager
 from context_engineering.core import Budget, ContextItem
+from context_engineering.errors import ValidationError
 
 
 def _word_estimator(text: str) -> int:
@@ -188,3 +191,26 @@ class TestContextManager:
         result = mgr.compile()
         assert len(result.turns) == 4
         assert all(not t.is_summary for t in result.turns)
+
+
+class TestCreateContextManagerValidation:
+    def test_rejects_zero_max_tokens(self):
+        with pytest.raises(ValidationError) as exc_info:
+            create_context_manager(budget=Budget(maxTokens=0))
+        assert exc_info.value.code == "VALIDATION_ERROR"
+        assert any("max_tokens" in d.path for d in exc_info.value.details)
+
+    def test_rejects_negative_max_tokens(self):
+        with pytest.raises(ValidationError) as exc_info:
+            create_context_manager(budget=Budget(maxTokens=-100))
+        assert exc_info.value.code == "VALIDATION_ERROR"
+        assert any("max_tokens" in d.path for d in exc_info.value.details)
+
+    def test_accepts_positive_max_tokens(self):
+        # Should not raise
+        mgr = create_context_manager(budget=Budget(maxTokens=1000))
+        assert mgr is not None
+
+    def test_accepts_small_positive_max_tokens(self):
+        mgr = create_context_manager(budget=Budget(maxTokens=1))
+        assert mgr is not None

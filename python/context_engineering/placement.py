@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from .core import ContextItem
+from .errors import ValidationError
 
 
 @dataclass
@@ -64,6 +65,18 @@ def place_items(
     Returns:
         Items reordered for optimal attention.
     """
+    _VALID_STRATEGIES = {"score-order", "attention-optimized"}
+    if strategy not in _VALID_STRATEGIES:
+        raise ValidationError(
+            "Invalid placement strategy",
+            details=[
+                {
+                    "path": "strategy",
+                    "message": f"strategy must be one of {sorted(_VALID_STRATEGIES)}",
+                }
+            ],
+        )
+
     if strategy == "score-order" or len(items) <= 2:
         return list(items)
 

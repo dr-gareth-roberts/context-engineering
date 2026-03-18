@@ -1,6 +1,9 @@
 """Tests for the placement module: attention-aware item ordering."""
 
+import pytest
+
 from context_engineering.core import ContextItem
+from context_engineering.errors import ValidationError
 from context_engineering.placement import (
     ATTENTION_PROFILES,
     AttentionProfile,
@@ -122,3 +125,28 @@ class TestEffectiveBudget:
 
     def test_unknown_model_uses_default(self):
         assert effective_budget(200_000, "unknown") == 140_000
+
+
+class TestPlaceItemsValidation:
+    def test_rejects_invalid_strategy(self):
+        items = [_item("a", 10), _item("b", 5), _item("c", 1)]
+        with pytest.raises(ValidationError) as exc_info:
+            place_items(items, strategy="invalid-strategy")
+        assert exc_info.value.code == "VALIDATION_ERROR"
+        assert any("strategy" in d.path for d in exc_info.value.details)
+
+    def test_accepts_score_order_strategy(self):
+        items = [_item("a", 10), _item("b", 5)]
+        result = place_items(items, strategy="score-order")
+        assert len(result) == 2
+
+    def test_accepts_attention_optimized_strategy(self):
+        items = [_item("a", 10), _item("b", 5), _item("c", 1)]
+        result = place_items(items, strategy="attention-optimized")
+        assert len(result) == 3
+
+    def test_accepts_default_strategy(self):
+        # Default argument should not raise
+        items = [_item("a", 10), _item("b", 5)]
+        result = place_items(items)
+        assert len(result) == 2

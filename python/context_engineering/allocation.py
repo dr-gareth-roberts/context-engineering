@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from .core import Budget, ContextItem, pack
+from .errors import ValidationError
 
 
 @dataclass
@@ -87,6 +88,32 @@ def pack_with_allocation(
         print(result.allocations)
         print(result.allocation_efficiency)
     """
+    details = []
+    for i, alloc in enumerate(allocations):
+        kind = alloc.kind if hasattr(alloc, "kind") else alloc.get("kind", "")
+        if not kind:
+            details.append(
+                {
+                    "path": f"allocations[{i}].kind",
+                    "message": "kind must be a non-empty string",
+                }
+            )
+        ratio = (
+            alloc.target_ratio
+            if hasattr(alloc, "target_ratio")
+            else alloc.get("target_ratio", None)
+        )
+        if ratio is not None and not (0 <= ratio <= 1):
+            details.append(
+                {
+                    "path": f"allocations[{i}].target_ratio",
+                    "message": "target_ratio must be between 0 and 1",
+                }
+            )
+    if details:
+        raise ValidationError("Invalid allocation config", details=details)
+
+    pack_kwargs = dict(options or {})
     effective_budget = budget.max_tokens - (budget.reserve_tokens or 0)
 
     # Group items by kind
@@ -138,7 +165,7 @@ def pack_with_allocation(
             total_surplus += kind_budget
             continue
 
-        result = pack(kind_items, Budget(max_tokens=kind_budget))
+        result = pack(kind_items, Budget(max_tokens=kind_budget), **pack_kwargs)
         kind_results[alloc.kind] = {
             "selected": list(result.selected),
             "dropped": list(result.dropped),
@@ -168,7 +195,7 @@ def pack_with_allocation(
                 continue
 
             extra_budget = min(total_surplus, max_extra)
-            extra_pack = pack(result["dropped"], Budget(max_tokens=extra_budget))
+            extra_pack = pack(result["dropped"], Budget(max_tokens=extra_budget), **pack_kwargs)
 
             result["selected"].extend(extra_pack.selected)
             result["dropped"] = list(extra_pack.dropped)
@@ -180,7 +207,7 @@ def pack_with_allocation(
     remaining_budget = effective_budget - used_so_far
 
     if uncategorized and remaining_budget > 0:
-        uncat_result = pack(uncategorized, Budget(max_tokens=remaining_budget))
+        uncat_result = pack(uncategorized, Budget(max_tokens=remaining_budget), **pack_kwargs)
         uncat_selected = list(uncat_result.selected)
         uncat_dropped = list(uncat_result.dropped)
     else:

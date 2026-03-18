@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 from .core import Budget, ContextItem, create_causal_scorer, estimate_tokens
+from .errors import ValidationError
 
 
 @dataclass
@@ -257,6 +258,17 @@ def create_context_manager(
     Returns:
         A ContextManager instance.
     """
+    if budget.max_tokens <= 0:
+        raise ValidationError(
+            "Invalid budget",
+            details=[
+                {
+                    "path": "budget.max_tokens",
+                    "message": "max_tokens must be greater than 0",
+                }
+            ],
+        )
+
     return ContextManager(
         budget=budget,
         summarize_after_turns=summarize_after_turns,
