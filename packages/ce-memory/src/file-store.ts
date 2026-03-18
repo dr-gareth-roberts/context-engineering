@@ -102,10 +102,11 @@ export class FileStore implements MemoryStore {
         }
 
         if (Date.now() >= deadline) {
-          throw new Error(
-            `Failed to acquire file lock on ${this.lockPath} within ${lockTimeout}ms`,
-            { cause: err }
+          const lockErr = new Error(
+            `Failed to acquire file lock on ${this.lockPath} within ${lockTimeout}ms`
           );
+          (lockErr as unknown as { cause: unknown }).cause = err;
+          throw lockErr;
         }
 
         await new Promise<void>(resolve => setTimeout(resolve, delay));
