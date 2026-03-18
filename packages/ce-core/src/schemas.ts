@@ -53,6 +53,7 @@ export const CompactionOptionsSchema = z.object({
   summarizeAfterTurns: z.number().int().positive().optional(),
   preserveRecentTurns: z.number().int().nonnegative().optional(),
   systemPrompt: z.string().optional(),
+  batchSize: z.number().int().positive().optional(),
 });
 
 /**

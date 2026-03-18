@@ -227,3 +227,122 @@ describe("createContextManager", () => {
     expect(result.turns.every(t => !t.isSummary)).toBe(true);
   });
 });
+
+describe("compileAsync", () => {
+  it("calls asyncSummarizer for older turns when provided", async () => {
+    const calls: string[] = [];
+    const ctx = createContextManager({
+      budget: { maxTokens: 200 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+      asyncSummarizer: async (item, _targetTokens) => {
+        calls.push(item.content);
+        return { ...item, content: "summary", tokens: 5 };
+      },
+    });
+    for (let i = 0; i < 5; i++) {
+      ctx.addTurn({
+        role: "user",
+        content: `turn content number ${i} with enough words to matter`,
+      });
+    }
+    const result = await ctx.compileAsync();
+    expect(calls.length).toBeGreaterThan(0);
+    expect(result.totalTokens).toBeLessThanOrEqual(200);
+  });
+
+  it("batches older turns: batchSize controls grouping", async () => {
+    let callCount = 0;
+    const ctx = createContextManager({
+      budget: { maxTokens: 2000 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+      batchSize: 3,
+      asyncSummarizer: async (item, _target) => {
+        callCount++;
+        return { ...item, content: `batch summary ${callCount}`, tokens: 10 };
+      },
+    });
+    // Add 10 turns: 1 preserved (recent), 9 older = 3 batches of 3
+    for (let i = 0; i < 10; i++) {
+      ctx.addTurn({ role: "user", content: `turn ${i}` });
+    }
+    await ctx.compileAsync();
+    expect(callCount).toBe(3);
+  });
+
+  it("falls back to truncation when asyncSummarizer returns null", async () => {
+    const ctx = createContextManager({
+      budget: { maxTokens: 200 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+      asyncSummarizer: async () => null,
+    });
+    for (let i = 0; i < 5; i++) {
+      ctx.addTurn({ role: "user", content: `turn ${i} content here` });
+    }
+    const result = await ctx.compileAsync();
+    expect(result.turns.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to truncation when asyncSummarizer result exceeds budget", async () => {
+    const ctx = createContextManager({
+      budget: { maxTokens: 100 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+      asyncSummarizer: async (item, _target) => {
+        return { ...item, content: "x".repeat(500), tokens: 999 };
+      },
+    });
+    for (let i = 0; i < 5; i++) {
+      ctx.addTurn({ role: "user", content: `turn ${i}` });
+    }
+    const result = await ctx.compileAsync();
+    expect(result.totalTokens).toBeLessThanOrEqual(100);
+  });
+
+  it("sync compile does not call asyncSummarizer", () => {
+    const ctx = createContextManager({
+      budget: { maxTokens: 200 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+      asyncSummarizer: async () => {
+        throw new Error("should not be called in sync");
+      },
+    });
+    for (let i = 0; i < 5; i++) {
+      ctx.addTurn({ role: "user", content: `turn ${i}` });
+    }
+    expect(() => ctx.compile()).not.toThrow();
+  });
+
+  it("compileAsync without asyncSummarizer uses truncation (same as sync)", async () => {
+    const ctx = createContextManager({
+      budget: { maxTokens: 200 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+    });
+    for (let i = 0; i < 5; i++) {
+      ctx.addTurn({ role: "user", content: `turn ${i}` });
+    }
+    const syncResult = ctx.compile();
+    const asyncResult = await ctx.compileAsync();
+    expect(asyncResult.totalTokens).toBe(syncResult.totalTokens);
+  });
+
+  it("falls back to truncation on asyncSummarizer error", async () => {
+    const ctx = createContextManager({
+      budget: { maxTokens: 200 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+      asyncSummarizer: async () => {
+        throw new Error("LLM API down");
+      },
+    });
+    for (let i = 0; i < 5; i++) {
+      ctx.addTurn({ role: "user", content: `turn ${i} with more words` });
+    }
+    const result = await ctx.compileAsync();
+    expect(result.turns.length).toBeGreaterThan(0);
+  });
+});

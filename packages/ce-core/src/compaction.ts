@@ -1,4 +1,5 @@
 import type {
+  AsyncSummarizer,
   Budget,
   ContextItem,
   Summarizer,
@@ -35,6 +36,10 @@ export interface CompactionOptions {
   tokenEstimator?: TokenEstimator;
   /** Summarizer for compacting old turns (if not provided, truncation is used) */
   summarizer?: Summarizer;
+  /** Async summarizer for LLM-based compaction (used by compileAsync only) */
+  asyncSummarizer?: AsyncSummarizer;
+  /** Number of turns per summarization batch (default: 5) */
+  batchSize?: number;
 }
 
 /**
@@ -71,6 +76,12 @@ export interface ContextManager {
   getTokenUsage(): { used: number; budget: number; remaining: number };
   /** Compile the context — returns turns + items that fit within budget */
   compile(): { turns: Turn[]; items: ContextItem[]; totalTokens: number };
+  /** Async compile with LLM summarization support */
+  compileAsync(): Promise<{
+    turns: Turn[];
+    items: ContextItem[];
+    totalTokens: number;
+  }>;
   /** Get the number of turns */
   turnCount(): number;
   /** Clear all turns and items */
@@ -94,6 +105,7 @@ export function createContextManager(
       summarizeAfterTurns: options.summarizeAfterTurns,
       preserveRecentTurns: options.preserveRecentTurns,
       systemPrompt: options.systemPrompt,
+      batchSize: options.batchSize,
     },
     "compaction options"
   );
@@ -296,6 +308,228 @@ export function createContextManager(
     return { turns: allTurns, items: selectedItems, totalTokens };
   }
 
+  /**
+   * Truncate older turns into a summary that fits within the given token budget.
+   * Returns the summary turn and how many tokens it consumed.
+   */
+  function truncateOlderTurns(
+    olderTurns: Turn[],
+    availableBudget: number
+  ): { turn: Turn; tokens: number } {
+    const combinedContent = olderTurns
+      .map(t => `[${t.role}]: ${t.content}`)
+      .join("\n");
+
+    const targetTokens = Math.floor(availableBudget * 0.3);
+    const prefix = `[Summary of ${olderTurns.length} earlier turns]\n`;
+    const prefixTokens = estimate(prefix);
+    const contentBudget = Math.max(0, targetTokens - prefixTokens);
+
+    const words = combinedContent.split(/\s+/);
+    let truncated = combinedContent;
+    const truncatedTokens = estimate(truncated);
+
+    if (truncatedTokens > contentBudget) {
+      let lo = 0;
+      let hi = words.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        const candidate = words.slice(0, mid).join(" ");
+        if (estimate(candidate) <= contentBudget) {
+          lo = mid;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      truncated = words.slice(0, lo).join(" ");
+    }
+
+    const summaryContent = prefix + truncated;
+    const summaryTokens = estimate(summaryContent);
+
+    return {
+      turn: {
+        role: "system",
+        content: summaryContent,
+        tokens: summaryTokens,
+        isSummary: true,
+        timestamp: olderTurns[0]?.timestamp,
+      },
+      tokens: summaryTokens,
+    };
+  }
+
+  /**
+   * Pack context items into the remaining token budget.
+   */
+  function packItems(
+    availableTokens: number,
+    scorer?: (item: ContextItem) => number
+  ): ContextItem[] {
+    if (items.length === 0 || availableTokens <= 0) return [];
+
+    const itemScorer = scorer ?? ((i: ContextItem) => i.score ?? 0);
+
+    const scored = items
+      .map(i => ({
+        ...i,
+        tokens: i.tokens ?? estimate(i.content),
+      }))
+      .map(i => ({ ...i, score: itemScorer(i) }))
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+    let usedTokens = 0;
+    return scored.filter(item => {
+      if (usedTokens + (item.tokens ?? 0) <= availableTokens) {
+        usedTokens += item.tokens ?? 0;
+        return true;
+      }
+      return false;
+    });
+  }
+
+  async function compileAsync(): Promise<{
+    turns: Turn[];
+    items: ContextItem[];
+    totalTokens: number;
+  }> {
+    let availableTokens = effectiveBudget - systemTokens;
+
+    // Phase 1: Always preserve recent turns
+    const recentTurns = preserveRecent > 0 ? turns.slice(-preserveRecent) : [];
+    const olderTurns =
+      preserveRecent > 0 ? turns.slice(0, -preserveRecent) : turns;
+
+    const recentTokens = recentTurns.reduce(
+      (sum, t) => sum + (t.tokens ?? 0),
+      0
+    );
+    availableTokens -= recentTokens;
+
+    // Phase 2: Compact older turns
+    const scorer =
+      beadsGraph.length > 0
+        ? createCausalScorer(beadsGraph, activeTaskId)
+        : undefined;
+
+    const compactedOlder: Turn[] = [];
+
+    if (scorer && olderTurns.length > 0) {
+      // BEADS causal scoring path — same as sync compile
+      const timestamps = olderTurns.map(t => t.timestamp ?? 0);
+      const minTs = Math.min(...timestamps);
+      const maxTs = Math.max(...timestamps);
+      const tsRange = maxTs - minTs;
+
+      const scoredTurns = olderTurns.map((t, idx) => {
+        const normalizedRecency =
+          tsRange > 0 ? (((t.timestamp ?? 0) - minTs) / tsRange) * 10 : 5;
+        const item: ContextItem = {
+          id: `turn-${idx}`,
+          content: t.content,
+          tokens: t.tokens,
+          taskId: t.taskId,
+          isOutcome: t.isOutcome,
+          priority: 5,
+          recency: normalizedRecency,
+        };
+        return { turn: t, score: scorer(item) };
+      });
+
+      scoredTurns.sort((a, b) => b.score - a.score);
+
+      for (const st of scoredTurns) {
+        if ((st.turn.tokens ?? 0) <= availableTokens) {
+          compactedOlder.push(st.turn);
+          availableTokens -= st.turn.tokens ?? 0;
+        }
+      }
+      compactedOlder.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+    } else if (
+      olderTurns.length > 0 &&
+      olderTurns.length >= summarizeAfter &&
+      options.asyncSummarizer
+    ) {
+      // Async summarization path: batch older turns and call asyncSummarizer
+      const batchSize = options.batchSize ?? 5;
+      const batches: Turn[][] = [];
+      for (let i = 0; i < olderTurns.length; i += batchSize) {
+        batches.push(olderTurns.slice(i, i + batchSize));
+      }
+
+      const perBatchTokenBudget = Math.floor(
+        (availableTokens * 0.3) / batches.length
+      );
+
+      for (const batch of batches) {
+        const batchContent = batch
+          .map(t => `[${t.role}]: ${t.content}`)
+          .join("\n");
+        const batchItem: ContextItem = {
+          id: `batch-summary-${batch[0]?.timestamp ?? 0}`,
+          content: batchContent,
+          tokens: estimate(batchContent),
+        };
+
+        let summaryResult: ContextItem | null = null;
+        try {
+          summaryResult = await options.asyncSummarizer(
+            batchItem,
+            perBatchTokenBudget
+          );
+        } catch {
+          // Fall through to truncation fallback
+        }
+
+        if (
+          summaryResult &&
+          (summaryResult.tokens ?? estimate(summaryResult.content)) <=
+            availableTokens
+        ) {
+          const summaryTokens =
+            summaryResult.tokens ?? estimate(summaryResult.content);
+          compactedOlder.push({
+            role: "system",
+            content: summaryResult.content,
+            tokens: summaryTokens,
+            isSummary: true,
+            timestamp: batch[0]?.timestamp,
+          });
+          availableTokens -= summaryTokens;
+        } else {
+          // Fallback: truncate this batch
+          const { turn, tokens } = truncateOlderTurns(batch, availableTokens);
+          compactedOlder.push(turn);
+          availableTokens -= tokens;
+        }
+      }
+    } else if (olderTurns.length > 0 && olderTurns.length >= summarizeAfter) {
+      // No asyncSummarizer — use truncation (same as sync)
+      const { turn, tokens } = truncateOlderTurns(olderTurns, availableTokens);
+      compactedOlder.push(turn);
+      availableTokens -= tokens;
+    } else {
+      // Include older turns as-is
+      for (const turn of olderTurns) {
+        if ((turn.tokens ?? 0) <= availableTokens) {
+          compactedOlder.push(turn);
+          availableTokens -= turn.tokens ?? 0;
+        }
+      }
+    }
+
+    // Phase 3: Pack context items into remaining budget
+    const selectedItems = packItems(availableTokens, scorer);
+
+    const allTurns = [...compactedOlder, ...recentTurns];
+    const totalTokens =
+      systemTokens +
+      allTurns.reduce((sum, t) => sum + (t.tokens ?? 0), 0) +
+      selectedItems.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
+
+    return { turns: allTurns, items: selectedItems, totalTokens };
+  }
+
   function turnCount(): number {
     return turns.length;
   }
@@ -314,6 +548,7 @@ export function createContextManager(
     addItems,
     getTokenUsage,
     compile,
+    compileAsync,
     turnCount,
     clear,
   };
