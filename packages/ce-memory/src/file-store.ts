@@ -7,6 +7,12 @@ import { applyQueryFilter, normalizeMemoryItem } from "./utils.js";
 export interface FileStoreOptions {
   /** When true, skip lines that fail JSON.parse instead of throwing. */
   skipCorruptedLines?: boolean;
+  /** Maximum time in ms to wait for the advisory file lock (default 5000). */
+  lockTimeout?: number;
+  /** Age in ms after which an existing lock file is considered stale (default 10000). */
+  staleLockAge?: number;
+  /** When true, skip advisory file locking entirely (default false). */
+  disableLocking?: boolean;
 }
 
 export class FileStore implements MemoryStore {
@@ -51,6 +57,73 @@ export class FileStore implements MemoryStore {
     }
   }
 
+  private get lockPath(): string {
+    return this.filePath + ".lock";
+  }
+
+  private async withFileLock<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.options.disableLocking) {
+      return fn();
+    }
+
+    const lockTimeout = this.options.lockTimeout ?? 5000;
+    const staleLockAge = this.options.staleLockAge ?? 10000;
+    const lockContent = JSON.stringify({
+      pid: process.pid,
+      timestamp: new Date().toISOString(),
+    });
+
+    const deadline = Date.now() + lockTimeout;
+    let delay = 50;
+
+    while (true) {
+      try {
+        const handle = await fs.open(this.lockPath, "wx");
+        await handle.writeFile(lockContent);
+        await handle.close();
+        break;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
+          throw err;
+        }
+
+        // Check for stale lock
+        try {
+          const stat = await fs.stat(this.lockPath);
+          if (Date.now() - stat.mtimeMs > staleLockAge) {
+            await fs.unlink(this.lockPath);
+            continue; // Retry immediately after removing stale lock
+          }
+        } catch (statErr) {
+          if ((statErr as NodeJS.ErrnoException).code === "ENOENT") {
+            continue; // Lock was removed by another process, retry
+          }
+          throw statErr;
+        }
+
+        if (Date.now() >= deadline) {
+          throw new Error(
+            `Failed to acquire file lock on ${this.lockPath} within ${lockTimeout}ms`,
+            { cause: err }
+          );
+        }
+
+        await new Promise<void>(resolve => setTimeout(resolve, delay));
+        delay = Math.min(delay * 2, deadline - Date.now());
+      }
+    }
+
+    try {
+      return await fn();
+    } finally {
+      try {
+        await fs.unlink(this.lockPath);
+      } catch {
+        // Lock file may have been cleaned up externally; ignore
+      }
+    }
+  }
+
   private persistWithMutation(mutation: () => void): Promise<void> {
     // Serialize writes through a queue to prevent concurrent .tmp file races.
     // Mutation is applied inside the queue so in-memory state only changes
@@ -59,14 +132,16 @@ export class FileStore implements MemoryStore {
       const snapshot = new Map(this.items);
       mutation();
       try {
-        const lines = Array.from(this.items.values()).map(item =>
-          JSON.stringify(item)
-        );
-        const content = lines.join("\n") + (lines.length ? "\n" : "");
-        // Atomic write: write to temp file, then rename.
-        const tmpPath = this.filePath + ".tmp";
-        await fs.writeFile(tmpPath, content);
-        await fs.rename(tmpPath, this.filePath);
+        await this.withFileLock(async () => {
+          const lines = Array.from(this.items.values()).map(item =>
+            JSON.stringify(item)
+          );
+          const content = lines.join("\n") + (lines.length ? "\n" : "");
+          // Atomic write: write to temp file, then rename.
+          const tmpPath = this.filePath + ".tmp";
+          await fs.writeFile(tmpPath, content);
+          await fs.rename(tmpPath, this.filePath);
+        });
       } catch (error) {
         // Roll back in-memory state to match what's on disk
         this.items = snapshot;
