@@ -210,7 +210,7 @@ def create_query_aware_scorer(
         relevance = compute_relevance(
             query_ctx,
             item,
-            scoring_method="bm25" if bm25_index else "bm25",
+            scoring_method="bm25" if bm25_index else "keyword",
             index=bm25_index,
         )
         return base_score + relevance * rel_weight
@@ -271,7 +271,7 @@ def _apply_compression(
     for c in item.compressions:
         tokens = c.tokens if c.tokens is not None else estimate_tokens(c.content, provider=provider)
         candidates.append((tokens, c))
-    for tokens, c in sorted(candidates, key=lambda x: x[0]):
+    for tokens, c in sorted(candidates, key=lambda x: x[0], reverse=True):
         if tokens <= remaining_tokens:
             return item.model_copy(
                 update={

@@ -211,6 +211,12 @@ program
   .option("--json", "Force JSON output")
   .action(async options => {
     if (options.json) setForceJson(true);
+    if (options.before === "-" && options.after === "-") {
+      return outputError(
+        "Cannot read both --before and --after from stdin",
+        "Provide at most one of --before or --after as - (stdin)"
+      );
+    }
     try {
       const before = await loadItems(options.before);
       const after = await loadItems(options.after);

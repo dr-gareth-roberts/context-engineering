@@ -131,7 +131,7 @@ Python CLI: `python -m context_engineering <command>` — full parity.
 
 - **pnpm 10.30.3** (enforced). ESM throughout with `.js` import extensions.
 - **TypeScript:** Strict mode, Node16 module resolution
-- **Python:** 3.10+, Pydantic models, type hints
+- **Python:** 3.11+, Pydantic models, type hints
 - **Formatting:** Prettier (double quotes, semicolons, 2-space, 80 chars)
 - **Validation:** Zod schemas (TS), jsonschema (Python), shared JSON Schema files
 - **Atomic writes:** FileStore uses write-to-tmp + rename. TS has write queue; Python has threading.Lock.

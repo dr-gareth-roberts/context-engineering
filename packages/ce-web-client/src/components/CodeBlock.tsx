@@ -3,15 +3,11 @@ import { Check, Copy } from "lucide-react";
 import hljs from "highlight.js/lib/core";
 import typescript from "highlight.js/lib/languages/typescript";
 import python from "highlight.js/lib/languages/python";
-import yaml from "highlight.js/lib/languages/yaml";
-import bash from "highlight.js/lib/languages/bash";
 import "highlight.js/styles/github-dark.css";
 
 // Register languages
 hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("python", python);
-hljs.registerLanguage("yaml", yaml);
-hljs.registerLanguage("bash", bash);
 
 interface CodeBlockProps {
   code: string;
@@ -111,41 +107,6 @@ export function CodeBlock({
 
 // Pre-defined code examples for the workshop
 export const codeExamples = {
-  agentsMdTemplate: `# AGENTS.md
-
-## Project Overview
-This is a TypeScript monorepo using pnpm workspaces.
-
-## Setup Commands
-\`\`\`bash
-pnpm install
-pnpm dev
-\`\`\`
-
-## Code Style
-- TypeScript strict mode enabled
-- No semicolons (Prettier configured)
-- Use functional components with hooks
-- Prefer named exports over default exports
-
-## Testing Instructions
-\`\`\`bash
-pnpm test:unit        # Run unit tests
-pnpm test:e2e         # Run end-to-end tests
-pnpm test:coverage    # Generate coverage report
-\`\`\`
-Target coverage: 80% for all new code.
-
-## PR Instructions
-- Use conventional commits (feat:, fix:, docs:, etc.)
-- Ensure all tests pass before requesting review
-- Include screenshots for UI changes
-
-## Security
-- NEVER commit API keys or secrets
-- Use environment variables for sensitive data
-- All user input must be validated`,
-
   observationMasking: `# Observation Masking Implementation (Python)
 
 def mask_observation(raw_output: str, max_tokens: int = 500) -> str:
