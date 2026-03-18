@@ -1,10 +1,13 @@
 """Tests for kind-aware budget allocation."""
 
+import pytest
+
 from context_engineering.allocation import (
     KindAllocation,
     pack_with_allocation,
 )
 from context_engineering.core import Budget, ContextItem
+from context_engineering.errors import ValidationError
 
 
 def make_item(id: str, kind: str, priority: float, tokens: int) -> ContextItem:
@@ -151,3 +154,75 @@ class TestPackWithAllocation:
         )
         all_ids = {i.id for i in result.selected} | {i.id for i in result.dropped}
         assert len(all_ids) == 4
+
+
+class TestPackWithAllocationValidation:
+    def test_rejects_empty_kind(self):
+        with pytest.raises(ValidationError) as exc_info:
+            pack_with_allocation(
+                [],
+                Budget(maxTokens=1000),
+                [KindAllocation(kind="", target_ratio=0.5)],
+            )
+        assert exc_info.value.code == "VALIDATION_ERROR"
+        assert any("kind" in d.path for d in exc_info.value.details)
+
+    def test_rejects_target_ratio_above_1(self):
+        with pytest.raises(ValidationError) as exc_info:
+            pack_with_allocation(
+                [],
+                Budget(maxTokens=1000),
+                [KindAllocation(kind="code", target_ratio=1.5)],
+            )
+        assert exc_info.value.code == "VALIDATION_ERROR"
+        assert any("target_ratio" in d.path for d in exc_info.value.details)
+
+    def test_rejects_target_ratio_below_0(self):
+        with pytest.raises(ValidationError) as exc_info:
+            pack_with_allocation(
+                [],
+                Budget(maxTokens=1000),
+                [KindAllocation(kind="code", target_ratio=-0.1)],
+            )
+        assert exc_info.value.code == "VALIDATION_ERROR"
+        assert any("target_ratio" in d.path for d in exc_info.value.details)
+
+    def test_rejects_multiple_invalid_allocations(self):
+        with pytest.raises(ValidationError) as exc_info:
+            pack_with_allocation(
+                [],
+                Budget(maxTokens=1000),
+                [
+                    KindAllocation(kind="", target_ratio=0.5),
+                    KindAllocation(kind="code", target_ratio=1.2),
+                ],
+            )
+        # Both issues reported
+        assert len(exc_info.value.details) >= 2
+
+    def test_accepts_valid_allocation(self):
+        # Should not raise
+        result = pack_with_allocation(
+            [],
+            Budget(maxTokens=1000),
+            [KindAllocation(kind="code", target_ratio=0.5)],
+        )
+        assert result.total_tokens == 0
+
+    def test_accepts_zero_target_ratio(self):
+        # 0 is a valid boundary value
+        result = pack_with_allocation(
+            [],
+            Budget(maxTokens=1000),
+            [KindAllocation(kind="code", target_ratio=0.0)],
+        )
+        assert result.total_tokens == 0
+
+    def test_accepts_exactly_1_target_ratio(self):
+        # 1.0 is a valid boundary value
+        result = pack_with_allocation(
+            [],
+            Budget(maxTokens=1000),
+            [KindAllocation(kind="code", target_ratio=1.0)],
+        )
+        assert result.total_tokens == 0
