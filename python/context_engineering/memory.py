@@ -336,14 +336,15 @@ class FileStore(MemoryStore):
         return self._sync_put(item)
 
     def _sync_get(self, item_id: str) -> Optional[MemoryItem]:
-        with self._lock:
-            self._load()
-            item = self._items.get(item_id)
-            if item:
-                item.last_accessed_at = _now_iso()
-                self._persist()
-                return item.model_copy()
-            return None
+        with self._with_file_lock():
+            with self._lock:
+                self._load()
+                item = self._items.get(item_id)
+                if item:
+                    item.last_accessed_at = _now_iso()
+                    self._persist()
+                    return item.model_copy()
+                return None
 
     def get(self, item_id: str) -> Optional[MemoryItem]:
         return self._sync_get(item_id)

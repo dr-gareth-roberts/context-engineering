@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import List, Optional, Set, Union
 
 from ._similarity import cosine_similarity
@@ -103,7 +103,7 @@ def normalize_query(input: QueryInput) -> QueryContext:
 
     # Already a QueryContext — extract keywords if missing
     if input.keywords is None:
-        input.keywords = sorted(extract_keywords(input.text))
+        input = replace(input, keywords=sorted(extract_keywords(input.text)))
     return input
 
 

@@ -100,8 +100,8 @@ export function eliminateRedundancySync(
   }
 
   // Maintain original order
-  const finalIds = new Set(survivingItems.map(item => item.id));
-  return items.filter(item => finalIds.has(item.id));
+  const survivors = new Set(survivingItems);
+  return items.filter(item => survivors.has(item));
 }
 
 export async function eliminateRedundancy(
@@ -153,6 +153,6 @@ export async function eliminateRedundancy(
     survivingItems.push(resolveSurvivor(clusterItems, strategy));
   }
 
-  const finalIds = new Set(survivingItems.map(item => item.id));
-  return items.filter(item => finalIds.has(item.id));
+  const survivors = new Set(survivingItems);
+  return items.filter(item => survivors.has(item));
 }

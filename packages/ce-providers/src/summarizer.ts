@@ -29,7 +29,7 @@ export function createLLMSummarizer(options: {
           { role: "user", content: item.content },
         ],
         {
-          model: model ?? "",
+          model: model || undefined,
           maxTokens: maxOutputTokens,
         }
       );

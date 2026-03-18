@@ -6,6 +6,7 @@ redundant estimation of the same text.
 
 from __future__ import annotations
 
+import threading
 from collections import OrderedDict
 from typing import Callable
 
@@ -24,18 +25,21 @@ def create_cached_estimator(
         A cached estimator function with the same signature.
     """
     cache: OrderedDict[str, int] = OrderedDict()
+    lock = threading.Lock()
 
     def cached(text: str) -> int:
-        if text in cache:
-            cache.move_to_end(text)
-            return cache[text]
+        with lock:
+            if text in cache:
+                cache.move_to_end(text)
+                return cache[text]
 
         result = estimator(text)
 
-        if len(cache) >= max_size:
-            cache.popitem(last=False)
+        with lock:
+            if len(cache) >= max_size:
+                cache.popitem(last=False)
 
-        cache[text] = result
+            cache[text] = result
         return result
 
     return cached
