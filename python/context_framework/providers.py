@@ -125,11 +125,9 @@ class OllamaChatAdapter:
             # Native Ollama /api/chat uses 'options' for model parameters
             # rather than top-level keys like 'temperature', 'top_p', etc.
             native_option_keys = {"temperature", "top_p", "top_k", "num_predict", "seed", "stop"}
-            options: dict[str, Any] = {}
-            for key in native_option_keys:
-                if key in extra:
-                    options[key] = extra.pop(key)
+            options = {k: v for k, v in extra.items() if k in native_option_keys}
             if options:
                 payload["options"] = options
+            extra = {k: v for k, v in extra.items() if k not in native_option_keys}
         payload.update(extra)
         return payload

@@ -7,11 +7,15 @@ building blocks:
   implementations (``NoOpAuditLogger``, ``JSONLAuditLogger``,
   ``InMemoryIdempotencyStore``).
 - ``HTTPJSONAdapterBase`` for HTTP-backed tool adapters.
-- ``ExecutionTask`` / ``ToolExecutionResult`` for task execution.
+- ``ExecutionTask`` / ``ToolExecutionResult`` for tool-based execution.
+- ``IntegrationExecutionTask`` / ``IntegrationActionResult`` for
+  integration-based execution (3-field: integration, operation, target).
 - ``unique_preserve()`` helper.
 - ``BaseCommanderMixin`` with ``_execute_tasks``, ``_execute_task``,
   ``_execute_with_retry``, ``_is_retryable_error``, ``_safe_payload``,
   and ``_log_audit_event``.
+- ``BaseIntegrationCommanderMixin`` — the same for integration runtimes
+  that use the ``integration/operation/target`` pattern.
 
 This module centralises those patterns so each runtime only needs its
 domain-specific logic.
@@ -313,6 +317,7 @@ class BaseCommanderMixin:
             "connection reset",
             "connection aborted",
             "unavailable",
+            "429",
             "502",
             "503",
             "504",
@@ -331,6 +336,240 @@ class BaseCommanderMixin:
             "incident_id": incident_id,
             "mode": mode,
             "tool": row.tool,
+            "target": row.target,
+            "status": row.status,
+            "success": row.success,
+            "latency_ms": row.latency_ms,
+            "attempts": row.attempts,
+            "retried": row.retried,
+            "idempotency_key": row.idempotency_key,
+            "request": self._safe_payload(row.request),
+            "response": self._safe_payload(row.response),
+            "error": row.error,
+            "notes": list(row.notes),
+        }
+        self.audit_logger.log(event)
+
+    @staticmethod
+    def _safe_payload(payload: Any, *, max_chars: int = 900) -> Any:
+        if payload is None:
+            return None
+        try:
+            encoded = json.dumps(payload, separators=(",", ":"), default=str)
+        except Exception:  # noqa: BLE001
+            return str(payload)[:max_chars]
+        if len(encoded) <= max_chars:
+            return payload
+        return {
+            "truncated": True,
+            "size": len(encoded),
+            "preview": encoded[:max_chars],
+        }
+
+
+# ---------------------------------------------------------------------------
+# Integration-pattern execution primitives
+# ---------------------------------------------------------------------------
+# Many domain runtimes (supply chain, pharma, grid, AML, …) use a
+# 3-field task descriptor (integration, operation, target) rather than
+# the 2-field (tool, target) used by the SOC/Claims mixin.  The types
+# and mixin below centralise that pattern.
+
+
+@dataclass(slots=True, frozen=True)
+class IntegrationActionResult:
+    """Result of a single integration call (integration/operation/target pattern)."""
+
+    integration: str
+    operation: str
+    target: str
+    success: bool
+    latency_ms: int
+    request: dict[str, Any]
+    response: dict[str, Any] | None = None
+    error: str | None = None
+    retried: int = 0
+    attempts: int = 1
+    status: str = "executed"
+    idempotency_key: str | None = None
+    notes: tuple[str, ...] = ()
+
+
+@dataclass(slots=True, frozen=True)
+class IntegrationExecutionTask:
+    """Task descriptor for integration-based execution."""
+
+    integration: str
+    operation: str
+    target: str
+    request_payload: dict[str, Any]
+    idempotency_key: str | None
+    call: Callable[[], dict[str, Any]]
+
+
+class BaseIntegrationCommanderMixin:
+    """Mixin providing shared task-execution, retry, audit, and idempotency
+    logic for runtimes that use the ``integration/operation/target`` pattern.
+
+    Concrete Commander classes should inherit from this mixin and provide:
+    - ``audit_logger: AuditLogger``
+    - ``idempotency_store: IdempotencyStore``
+    - ``retry_attempts: int``
+    - ``retry_backoff_seconds: float``
+    - ``idempotency_ttl_seconds: int``
+    - ``execution_policy`` with ``max_parallel_tasks: int``
+    """
+
+    # Subclass must set these (typically via dataclass fields).
+    audit_logger: AuditLogger
+    idempotency_store: IdempotencyStore
+    retry_attempts: int
+    retry_backoff_seconds: float
+    idempotency_ttl_seconds: int
+
+    def _get_max_parallel_tasks(self) -> int:
+        policy = getattr(self, "execution_policy", None)
+        if policy is not None:
+            return getattr(policy, "max_parallel_tasks", 4)
+        return 4
+
+    def _execute_integration_tasks(
+        self, tasks: list[IntegrationExecutionTask]
+    ) -> list[IntegrationActionResult]:
+        if not tasks:
+            return []
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        workers = min(self._get_max_parallel_tasks(), len(tasks))
+        if workers == 1:
+            return [self._execute_integration_task(task) for task in tasks]
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [executor.submit(self._execute_integration_task, task) for task in tasks]
+            return [future.result() for future in futures]
+
+    def _execute_integration_task(
+        self, task: IntegrationExecutionTask
+    ) -> IntegrationActionResult:
+        if task.idempotency_key and self.idempotency_store.seen(task.idempotency_key):
+            return IntegrationActionResult(
+                integration=task.integration,
+                operation=task.operation,
+                target=task.target,
+                success=True,
+                latency_ms=0,
+                request=task.request_payload,
+                response=None,
+                retried=0,
+                attempts=0,
+                status="skipped",
+                idempotency_key=task.idempotency_key,
+                notes=("duplicate action suppressed by idempotency store",),
+            )
+
+        result = self._execute_integration_with_retry(
+            integration=task.integration,
+            operation=task.operation,
+            target=task.target,
+            request_payload=task.request_payload,
+            call=task.call,
+            idempotency_key=task.idempotency_key,
+        )
+
+        if result.success and result.status == "executed" and task.idempotency_key:
+            self.idempotency_store.mark(
+                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
+            )
+
+        return result
+
+    def _execute_integration_with_retry(
+        self,
+        *,
+        integration: str,
+        operation: str,
+        target: str,
+        request_payload: dict[str, Any],
+        call: Callable[[], dict[str, Any]],
+        idempotency_key: str | None,
+    ) -> IntegrationActionResult:
+        attempts = max(1, self.retry_attempts)
+        retried = 0
+        used_attempts = 0
+        last_error: str | None = None
+        start = time.perf_counter()
+
+        for attempt in range(1, attempts + 1):
+            used_attempts = attempt
+            try:
+                response = call()
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                return IntegrationActionResult(
+                    integration=integration,
+                    operation=operation,
+                    target=target,
+                    success=True,
+                    latency_ms=latency_ms,
+                    request=request_payload,
+                    response=response,
+                    retried=retried,
+                    attempts=used_attempts,
+                    status="executed",
+                    idempotency_key=idempotency_key,
+                )
+            except Exception as exc:  # noqa: BLE001 - capture runtime integration failures
+                last_error = str(exc)
+                if attempt >= attempts or not self._is_retryable_error(exc):
+                    break
+                retried += 1
+                time.sleep(self.retry_backoff_seconds * attempt)
+
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        return IntegrationActionResult(
+            integration=integration,
+            operation=operation,
+            target=target,
+            success=False,
+            latency_ms=latency_ms,
+            request=request_payload,
+            error=last_error or "unknown error",
+            retried=retried,
+            attempts=used_attempts,
+            status="executed",
+            idempotency_key=idempotency_key,
+        )
+
+    @staticmethod
+    def _is_retryable_error(exc: Exception) -> bool:
+        text = str(exc).lower()
+        retryable_markers = (
+            "timeout",
+            "tempor",
+            "rate limit",
+            "connection reset",
+            "connection aborted",
+            "unavailable",
+            "429",
+            "502",
+            "503",
+            "504",
+        )
+        return any(marker in text for marker in retryable_markers)
+
+    def _log_integration_audit_event(
+        self,
+        *,
+        batch_id: str,
+        mode: str,
+        row: IntegrationActionResult,
+    ) -> None:
+        event = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "batch_id": batch_id,
+            "mode": mode,
+            "integration": row.integration,
+            "operation": row.operation,
             "target": row.target,
             "status": row.status,
             "success": row.success,

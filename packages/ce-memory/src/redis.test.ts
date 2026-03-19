@@ -2,34 +2,36 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createMemoryStore } from "./factory.js";
 import { RedisStore } from "./redis-store.js";
 
+// Track pipeline set calls for assertions
+let lastPipelineSetCalls: Array<{ key: string; val: string; args: unknown[] }> =
+  [];
+// Allow tests to inject pipeline errors
+let pipelineExecOverride: (() => Promise<unknown>) | null = null;
+
 // We'll mock the module to intercept the Redis class constructor and pipeline
 vi.mock("ioredis", async () => {
   const { Readable } = await import("stream");
   return {
     Redis: class MockRedis {
       private data = new Map<string, string>();
-      private expiries = new Map<string, NodeJS.Timeout>();
 
       pipeline() {
-        const cmds: Array<() => void> = [];
+        const cmds: Array<() => [null, string]> = [];
+        lastPipelineSetCalls = [];
         const pipelineObj = {
-          set: (key: string, val: string, ex?: string, ttl?: number) => {
+          set: (key: string, val: string, ...args: unknown[]) => {
+            lastPipelineSetCalls.push({ key, val, args });
             cmds.push(() => {
               this.data.set(key, val);
-              if (ex === "EX" && ttl) {
-                if (this.expiries.has(key))
-                  clearTimeout(this.expiries.get(key));
-                this.expiries.set(
-                  key,
-                  setTimeout(() => this.data.delete(key), ttl * 1000)
-                );
-              }
+              return [null, "OK"];
             });
             return pipelineObj;
           },
           exec: async () => {
-            cmds.forEach(c => c());
-            return [];
+            if (pipelineExecOverride) {
+              return pipelineExecOverride();
+            }
+            return cmds.map(c => c());
           },
         };
         return pipelineObj;
@@ -39,15 +41,8 @@ vi.mock("ioredis", async () => {
         return this.data.get(key) || null;
       }
 
-      async set(key: string, val: string, ex?: string, ttl?: number) {
+      async set(key: string, val: string) {
         this.data.set(key, val);
-        if (ex === "EX" && ttl) {
-          if (this.expiries.has(key)) clearTimeout(this.expiries.get(key));
-          this.expiries.set(
-            key,
-            setTimeout(() => this.data.delete(key), ttl * 1000)
-          );
-        }
       }
 
       scanStream(options?: { match?: string; count?: number }) {
@@ -81,12 +76,10 @@ vi.mock("ioredis", async () => {
 
       async quit() {
         this.data.clear();
-        this.expiries.forEach(t => clearTimeout(t));
       }
 
       disconnect() {
         this.data.clear();
-        this.expiries.forEach(t => clearTimeout(t));
       }
     },
   };
@@ -96,6 +89,8 @@ describe("RedisStore - Edge Cases", () => {
   let store: RedisStore;
 
   beforeEach(() => {
+    lastPipelineSetCalls = [];
+    pipelineExecOverride = null;
     store = createMemoryStore("redis", {
       url: "redis://localhost:6379",
     }) as RedisStore;
@@ -152,8 +147,8 @@ describe("RedisStore - Edge Cases", () => {
   it("close() cleans up the client", async () => {
     await store.put({ id: "a", content: "data" });
     await store.close();
-    // After close/quit, data is cleared in mock
-    expect(await store.get("a")).toBeNull();
+    // After close, operations should throw
+    await expect(store.get("a")).rejects.toThrow("RedisStore is closed");
   });
 
   it("rejects put without content", async () => {
@@ -161,55 +156,91 @@ describe("RedisStore - Edge Cases", () => {
   });
 });
 
-describe("RedisStore - TTL Computation", () => {
-  it("computes Redis EX from createdAt, not from put() time", async () => {
-    // Item was created 30 seconds ago with a 60-second TTL.
-    // The computed Redis EX should be ~30 seconds (the remaining time),
-    // not the full 60 seconds.
+describe("RedisStore - TTL via applyQueryFilter", () => {
+  it("put() stores items without Redis EX", async () => {
     const store = new RedisStore("redis://localhost:6379");
-    const createdAt = new Date(Date.now() - 30_000).toISOString();
+    lastPipelineSetCalls = [];
     await store.put({
       id: "ttl-check",
-      content: "TTL computation test",
-      createdAt,
+      content: "TTL stored in payload",
       ttlSeconds: 60,
     });
 
-    // Retrieve the item to verify it was stored
-    const item = await store.get("ttl-check");
-    expect(item).not.toBeNull();
-    expect(item?.content).toBe("TTL computation test");
+    // The pipeline.set call should NOT include "EX" arguments
+    expect(lastPipelineSetCalls.length).toBe(1);
+    expect(lastPipelineSetCalls[0].args).toEqual([]);
 
-    // The mock stores data with the computed EX. We can verify the
-    // logic indirectly: an item created 30s ago with 60s TTL should
-    // still be retrievable (remaining ~30s > 0).
-    // More importantly, an item already past its TTL should get EX=1
-    // (the Math.max(1, ...) floor) and expire very quickly.
-    const expiredCreatedAt = new Date(Date.now() - 120_000).toISOString();
-    await store.put({
-      id: "ttl-expired",
-      content: "Already expired",
-      createdAt: expiredCreatedAt,
-      ttlSeconds: 60, // expired 60s ago
-    });
-    // Item is stored with EX=1 (the minimum). It exists right now
-    // but would expire in 1 second on a real Redis server.
-    const expiredItem = await store.get("ttl-expired");
-    expect(expiredItem).not.toBeNull();
+    // The ttlSeconds should be in the JSON payload
+    const payload = JSON.parse(lastPipelineSetCalls[0].val);
+    expect(payload.ttlSeconds).toBe(60);
 
     await store.close();
   });
 
-  it("stores item without EX when ttlSeconds is undefined", async () => {
+  it("expired items are excluded from query() by default", async () => {
     const store = new RedisStore("redis://localhost:6379");
+    const past = new Date(Date.now() - 10_000).toISOString();
     await store.put({
-      id: "no-ttl",
-      content: "No TTL",
+      id: "old",
+      content: "Expired item",
+      createdAt: past,
+      ttlSeconds: 1,
     });
-    const item = await store.get("no-ttl");
-    expect(item).not.toBeNull();
-    expect(item?.content).toBe("No TTL");
+
+    const results = await store.query();
+    expect(results.length).toBe(0);
+
     await store.close();
+  });
+
+  it("expired items are included with query({ includeExpired: true })", async () => {
+    const store = new RedisStore("redis://localhost:6379");
+    const past = new Date(Date.now() - 10_000).toISOString();
+    await store.put({
+      id: "old",
+      content: "Expired item",
+      createdAt: past,
+      ttlSeconds: 1,
+    });
+
+    const results = await store.query({ includeExpired: true });
+    expect(results.length).toBe(1);
+    expect(results[0].id).toBe("old");
+
+    await store.close();
+  });
+
+  it("pipeline errors cause put() to throw", async () => {
+    const store = new RedisStore("redis://localhost:6379");
+    pipelineExecOverride = async () => {
+      return [[new Error("READONLY You can't write against a read only replica"), null]];
+    };
+
+    await expect(
+      store.put({ id: "fail", content: "Should fail" })
+    ).rejects.toThrow("Redis pipeline command failed");
+
+    pipelineExecOverride = null;
+    await store.close();
+  });
+
+  it("throws on operations after close()", async () => {
+    const store = new RedisStore("redis://localhost:6379");
+    await store.put({ id: "a", content: "data" });
+    await store.close();
+
+    await expect(store.put({ id: "b", content: "new" })).rejects.toThrow(
+      "RedisStore is closed"
+    );
+    await expect(store.get("a")).rejects.toThrow("RedisStore is closed");
+    await expect(store.query()).rejects.toThrow("RedisStore is closed");
+    await expect(store.forget("a")).rejects.toThrow("RedisStore is closed");
+  });
+
+  it("close() is idempotent", async () => {
+    const store = new RedisStore("redis://localhost:6379");
+    await store.close();
+    await store.close(); // Should not throw
   });
 });
 

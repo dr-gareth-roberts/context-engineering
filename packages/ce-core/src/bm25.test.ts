@@ -107,4 +107,38 @@ describe("createBM25Index", () => {
     const commonScore = idx.score("common", "d1");
     expect(rareScore).toBeGreaterThan(commonScore);
   });
+
+  it("re-adding document with same ID replaces it", () => {
+    const idx = createBM25Index();
+    idx.add("doc1", "context engineering for language models");
+    idx.add("doc1", "cooking recipes for pasta dishes");
+    expect(idx.documentCount).toBe(1);
+    expect(idx.score("context engineering", "doc1")).toBe(0);
+    expect(idx.score("cooking recipes", "doc1")).toBeGreaterThan(0);
+  });
+
+  it("re-adding document updates search results correctly", () => {
+    const idx = createBM25Index();
+    idx.add("doc1", "alpha beta gamma");
+    idx.add("doc2", "delta epsilon zeta");
+
+    // Verify initial state
+    expect(idx.score("alpha", "doc1")).toBeGreaterThan(0);
+    expect(idx.score("alpha", "doc2")).toBe(0);
+
+    // Replace doc1 with completely different content
+    idx.add("doc1", "delta epsilon zeta");
+
+    // doc1 should no longer match "alpha"
+    expect(idx.score("alpha", "doc1")).toBe(0);
+    // doc1 should now match "delta" and scores should be consistent
+    expect(idx.score("delta", "doc1")).toBeGreaterThan(0);
+    // documentCount should still be 2
+    expect(idx.documentCount).toBe(2);
+
+    // Both docs now have same content — scores for "delta" should be equal
+    const s1 = idx.score("delta", "doc1");
+    const s2 = idx.score("delta", "doc2");
+    expect(s1).toBeCloseTo(s2, 10);
+  });
 });

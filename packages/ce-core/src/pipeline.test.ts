@@ -403,3 +403,97 @@ describe("pipeline template", () => {
     expect(result.allocationEfficiency).toBeDefined();
   });
 });
+
+describe("pipeline quality gate", () => {
+  it("drops items with identical content (low diversity) when minOverall is high", () => {
+    // Items with identical content produce high redundancy and low diversity,
+    // which pushes the overall quality score down. A high minOverall threshold
+    // forces the quality gate loop to drop items until quality improves.
+    const identicalItems = Array.from({ length: 5 }, (_, i) =>
+      makeItem(`dup-${i}`, "system", 10 - i, 50)
+    );
+    // makeItem creates "content-dup-X" which are very similar but not identical.
+    // Use truly identical content for maximum redundancy.
+    const items = identicalItems.map(item => ({
+      ...item,
+      content: "the exact same content repeated verbatim across all items",
+    }));
+
+    const result = pipeline(5000)
+      .add(...items)
+      .qualityGate({ minOverall: 0.99 })
+      .build();
+
+    // Quality gate should have dropped some items to try to improve quality
+    expect(result.dropped.length).toBeGreaterThan(0);
+    expect(result.stages).toContain("quality");
+  });
+
+  it("drops lowest-scored item first", () => {
+    const items = [
+      { id: "high", content: "unique alpha content here", priority: 10, tokens: 50, score: 10 },
+      { id: "mid", content: "unique beta content here", priority: 5, tokens: 50, score: 5 },
+      { id: "low", content: "unique gamma content here", priority: 1, tokens: 50, score: 1 },
+    ] as import("./types.js").ContextItem[];
+
+    // Use identical content to force low quality so the gate activates
+    const duplicated = items.map(item => ({
+      ...item,
+      content: "identical content to force low quality score overall",
+    }));
+
+    const result = pipeline(5000)
+      .add(...duplicated)
+      .qualityGate({ minOverall: 0.99 })
+      .build();
+
+    // The lowest-scored item should be dropped first
+    const droppedIds = result.dropped.map(i => i.id);
+    if (droppedIds.length > 0) {
+      expect(droppedIds[0]).toBe("low");
+    }
+  });
+
+  it("stops dropping when only 1 item remains", () => {
+    // All identical content with an impossibly high threshold
+    const items = Array.from({ length: 4 }, (_, i) => ({
+      id: `item-${i}`,
+      content: "completely identical text for every single item here",
+      priority: 10 - i,
+      tokens: 50,
+      score: 10 - i,
+    })) as import("./types.js").ContextItem[];
+
+    const result = pipeline(5000)
+      .add(...items)
+      .qualityGate({ minOverall: 1.0 }) // impossible threshold
+      .build();
+
+    // Should have at least 1 item remaining (the loop stops at length > 1)
+    expect(result.selected.length).toBeGreaterThanOrEqual(1);
+    // All others should be dropped
+    expect(result.dropped.length).toBe(items.length - 1);
+  });
+
+  it("correctly updates totalTokens after dropping", () => {
+    const items = Array.from({ length: 3 }, (_, i) => ({
+      id: `tok-${i}`,
+      content: "same content repeated for redundancy detection purposes",
+      priority: 10 - i,
+      tokens: 100,
+      score: 10 - i,
+    })) as import("./types.js").ContextItem[];
+
+    const result = pipeline(5000)
+      .add(...items)
+      .qualityGate({ minOverall: 1.0 })
+      .build();
+
+    // totalTokens should equal the sum of tokens in selected items
+    const expectedTokens = result.selected.reduce(
+      (sum, item) => sum + (item.tokens ?? 0),
+      0
+    );
+    expect(result.totalTokens).toBe(expectedTokens);
+  });
+});

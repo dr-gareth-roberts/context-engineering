@@ -4,7 +4,7 @@ import { ValidationError, BudgetExceededError } from "./errors.js";
 
 export const CompressionSchema = z.object({
   content: z.string(),
-  tokens: z.number().nonnegative().finite().optional(),
+  tokens: z.number().int().nonnegative().finite().optional(),
   note: z.string().optional(),
 });
 
@@ -14,7 +14,7 @@ export const ContextItemSchema = z.object({
   kind: z.string().optional(),
   priority: z.number().nonnegative().finite().optional(),
   recency: z.number().nonnegative().finite().optional(),
-  tokens: z.number().nonnegative().finite().optional(),
+  tokens: z.number().int().nonnegative().finite().optional(),
   score: z.number().finite().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   compressions: z.array(CompressionSchema).optional(),
@@ -22,11 +22,23 @@ export const ContextItemSchema = z.object({
   taskId: z.string().optional(),
   isOutcome: z.boolean().optional(),
   dependsOn: z.array(z.string()).optional(),
+  supersedes: z.string().optional(),
+  parentId: z.string().optional(),
+  cost: z.number().nonnegative().finite().optional(),
+  latency: z.number().nonnegative().finite().optional(),
+  links: z.array(z.string()).optional(),
 });
 
 export const BudgetSchema = z.object({
   maxTokens: z.number().positive("maxTokens must be positive").finite(),
   reserveTokens: z.number().nonnegative().finite().optional(),
+});
+
+export const ContextPlanSchema = z.object({
+  budget: BudgetSchema,
+  items: z.array(ContextItemSchema),
+  strategy: z.string().optional(),
+  options: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const KindAllocationSchema = z.object({

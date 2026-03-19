@@ -29,7 +29,27 @@ export function createBM25Index(options?: {
   const df = new Map<string, number>();
   let totalLength = 0;
 
+  function remove(id: string): void {
+    const oldFreq = docs.get(id);
+    if (!oldFreq) return;
+    const oldLength = docLengths.get(id) ?? 0;
+    totalLength -= oldLength;
+    for (const term of oldFreq.keys()) {
+      const count = df.get(term) ?? 0;
+      if (count <= 1) {
+        df.delete(term);
+      } else {
+        df.set(term, count - 1);
+      }
+    }
+    docs.delete(id);
+    docLengths.delete(id);
+  }
+
   function add(id: string, text: string): void {
+    // If the document already exists, remove old contributions first
+    remove(id);
+
     const tokens = tokenize(text);
     const freq = new Map<string, number>();
     for (const t of tokens) {

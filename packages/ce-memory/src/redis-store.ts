@@ -12,6 +12,7 @@ export interface RedisStoreOptions {
 export class RedisStore implements MemoryStore {
   private client: Redis;
   private prefix: string;
+  private closed = false;
 
   constructor(
     urlOrOptions: string | RedisOptions,
@@ -24,40 +25,47 @@ export class RedisStore implements MemoryStore {
     this.prefix = storeOptions.prefix ?? "ce_memory:";
   }
 
+  private assertOpen(): void {
+    if (this.closed) {
+      throw new Error("RedisStore is closed");
+    }
+  }
+
   async put(
     item: Partial<MemoryItem> | Partial<MemoryItem>[]
   ): Promise<MemoryItem[]> {
+    this.assertOpen();
     const items = Array.isArray(item) ? item : [item];
     const normalized = items.map(normalizeMemoryItem);
 
     const pipeline = this.client.pipeline();
     for (const e of normalized) {
       const data = JSON.stringify(e);
-      if (e.ttlSeconds !== undefined && e.ttlSeconds > 0) {
-        // Compute effective TTL from createdAt, consistent with other stores.
-        // TTL is the remaining time from now until createdAt + ttlSeconds.
-        const createdMs = Date.parse(e.createdAt);
-        const expiresMs = createdMs + e.ttlSeconds * 1000;
-        const remainingSeconds = Math.max(
-          1,
-          Math.ceil((expiresMs - Date.now()) / 1000)
-        );
-        pipeline.set(`${this.prefix}${e.id}`, data, "EX", remainingSeconds);
-      } else {
-        pipeline.set(`${this.prefix}${e.id}`, data);
+      // TTL is stored in the JSON payload; applyQueryFilter handles expiry
+      // at query time. No Redis EX — this avoids semantic mismatch between
+      // Redis-level deletion and application-level TTL checks.
+      pipeline.set(`${this.prefix}${e.id}`, data);
+    }
+    const results = await pipeline.exec();
+    if (results) {
+      for (const [err] of results) {
+        if (err) {
+          throw new Error(`Redis pipeline command failed: ${err.message}`);
+        }
       }
     }
-    await pipeline.exec();
     return normalized;
   }
 
   async get(id: string): Promise<MemoryItem | null> {
+    this.assertOpen();
     const data = await this.client.get(`${this.prefix}${id}`);
     if (!data) return null;
     return JSON.parse(data) as MemoryItem;
   }
 
   async query(query?: MemoryQuery): Promise<MemoryItem[]> {
+    this.assertOpen();
     const keys = await this.scanKeys();
     if (keys.length === 0) return [];
 
@@ -74,11 +82,14 @@ export class RedisStore implements MemoryStore {
   }
 
   async forget(id: string): Promise<boolean> {
+    this.assertOpen();
     const result = await this.client.del(`${this.prefix}${id}`);
     return result > 0;
   }
 
   async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
     await this.client.quit();
   }
 

@@ -3,6 +3,7 @@ import { OpenAIProvider, OpenAIEmbeddingProvider } from "./openai.js";
 import { AnthropicProvider } from "./anthropic.js";
 import { MODEL_METADATA } from "./models.js";
 import { createLazyClient } from "./lazy-client.js";
+import { adaptEmbeddingProvider } from "./embedding-adapter.js";
 
 /**
  * Inject a mock client into a provider that uses createLazyClient.
@@ -574,6 +575,32 @@ describe("OpenAIEmbeddingProvider", () => {
     });
 
     await expect(provider.embed("hello")).rejects.toThrow("Quota exceeded");
+  });
+});
+
+// ─── adaptEmbeddingProvider ───────────────────────────────────────────
+
+describe("adaptEmbeddingProvider", () => {
+  it("wraps provider correctly", async () => {
+    const mockProvider = {
+      embed: vi.fn().mockResolvedValue({
+        vectors: [
+          [0.1, 0.2, 0.3],
+          [0.4, 0.5, 0.6],
+        ],
+        model: "text-embedding-3-small",
+      }),
+    };
+
+    const adapted = adaptEmbeddingProvider(mockProvider as any);
+    const result = await adapted.embed(["hello", "world"]);
+
+    // Core EmbeddingProvider returns number[][] directly, not { vectors, model }
+    expect(result).toEqual([
+      [0.1, 0.2, 0.3],
+      [0.4, 0.5, 0.6],
+    ]);
+    expect(mockProvider.embed).toHaveBeenCalledWith(["hello", "world"]);
   });
 });
 

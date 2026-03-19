@@ -10,12 +10,14 @@ export function createLLMSummarizer(options: {
   model?: string;
   maxOutputTokens?: number;
   prompt?: string;
+  onError?: (error: unknown) => void;
 }): AsyncSummarizer {
   const {
     provider,
     model,
     maxOutputTokens = 256,
     prompt = DEFAULT_PROMPT,
+    onError,
   } = options;
 
   return async (
@@ -39,7 +41,8 @@ export function createLLMSummarizer(options: {
 
       const tokens = estimateTokens(content);
       return { ...item, content, tokens };
-    } catch {
+    } catch (error) {
+      onError?.(error);
       return null;
     }
   };

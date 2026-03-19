@@ -41,6 +41,16 @@ export interface ContextItem {
   isOutcome?: boolean;
   /** IDs of tasks this item depends on */
   dependsOn?: string[];
+  /** ID of the item this one supersedes (replaces) */
+  supersedes?: string;
+  /** ID of the parent item for hierarchical inclusion */
+  parentId?: string;
+  /** Cost in dollars to produce this item */
+  cost?: number;
+  /** Latency in milliseconds to produce this item */
+  latency?: number;
+  /** Related URLs or resource identifiers */
+  links?: string[];
 }
 
 /**
@@ -68,6 +78,7 @@ export interface ContextPack {
   dropped: ContextItem[];
   totalTokens: number;
   stats?: Record<string, unknown>;
+  notes?: string[];
 }
 
 export type TraceDecision = "include" | "exclude" | "compress";
@@ -96,6 +107,10 @@ export interface MemoryItem {
   salience?: number;
   ttlSeconds?: number;
   metadata?: Record<string, unknown>;
+  lastAccessedAt?: string;
+  isSummary?: boolean;
+  embedding?: number[];
+  links?: string[];
 }
 
 export interface TokenEstimator {
@@ -132,6 +147,13 @@ export interface PackOptions {
   redundancyConfig?: RedundancyOptions;
   query?: QueryInput;
   embeddingProvider?: EmbeddingProvider;
+}
+
+export interface ContextPlan {
+  budget: Budget;
+  items: ContextItem[];
+  strategy?: string;
+  options?: Record<string, unknown>;
 }
 
 export interface PackDiff {

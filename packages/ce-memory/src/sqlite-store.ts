@@ -34,6 +34,7 @@ function rowToItem(row: SqliteRow): MemoryItem {
 export class SqliteStore implements MemoryStore {
   private db: DatabaseInstance;
   private tableName: string;
+  private closed = false;
 
   constructor(databasePath: string, options: SqliteStoreOptions = {}) {
     const tableName = options.tableName ?? "memory_items";
@@ -67,9 +68,16 @@ export class SqliteStore implements MemoryStore {
     `);
   }
 
+  private assertOpen(): void {
+    if (this.closed) {
+      throw new Error("SqliteStore is closed");
+    }
+  }
+
   async put(
     item: Partial<MemoryItem> | Partial<MemoryItem>[]
   ): Promise<MemoryItem[]> {
+    this.assertOpen();
     const list = Array.isArray(item) ? item : [item];
     const normalized = list.map(entry => normalizeMemoryItem(entry));
     const stmt = this.db.prepare(
@@ -103,6 +111,7 @@ export class SqliteStore implements MemoryStore {
   }
 
   async get(id: string): Promise<MemoryItem | null> {
+    this.assertOpen();
     const stmt = this.db.prepare(
       `SELECT * FROM ${this.tableName} WHERE id = ? LIMIT 1`
     );
@@ -112,6 +121,7 @@ export class SqliteStore implements MemoryStore {
   }
 
   async query(query: MemoryQuery = {}): Promise<MemoryItem[]> {
+    this.assertOpen();
     // Fetch all rows, let applyQueryFilter handle filtering uniformly.
     // This ensures consistent behavior with other store implementations
     // (same `now` for TTL, same case-insensitive text matching, same
@@ -124,12 +134,15 @@ export class SqliteStore implements MemoryStore {
   }
 
   async forget(id: string): Promise<boolean> {
+    this.assertOpen();
     const stmt = this.db.prepare(`DELETE FROM ${this.tableName} WHERE id = ?`);
     const result = stmt.run(id);
     return result.changes > 0;
   }
 
   async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
     this.db.close();
   }
 }

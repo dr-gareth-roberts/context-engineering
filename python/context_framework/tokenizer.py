@@ -45,4 +45,6 @@ class TiktokenCounter:
         self._encoder = tiktoken.encoding_for_model(model)
 
     def count(self, text: str) -> int:
+        if not text or not text.strip():
+            return 0
         return max(1, len(self._encoder.encode(text)))
