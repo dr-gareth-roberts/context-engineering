@@ -1,25 +1,28 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import re
-import time
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Literal, Protocol
-from urllib import request as urlrequest
-from urllib.error import HTTPError, URLError
+from typing import Any, Literal, Protocol
 
-from .soc_runtime import (
+from .runtime_base import (
     AuditLogger,
+    BaseIntegrationCommanderMixin,
+    HTTPJSONAdapterBase,
     IdempotencyStore,
     InMemoryIdempotencyStore,
+    IntegrationActionResult,
+    IntegrationExecutionTask,
     NoOpAuditLogger,
+    unique_preserve as _unique_preserve,
 )
 from .tri_provider_pipeline import TriProviderPipeline, UseCaseExecutionReport
+
+# Backward-compatible alias — existing code references IntegrationCallResult.
+IntegrationCallResult = IntegrationActionResult
 
 _ORDER_RE = re.compile(r"\b(?:ORD|ORDER)[-_]?[A-Za-z0-9]{3,}\b", re.IGNORECASE)
 _SUPPLIER_RE = re.compile(r"\b(?:SUP|SUPPLIER)[-_]?[A-Za-z0-9]{2,}\b", re.IGNORECASE)
@@ -36,18 +39,6 @@ def _normalize_port_pair(value: str) -> str:
     compact = re.sub(r"\s+", "", value.upper())
     compact = compact.replace("TO", "->")
     return compact
-
-
-def _unique_preserve(values: list[str]) -> list[str]:
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for value in values:
-        key = value.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        ordered.append(value)
-    return ordered
 
 
 class LaneDelayAdapter(Protocol):
@@ -215,43 +206,11 @@ class InMemoryFulfillmentActionAdapter:
         }
 
 
-@dataclass(slots=True)
-class _HTTPJSONAdapterBase:
-    base_url: str
-    api_key: str
-    timeout_seconds: float = 10.0
-
-    def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if not self.base_url.startswith(("http://", "https://")):
-            raise ValueError("base_url must start with http:// or https://")
-        if not path.startswith("/"):
-            path = f"/{path}"
-        url = f"{self.base_url.rstrip('/')}{path}"
-        body = json.dumps(payload).encode("utf-8")
-        req = urlrequest.Request(
-            url,
-            data=body,
-            method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-        )
-        try:
-            with urlrequest.urlopen(req, timeout=self.timeout_seconds) as response:
-                data = response.read().decode("utf-8")
-                if not data.strip():
-                    return {}
-                return json.loads(data)
-        except HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
-        except URLError as exc:
-            raise RuntimeError(f"Network error: {exc}") from exc
+_HTTPJSONAdapterBase = HTTPJSONAdapterBase
 
 
 @dataclass(slots=True)
-class HTTPLaneDelayAdapter(_HTTPJSONAdapterBase):
+class HTTPLaneDelayAdapter(HTTPJSONAdapterBase):
     lookup_path: str = "/supply/lane_delay"
 
     def lookup_lane(self, lane_id: str) -> dict[str, Any]:
@@ -259,7 +218,7 @@ class HTTPLaneDelayAdapter(_HTTPJSONAdapterBase):
 
 
 @dataclass(slots=True)
-class HTTPSupplierRiskAdapter(_HTTPJSONAdapterBase):
+class HTTPSupplierRiskAdapter(HTTPJSONAdapterBase):
     lookup_path: str = "/supply/supplier_risk"
 
     def lookup_supplier(self, supplier_id: str) -> dict[str, Any]:
@@ -267,7 +226,7 @@ class HTTPSupplierRiskAdapter(_HTTPJSONAdapterBase):
 
 
 @dataclass(slots=True)
-class HTTPFulfillmentActionAdapter(_HTTPJSONAdapterBase):
+class HTTPFulfillmentActionAdapter(HTTPJSONAdapterBase):
     reroute_path: str = "/supply/reroute"
     split_path: str = "/supply/split"
     expedite_path: str = "/supply/expedite"
@@ -357,23 +316,6 @@ class SupplyDecision:
 
 
 @dataclass(slots=True, frozen=True)
-class IntegrationCallResult:
-    integration: str
-    operation: str
-    target: str
-    success: bool
-    latency_ms: int
-    request: dict[str, Any]
-    response: dict[str, Any] | None = None
-    error: str | None = None
-    retried: int = 0
-    attempts: int = 1
-    status: str = "executed"
-    idempotency_key: str | None = None
-    notes: tuple[str, ...] = ()
-
-
-@dataclass(slots=True, frozen=True)
 class SupplyChainExecutionPolicy:
     execute_actions_in_dry_run: bool = False
     max_parallel_tasks: int = 6
@@ -450,18 +392,11 @@ class SupplyChainExecutionReport:
         }
 
 
-@dataclass(slots=True, frozen=True)
-class _ExecutionTask:
-    integration: str
-    operation: str
-    target: str
-    request_payload: dict[str, Any]
-    idempotency_key: str | None
-    call: Callable[[], dict[str, Any]]
+_ExecutionTask = IntegrationExecutionTask
 
 
 @dataclass(slots=True)
-class SupplyChainControlTowerCommander:
+class SupplyChainControlTowerCommander(BaseIntegrationCommanderMixin):
     pipeline: TriProviderPipeline
     lane_delay_adapter: LaneDelayAdapter
     supplier_risk_adapter: SupplierRiskAdapter
@@ -525,7 +460,7 @@ class SupplyChainControlTowerCommander:
                 errors.append(
                     f"{row.integration}.{row.operation} failed for {row.target}: {row.error}"
                 )
-            self._log_audit_event(batch_id=batch_id, mode=mode, row=row)
+            self._log_integration_audit_event(batch_id=batch_id, mode=mode, row=row)
 
         stats = self._build_stats(
             signals=signals,
@@ -632,7 +567,7 @@ class SupplyChainControlTowerCommander:
                 )
             )
 
-        return self._execute_tasks(tasks)
+        return self._execute_integration_tasks(tasks)
 
     def _build_decisions(
         self,
@@ -923,169 +858,8 @@ class SupplyChainControlTowerCommander:
                 )
                 continue
 
-        executed = self._execute_tasks(tasks)
+        executed = self._execute_integration_tasks(tasks)
         return [*skipped, *executed]
-
-    def _execute_tasks(self, tasks: list[_ExecutionTask]) -> list[IntegrationCallResult]:
-        if not tasks:
-            return []
-
-        workers = min(self.execution_policy.max_parallel_tasks, len(tasks))
-        if workers == 1:
-            return [self._execute_task(task) for task in tasks]
-
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = [executor.submit(self._execute_task, task) for task in tasks]
-            return [future.result() for future in futures]
-
-    def _execute_task(self, task: _ExecutionTask) -> IntegrationCallResult:
-        if task.idempotency_key and self.idempotency_store.seen(task.idempotency_key):
-            return IntegrationCallResult(
-                integration=task.integration,
-                operation=task.operation,
-                target=task.target,
-                success=True,
-                latency_ms=0,
-                request=task.request_payload,
-                response=None,
-                retried=0,
-                attempts=0,
-                status="skipped",
-                idempotency_key=task.idempotency_key,
-                notes=("duplicate action suppressed by idempotency store",),
-            )
-
-        result = self._execute_with_retry(
-            integration=task.integration,
-            operation=task.operation,
-            target=task.target,
-            request_payload=task.request_payload,
-            call=task.call,
-            idempotency_key=task.idempotency_key,
-        )
-
-        if result.success and result.status == "executed" and task.idempotency_key:
-            self.idempotency_store.mark(
-                task.idempotency_key, ttl_seconds=self.idempotency_ttl_seconds
-            )
-
-        return result
-
-    def _execute_with_retry(
-        self,
-        *,
-        integration: str,
-        operation: str,
-        target: str,
-        request_payload: dict[str, Any],
-        call: Callable[[], dict[str, Any]],
-        idempotency_key: str | None,
-    ) -> IntegrationCallResult:
-        attempts = max(1, self.retry_attempts)
-        retried = 0
-        used_attempts = 0
-        last_error: str | None = None
-        start = time.perf_counter()
-
-        for attempt in range(1, attempts + 1):
-            used_attempts = attempt
-            try:
-                response = call()
-                latency_ms = int((time.perf_counter() - start) * 1000)
-                return IntegrationCallResult(
-                    integration=integration,
-                    operation=operation,
-                    target=target,
-                    success=True,
-                    latency_ms=latency_ms,
-                    request=request_payload,
-                    response=response,
-                    retried=retried,
-                    attempts=used_attempts,
-                    status="executed",
-                    idempotency_key=idempotency_key,
-                )
-            except Exception as exc:  # noqa: BLE001 - capture runtime integration failures
-                last_error = str(exc)
-                if attempt >= attempts or not self._is_retryable_error(exc):
-                    break
-                retried += 1
-                time.sleep(self.retry_backoff_seconds * attempt)
-
-        latency_ms = int((time.perf_counter() - start) * 1000)
-        return IntegrationCallResult(
-            integration=integration,
-            operation=operation,
-            target=target,
-            success=False,
-            latency_ms=latency_ms,
-            request=request_payload,
-            error=last_error or "unknown error",
-            retried=retried,
-            attempts=used_attempts,
-            status="executed",
-            idempotency_key=idempotency_key,
-        )
-
-    @staticmethod
-    def _is_retryable_error(exc: Exception) -> bool:
-        text = str(exc).lower()
-        markers = (
-            "timeout",
-            "tempor",
-            "rate limit",
-            "connection reset",
-            "connection aborted",
-            "unavailable",
-            "502",
-            "503",
-            "504",
-            "429",
-        )
-        return any(marker in text for marker in markers)
-
-    def _log_audit_event(
-        self,
-        *,
-        batch_id: str,
-        mode: str,
-        row: IntegrationCallResult,
-    ) -> None:
-        event = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "batch_id": batch_id,
-            "mode": mode,
-            "integration": row.integration,
-            "operation": row.operation,
-            "target": row.target,
-            "status": row.status,
-            "success": row.success,
-            "latency_ms": row.latency_ms,
-            "attempts": row.attempts,
-            "retried": row.retried,
-            "idempotency_key": row.idempotency_key,
-            "request": self._safe_payload(row.request),
-            "response": self._safe_payload(row.response),
-            "error": row.error,
-            "notes": list(row.notes),
-        }
-        self.audit_logger.log(event)
-
-    @staticmethod
-    def _safe_payload(payload: Any, *, max_chars: int = 900) -> Any:
-        if payload is None:
-            return None
-        try:
-            encoded = json.dumps(payload, separators=(",", ":"), default=str)
-        except Exception:  # noqa: BLE001
-            return str(payload)[:max_chars]
-        if len(encoded) <= max_chars:
-            return payload
-        return {
-            "truncated": True,
-            "size": len(encoded),
-            "preview": encoded[:max_chars],
-        }
 
     @staticmethod
     def _as_float(
