@@ -173,9 +173,10 @@ session.setItems(pickup.items); // resume where Agent A left off
 
 | Export             | Description                                                                   |
 | ------------------ | ----------------------------------------------------------------------------- |
-| `ContextItem`      | Input item with `id`, `content`, `priority`, `recency`, `compressions`        |
+| `ContextItem`      | Input item with `id`, `content`, `priority`, `recency`, `compressions`, `supersedes`, `parentId`, `cost`, `latency`, `links` |
 | `Budget`           | `{ maxTokens, reserveTokens? }`                                               |
-| `ContextPack`      | Pack result with `selected`, `dropped`, `totalTokens`, `stats`                |
+| `ContextPack`      | Pack result with `selected`, `dropped`, `totalTokens`, `stats`, `notes`       |
+| `ContextPlan`      | Plan with `budget`, `items`, `strategy?`, `options?`                          |
 | `PackDiff`         | Diff result with `added`, `removed`, `kept`, `changed`                        |
 | `ContextTrace`     | Trace result with `pack`, `steps[]`, `createdAt`                              |
 | `CacheAwarePack`   | Extends ContextPack with `cacheKey`, `cacheableTokens`, `cacheEfficiency`     |
@@ -199,7 +200,7 @@ session.setItems(pickup.items); // resume where Agent A left off
 
 ### Schemas (Zod)
 
-`ContextItemSchema`, `BudgetSchema`, `CompressionSchema`, `PackOptionsSchema`
+`ContextItemSchema`, `BudgetSchema`, `CompressionSchema`, `PackOptionsSchema`, `ContextPlanSchema`
 
 ### Utilities
 

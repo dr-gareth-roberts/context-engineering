@@ -5,7 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/context-engineering)](https://pypi.org/project/context-engineering/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](https://www.typescriptlang.org/)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
 [![Node 18+](https://img.shields.io/badge/Node-18%2B-green)](https://nodejs.org/)
 
 Dual TypeScript/Python SDKs + CLI for LLM context packing, token budgeting, and cache optimization.
@@ -181,10 +181,11 @@ const db = createMemoryStore("sqlite", { path: "db.sqlite" }); // SQLite
 
 The Python SDK includes everything above plus:
 
-- **Advanced pack**: negation/supersession, hierarchical inclusion, semantic redundancy detection
+- **Advanced pack**: negation/supersession, hierarchical inclusion, semantic redundancy detection, relation boosts
 - **AgentContextManager**: orchestration with adaptive budgeting, segmentation, memory, handoff
 - **Segmenters**: structural, semantic, perplexity, hybrid — with boundary protection
 - **Budget simulation**: `simulate_budgets()` across a range
+- **Extra scoring weights**: `cost`, `latency`, `relation_boost` in weighted scoring
 
 ## Development
 
@@ -192,7 +193,7 @@ The Python SDK includes everything above plus:
 
 - Node.js 18+
 - pnpm 10.4.1+
-- Python 3.10+
+- Python 3.11+
 
 ### Setup
 
