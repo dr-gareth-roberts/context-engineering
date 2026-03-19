@@ -76,6 +76,21 @@ class ProviderAdapterTests(unittest.TestCase):
         self.assertEqual(request["max_tokens"], 200)
         self.assertIn("messages", request)
 
+    def test_ollama_adapter_does_not_mutate_caller_kwargs(self) -> None:
+        manager = ContextManager(default_token_budget=120, reserved_response_tokens=20)
+        manager.add_system("Be concise.")
+        manager.add_message("user", "Hello.")
+        packet = manager.build_context("hello")
+
+        adapter = OllamaChatAdapter(cloud_mode=False)
+        kwargs = {"temperature": 0.5, "top_p": 0.9, "custom_key": "value"}
+        kwargs_copy = dict(kwargs)
+
+        adapter.request(packet, model="llama3.1:8b", **kwargs)
+
+        # The original kwargs dict must not be mutated
+        self.assertEqual(kwargs, kwargs_copy)
+
 
 if __name__ == "__main__":
     unittest.main()

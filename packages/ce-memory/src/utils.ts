@@ -15,6 +15,10 @@ export function normalizeMemoryItem(item: Partial<MemoryItem>): MemoryItem {
     salience: item.salience ?? 1,
     ttlSeconds: item.ttlSeconds,
     metadata: item.metadata ?? {},
+    ...(item.lastAccessedAt !== undefined && { lastAccessedAt: item.lastAccessedAt }),
+    ...(item.isSummary !== undefined && { isSummary: item.isSummary }),
+    ...(item.embedding !== undefined && { embedding: item.embedding }),
+    ...(item.links !== undefined && { links: item.links }),
   };
 }
 

@@ -210,4 +210,70 @@ describe("createSession", () => {
     expect(r3.delta!.removedIds).toContain("a");
     expect(r3.delta!.keptCount).toBe(1); // b kept
   });
+
+  it("compile() with custom weights changes item selection order", () => {
+    const session = createSession({ budget: { maxTokens: 80 } });
+
+    // Two items that don't both fit. 'a' has higher priority, 'b' has higher recency.
+    const a: ContextItem = { id: "a", content: "item-a", priority: 10, recency: 1, tokens: 50 };
+    const b: ContextItem = { id: "b", content: "item-b", priority: 1, recency: 10, tokens: 50 };
+
+    // With priority-heavy weights, 'a' should be selected
+    session.setItems([a, b]);
+    const r1 = session.compile({ weights: { priority: 1.0, recency: 0.0 } });
+    expect(r1.selected[0].id).toBe("a");
+
+    session.clear();
+
+    // With recency-heavy weights, 'b' should be selected
+    session.setItems([a, b]);
+    const r2 = session.compile({ weights: { priority: 0.0, recency: 1.0 } });
+    expect(r2.selected[0].id).toBe("b");
+  });
+
+  it("compile() with custom tokenEstimator is used", () => {
+    // Custom estimator that always returns 1 token per item
+    const tinyEstimator = (_content: string) => 1;
+
+    const session = createSession({
+      budget: { maxTokens: 10 },
+      packOptions: { tokenEstimator: tinyEstimator },
+    });
+
+    // Without custom estimator, these items would be ~13 tokens each
+    // and wouldn't all fit in budget 10.
+    // With our custom estimator (1 token each), all 5 should fit.
+    const items: ContextItem[] = Array.from({ length: 5 }, (_, i) => ({
+      id: `item-${i}`,
+      content: `This is some longer content for item number ${i}`,
+      priority: 5,
+    }));
+
+    session.setItems(items);
+    const result = session.compile();
+    expect(result.selected).toHaveLength(5);
+  });
+
+  it("compile() options override session defaultPackOptions", () => {
+    // Session created with priority-heavy default weights
+    const session = createSession({
+      budget: { maxTokens: 80 },
+      packOptions: { weights: { priority: 1.0, recency: 0.0 } },
+    });
+
+    const a: ContextItem = { id: "a", content: "item-a", priority: 10, recency: 1, tokens: 50 };
+    const b: ContextItem = { id: "b", content: "item-b", priority: 1, recency: 10, tokens: 50 };
+
+    // Default weights should favor 'a' (high priority)
+    session.setItems([a, b]);
+    const r1 = session.compile();
+    expect(r1.selected[0].id).toBe("a");
+
+    session.clear();
+
+    // Override with recency-heavy weights should favor 'b'
+    session.setItems([a, b]);
+    const r2 = session.compile({ weights: { priority: 0.0, recency: 1.0 } });
+    expect(r2.selected[0].id).toBe("b");
+  });
 });

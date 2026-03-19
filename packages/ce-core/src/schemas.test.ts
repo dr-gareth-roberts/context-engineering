@@ -7,6 +7,7 @@ import {
   CacheConfigSchema,
   PlacementOptionsSchema,
   CompactionOptionsSchema,
+  ContextPlanSchema,
   validateWithSchema,
 } from "./schemas.js";
 import { ValidationError } from "./errors.js";
@@ -67,6 +68,46 @@ describe("ContextItemSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("accepts item with supersedes, parentId, cost, latency, links", () => {
+    const result = ContextItemSchema.safeParse({
+      id: "test",
+      content: "Hello",
+      supersedes: "old-item",
+      parentId: "parent-1",
+      cost: 0.002,
+      latency: 150,
+      links: ["https://example.com", "https://docs.example.com"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects non-integer tokens", () => {
+    const result = ContextItemSchema.safeParse({
+      id: "test",
+      content: "Hello",
+      tokens: 10.5,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative cost", () => {
+    const result = ContextItemSchema.safeParse({
+      id: "test",
+      content: "Hello",
+      cost: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative latency", () => {
+    const result = ContextItemSchema.safeParse({
+      id: "test",
+      content: "Hello",
+      latency: -5,
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("BudgetSchema", () => {
@@ -113,6 +154,14 @@ describe("CompressionSchema", () => {
 
   it("rejects compression without content", () => {
     const result = CompressionSchema.safeParse({ tokens: 10 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-integer tokens", () => {
+    const result = CompressionSchema.safeParse({
+      content: "Short version",
+      tokens: 10.5,
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -308,6 +357,48 @@ describe("CompactionOptionsSchema", () => {
         preserveRecentTurns: -1,
       })
     ).toThrow();
+  });
+});
+
+describe("ContextPlanSchema", () => {
+  it("accepts a valid plan", () => {
+    const result = ContextPlanSchema.safeParse({
+      budget: { maxTokens: 4096 },
+      items: [{ id: "a", content: "hello" }],
+      strategy: "greedy",
+      options: { verbose: true },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a plan with only required fields", () => {
+    const result = ContextPlanSchema.safeParse({
+      budget: { maxTokens: 2000 },
+      items: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects plan missing budget", () => {
+    const result = ContextPlanSchema.safeParse({
+      items: [{ id: "a", content: "hello" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects plan missing items", () => {
+    const result = ContextPlanSchema.safeParse({
+      budget: { maxTokens: 4096 },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects plan with invalid budget", () => {
+    const result = ContextPlanSchema.safeParse({
+      budget: { maxTokens: -1 },
+      items: [],
+    });
+    expect(result.success).toBe(false);
   });
 });
 

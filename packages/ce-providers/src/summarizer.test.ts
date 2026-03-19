@@ -85,4 +85,20 @@ describe("createLLMSummarizer", () => {
     expect(result).not.toBeNull();
     expect(result!.tokens).toBeGreaterThan(0);
   });
+
+  it("calls onError callback when provider throws", async () => {
+    const apiError = new Error("API rate limit exceeded");
+    const mockProvider = {
+      generate: vi.fn().mockRejectedValue(apiError),
+    };
+    const onError = vi.fn();
+    const summarizer = createLLMSummarizer({
+      provider: mockProvider as any,
+      onError,
+    });
+    const result = await summarizer({ id: "err", content: "text" }, 50);
+    expect(result).toBeNull();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(apiError);
+  });
 });

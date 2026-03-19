@@ -224,16 +224,30 @@ describe("InMemoryStore", () => {
     expect(freshResults.find(i => i.id === "ttl-fresh")).toBeDefined();
   });
 
-  it("close() clears items", async () => {
-    const store = new InMemoryStore();
-    await store.put({ id: "a", content: "Hello" });
-    await store.close();
-    expect(await store.get("a")).toBeNull();
-  });
-
   it("rejects put without content", async () => {
     const store = new InMemoryStore();
     await expect(store.put({ id: "a" })).rejects.toThrow("content");
+  });
+
+  it("throws on put/get/query/forget after close()", async () => {
+    const store = new InMemoryStore();
+    await store.put({ id: "a", content: "Hello" });
+    await store.close();
+
+    await expect(store.put({ id: "b", content: "new" })).rejects.toThrow(
+      "InMemoryStore is closed"
+    );
+    await expect(store.get("a")).rejects.toThrow("InMemoryStore is closed");
+    await expect(store.query()).rejects.toThrow("InMemoryStore is closed");
+    await expect(store.forget("a")).rejects.toThrow(
+      "InMemoryStore is closed"
+    );
+  });
+
+  it("close() is idempotent", async () => {
+    const store = new InMemoryStore();
+    await store.close();
+    await store.close(); // Should not throw
   });
 });
 
@@ -484,6 +498,28 @@ describe("FileStore", () => {
     const fetched = await store.get("after-stale");
     expect(fetched?.content).toBe("Recovered");
   });
+
+  it("throws on put/get/query/forget after close()", async () => {
+    const filePath = tempPath("close-guard.jsonl");
+    const store = new FileStore(filePath);
+    await store.put({ id: "a", content: "data" });
+    await store.close();
+
+    await expect(store.put({ id: "b", content: "new" })).rejects.toThrow(
+      "FileStore is closed"
+    );
+    await expect(store.get("a")).rejects.toThrow("FileStore is closed");
+    await expect(store.query()).rejects.toThrow("FileStore is closed");
+    await expect(store.forget("a")).rejects.toThrow("FileStore is closed");
+  });
+
+  it("close() is idempotent", async () => {
+    const filePath = tempPath("close-idem.jsonl");
+    const store = new FileStore(filePath);
+    await store.put({ id: "a", content: "data" });
+    await store.close();
+    await store.close(); // Should not throw
+  });
 });
 
 describe("SqliteStore", () => {
@@ -647,6 +683,25 @@ describe("SqliteStore", () => {
     expect(underscoreResults.length).toBe(1);
     expect(underscoreResults[0].id).toBe("c");
     await store.close();
+  });
+
+  it("throws on put/get/query/forget after close()", async () => {
+    const store = new SqliteStore(":memory:");
+    await store.put({ id: "a", content: "data" });
+    await store.close();
+
+    await expect(store.put({ id: "b", content: "new" })).rejects.toThrow(
+      "SqliteStore is closed"
+    );
+    await expect(store.get("a")).rejects.toThrow("SqliteStore is closed");
+    await expect(store.query()).rejects.toThrow("SqliteStore is closed");
+    await expect(store.forget("a")).rejects.toThrow("SqliteStore is closed");
+  });
+
+  it("close() is idempotent", async () => {
+    const store = new SqliteStore(":memory:");
+    await store.close();
+    await store.close(); // Should not throw
   });
 });
 
