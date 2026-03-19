@@ -9,7 +9,7 @@ Context Engineering Toolkit — dual TypeScript/Python SDKs + CLI for LLM contex
 ## Commands
 
 ```bash
-# Testing (353 TS + 487 Python = 840 tests)
+# Testing (699 TS + 583 Python = 1,282 tests)
 pnpm test:all                           # All TS package tests (Vitest)
 cd packages/ce-core && npx vitest run   # Single package
 npx vitest run src/pack.test.ts         # Single file (from package dir)
@@ -68,9 +68,10 @@ These 6 functions + 4 types + 4 errors are the essential API. Everything else bu
 ### Types
 
 ```ts
-ContextItem { id, content, kind?, priority?, recency?, tokens?, score?, metadata?, compressions? }
+ContextItem { id, content, kind?, priority?, recency?, tokens?, score?, metadata?, compressions?, supersedes?, parentId?, cost?, latency?, links? }
 Budget { maxTokens, reserveTokens? }
-ContextPack { budget, selected[], dropped[], totalTokens }
+ContextPack { budget, selected[], dropped[], totalTokens, notes? }
+ContextPlan { budget, items[], strategy?, options? }
 PackOptions { scorer?, tokenEstimator?, summarizer?, weights?, logger? }
 ```
 
@@ -109,7 +110,7 @@ createMemoryStore("file", { path: "mem.jsonl" }); // JSONL with atomic writes
 createMemoryStore("sqlite", { path: "db.sqlite" }); // SQLite
 ```
 
-Interface: `put()`, `get()`, `query()`, `forget()`, `close?()`
+Interface: `put()`, `get()`, `query()`, `forget()`, `close()` — all stores throw after `close()`
 
 ### CLI (`ce`) — 11 commands
 
@@ -125,7 +126,7 @@ Python CLI: `python -m context_engineering <command>` — full parity.
 - **Advanced pack**: Negation/supersession, hierarchical inclusion, semantic redundancy detection, relation boosts, `simulate_budgets()`
 - **AgentContextManager** (`framework.py`): Orchestration with adaptive budgeting, segmentation, memory, handoff
 - **Segmenters** (`segmentation.py`): Structural, Semantic, Perplexity, Hybrid — with boundary protection
-- **Extra ContextItem fields**: `supersedes`, `embedding`, `parent_id`, `cost`, `latency`, `links`
+- **Extra scoring weights**: `cost`, `latency`, `relation_boost` in `calculate_weighted_score()`
 
 ## Conventions
 

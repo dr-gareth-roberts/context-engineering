@@ -8,7 +8,7 @@ Thanks for your interest in contributing to the Context Engineering Toolkit.
 
 - Node.js 18+
 - pnpm 10.4.1+ (`corepack enable && corepack prepare pnpm@10.4.1 --activate`)
-- Python 3.10+
+- Python 3.11+
 - Git
 
 ### Getting Started

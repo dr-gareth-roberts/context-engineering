@@ -1,11 +1,13 @@
-# Audit Future Work — Implementation Plans
+# Audit Future Work — Implementation Plans (ALL COMPLETED)
 
-> Generated from deep codebase audit (2026-03-19). 6 parallel planning agents analyzed
-> the codebase and produced these implementation plans ordered by priority.
+> Generated from deep codebase audit (2026-03-19). All 6 workstreams were executed
+> and merged to main on 2026-03-19. This document is retained for historical reference.
+>
+> **Status: ALL DONE** — 43 files changed, +2,154 / -3,505 lines, 1,282 tests passing.
 
 ---
 
-## Priority 1 (HIGH): Python Runtime Deduplication (~1,925 lines)
+## Priority 1 (HIGH): Python Runtime Deduplication (~1,925 lines) — DONE
 
 **Problem:** 11 of 13 Python runtime files copy-paste identical infrastructure (~175 lines each):
 `_unique_preserve()`, `_HTTPJSONAdapterBase`, `_ExecutionTask`, `_execute_tasks()`,
@@ -44,7 +46,7 @@
 
 ---
 
-## Priority 2 (HIGH): Fix TS/Python Schema Drift (10+ missing fields)
+## Priority 2 (HIGH): Fix TS/Python Schema Drift (10+ missing fields) — DONE
 
 **Problem:** 10 TypeScript type fields missing that exist in JSON Schema + Python.
 `ContextPlan` type entirely absent from TS.
@@ -74,7 +76,7 @@
 
 ---
 
-## Priority 3 (MEDIUM): TS Sync/Async Deduplication (~1,000 lines)
+## Priority 3 (MEDIUM): TS Sync/Async Deduplication (~1,000 lines) — DONE
 
 **Problem:** `allocation.ts`, `cache-topology.ts`, `compaction.ts`, `pipeline.ts` have
 near-verbatim sync/async copies differing only by `pack()` vs `await packAsync()`.
@@ -103,7 +105,7 @@ near-verbatim sync/async copies differing only by `pack()` vs `await packAsync()
 
 ---
 
-## Priority 4 (MEDIUM): Redis TTL Semantic Unification
+## Priority 4 (MEDIUM): Redis TTL Semantic Unification — DONE
 
 **Problem:** RedisStore uses native `EX` expiry while other stores check TTL at query time.
 This breaks `query({includeExpired: true})` and `get()` for expired items.
@@ -119,7 +121,7 @@ This breaks `query({includeExpired: true})` and `get()` for expired items.
 
 ---
 
-## Priority 5 (MEDIUM): Add Critical Test Coverage
+## Priority 5 (MEDIUM): Add Critical Test Coverage — DONE
 
 ### Batch 1 — Pure logic, zero risk (parallelizable)
 
@@ -150,7 +152,7 @@ This breaks `query({includeExpired: true})` and `get()` for expired items.
 
 ---
 
-## Priority 6 (LOW-MEDIUM): Fix Remaining Bugs
+## Priority 6 (LOW-MEDIUM): Fix Remaining Bugs — DONE
 
 ### Batch 1 — Zero risk (parallel)
 

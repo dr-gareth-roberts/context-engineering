@@ -26,8 +26,9 @@ const items = await store.query({ minSalience: 0.5, limit: 10 });
 | Type       | Class           | Persistence     | Notes                                        |
 | ---------- | --------------- | --------------- | -------------------------------------------- |
 | `'memory'` | `InMemoryStore` | None            | Fast, ephemeral                              |
-| `'file'`   | `FileStore`     | JSONL file      | Requires `path` option                       |
+| `'file'`   | `FileStore`     | JSONL file      | Requires `path` option, advisory file locking |
 | `'sqlite'` | `SqliteStore`   | SQLite database | Requires `path` option, supports `tableName` |
+| `'redis'`  | `RedisStore`    | Redis           | Requires `url` or `redisOptions`             |
 
 Use `createMemoryStore(type, options?)` or instantiate classes directly.
 
@@ -39,6 +40,7 @@ interface MemoryStore {
   get(id: string): Promise<MemoryItem | null>;
   query(query?: MemoryQuery): Promise<MemoryItem[]>;
   forget(id: string): Promise<boolean>;
+  close(): Promise<void>;  // all stores throw on operations after close()
 }
 ```
 
