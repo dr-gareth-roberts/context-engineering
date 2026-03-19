@@ -14,51 +14,47 @@ Thanks for your interest in contributing to the Context Engineering Toolkit.
 ### Getting Started
 
 ```bash
-# Clone the repo
 git clone https://github.com/dr-gareth-roberts/context-engineering.git
 cd context-engineering
 
-# Install TypeScript dependencies
+# TypeScript
 pnpm install
-
-# Build all packages
 pnpm build:all
 
-# Run all TypeScript tests
-pnpm test:all
-
-# Set up Python
+# Python
 cd python
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-
-# Run all Python tests
-python -m pytest
 ```
 
 ### Verify Everything Works
 
 ```bash
-# From repo root
-pnpm check:all     # TypeScript type checking
-pnpm test:all      # TypeScript tests (389 tests)
+# TypeScript (699 tests across 4 packages)
+pnpm test:all
 
-# From python/
-python -m pytest    # Python tests (398 tests)
+# Python (583 tests)
+cd python && python -m pytest
+
+# Type checking
+pnpm check:all
 ```
 
 ## Project Structure
 
 ```
 packages/
-  ce-core/        Core algorithms (the tight center)
-  ce-providers/   OpenAI + Anthropic adapters
-  ce-memory/      Memory stores (InMemory, File, SQLite)
+  ce-core/        Core algorithms (pack, diff, trace, place, quality, cost, sessions, pipeline)
+  ce-providers/   OpenAI + Anthropic adapters, token estimators, summarizer
+  ce-memory/      Memory stores (InMemory, File, SQLite, Redis)
   ce-cli/         CLI (11 commands)
-python/           Python SDK
-schemas/          Shared JSON Schemas
-examples/         Usage examples
+  ce-web-client/  React 19 docs + demos web app
+  ce-web-server/  Express server for the web app
+python/
+  context_engineering/  Python SDK (full API parity with TS + advanced features)
+  context_framework/   Tri-provider orchestration and domain runtimes
+schemas/          Shared JSON Schemas (cross-language validation)
 ```
 
 ### Package Dependencies
@@ -70,6 +66,38 @@ ce-memory → ce-core
 ```
 
 Changes to `ce-core` may affect all downstream packages. Changes to `ce-memory` are isolated.
+
+### Path Aliases
+
+```
+@context-engineering/core      → packages/ce-core/src/
+@context-engineering/memory    → packages/ce-memory/src/
+@context-engineering/providers → packages/ce-providers/src/
+@/*                            → packages/ce-web-client/src/*
+```
+
+## Commands Reference
+
+```bash
+# Testing
+pnpm test:all                           # All TS package tests (Vitest)
+cd packages/ce-core && npx vitest run   # Single package
+npx vitest run src/pack.test.ts         # Single file (from package dir)
+cd python && python -m pytest           # All Python tests
+cd python && python -m pytest tests/test_core.py  # Single file
+
+# Type checking
+pnpm check:all    # TypeScript strict mode across all packages
+
+# Building
+pnpm build:all    # Build all workspace packages (tsc per package)
+pnpm build        # Build frontend (Vite) + bundle server (esbuild)
+
+# Formatting & linting
+pnpm format       # Prettier
+pnpm lint         # ESLint
+cd python && ruff check . && ruff format .
+```
 
 ## Making Changes
 
@@ -90,46 +118,31 @@ Changes to `ce-core` may affect all downstream packages. Changes to `ce-memory` 
 
 **Python:**
 
-- Type hints throughout
+- 3.11+, type hints throughout
 - Pydantic models for data structures
-- ruff for linting (`ruff check`)
+- ruff for linting and formatting
 - Line length: 100
 
 ### Commit Messages
 
-Use imperative mood and be concise:
+Use imperative mood:
 
 ```
 feat: add budget simulation to Python SDK
 fix: handle NaN in token estimation
 docs: update CLI examples in README
-chore: remove tracked build artifacts
 ```
 
 ### Testing
 
 - Test behavior, not implementation
-- Use descriptive test names that explain the scenario
+- Descriptive test names that explain the scenario
 - Arrange-Act-Assert pattern
 - Mock at boundaries (APIs, file system), not internal code
 
-**TypeScript:**
-
-```bash
-cd packages/ce-core && npx vitest run              # All tests in a package
-cd packages/ce-core && npx vitest run src/pack.test.ts  # Single file
-```
-
-**Python:**
-
-```bash
-cd python && python -m pytest                       # All tests
-cd python && python -m pytest tests/test_core.py    # Single file
-```
-
 ### Cross-Language Parity
 
-The TypeScript and Python SDKs share the same core API. If you add or change a core function in one language, consider whether the other needs the same change. Shared JSON Schemas in `schemas/` should stay in sync.
+The TypeScript and Python SDKs share the same core API. If you add or change a core function in one language, consider whether the other needs the same change. Shared JSON Schemas in `schemas/` must stay in sync with both Zod schemas (TS) and Pydantic models (Python).
 
 ## Pull Requests
 
@@ -138,7 +151,6 @@ The TypeScript and Python SDKs share the same core API. If you add or change a c
 3. Ensure all tests pass (`pnpm test:all` + `python -m pytest`)
 4. Ensure type checking passes (`pnpm check:all`)
 5. Write a clear PR description explaining **what** and **why**
-6. Link related issues
 
 ### PR Checklist
 
