@@ -4,13 +4,10 @@
 [![npm](https://img.shields.io/npm/v/@context-engineering/core)](https://www.npmjs.com/package/@context-engineering/core)
 [![PyPI](https://img.shields.io/pypi/v/context-engineering)](https://pypi.org/project/context-engineering/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](https://www.typescriptlang.org/)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![Node 18+](https://img.shields.io/badge/Node-18%2B-green)](https://nodejs.org/)
 
 Dual TypeScript/Python SDKs + CLI for LLM context packing, token budgeting, and cache optimization.
 
-When you're building with LLMs, you need to decide **what context fits** in your prompt given a finite token budget. This toolkit gives you algorithms and tools to pack context intelligently, optimize for prefix caching, estimate costs, and hand off context between agents.
+When you're building with LLMs, you need to decide **what context fits** in your prompt given a finite token budget. This toolkit gives you algorithms to pack context intelligently, optimize for prefix caching, estimate costs, and hand off context between agents.
 
 ## Quick Start
 
@@ -21,7 +18,7 @@ npm install @context-engineering/core
 ```
 
 ```ts
-import { pack, estimateTokens } from "@context-engineering/core";
+import { pack } from "@context-engineering/core";
 
 const result = pack(
   [
@@ -61,11 +58,8 @@ print(result.total_tokens)  # tokens used
 ### CLI
 
 ```bash
-# TypeScript
-npx @context-engineering/cli pack -i items.json -b 4096
-
-# Python
-ce pack -i items.json -b 4096
+npx @context-engineering/cli pack -i items.json -b 4096   # TypeScript
+ce pack -i items.json -b 4096                              # Python
 ```
 
 ## Core API
@@ -81,23 +75,21 @@ Six functions form the tight center. Everything else builds on these.
 | `createContextItem(id, content)` | Convenience factory for items                              |
 | `createScorer(weights?)`         | Custom scoring with priority/recency/salience weights      |
 
-Scoring formula: `priority × 1.0 + recency × 0.7 + salience × 0.5`
+Scoring formula: `priority * 1.0 + recency * 0.7 + salience * 0.5`
 
 ## Extended Features
-
-Each extends the core pack/item model. Use when needed, ignore when not.
 
 | Feature               | Entry point                           | Purpose                                                                           |
 | --------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
 | **Causal Compaction** | `createCausalScorer()`                | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
-| **Cache topology**    | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse                              |
+| **Cache Topology**    | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse                              |
 | **Allocation**        | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints                          |
 | **Sessions**          | `createSession()`                     | Track what changed between context compiles                                       |
 | **Pipeline**          | `pipeline(budget)`                    | Fluent builder: `.add().allocate().cacheTopology().build()`                       |
 | **Placement**         | `placeItems()`                        | Reorder items by model attention profile (start/end bias)                         |
 | **Quality**           | `analyzeContext()`                    | Density, diversity, freshness, redundancy scores                                  |
 | **Cost**              | `estimateCost()`                      | Dollar cost with prefix cache savings                                             |
-| **BEADS handoff**     | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context for agent-to-agent transfer                         |
+| **BEADS Handoff**     | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context for agent-to-agent transfer                         |
 | **Compaction**        | `createContextManager()`              | Auto-summarize old turns in conversation                                          |
 | **Stream**            | `packStream()`                        | Async generator variant of pack                                                   |
 
@@ -135,20 +127,12 @@ console.log(
 
 ```
 packages/
-  ce-core/        Core algorithms — pack, diff, trace, place, quality, cost
+  ce-core/        Core algorithms (pack, diff, trace, place, quality, cost)
   ce-providers/   OpenAI + Anthropic adapters, token estimators
-  ce-memory/      Memory stores: InMemory, File (JSONL), SQLite
+  ce-memory/      Memory stores (InMemory, File, SQLite, Redis)
   ce-cli/         CLI with 11 commands
-python/           Python SDK — full API parity + advanced features
+python/           Python SDK (full API parity + advanced features)
 schemas/          JSON Schemas shared across languages
-```
-
-### Package Dependencies
-
-```
-ce-cli → ce-core, ce-providers
-ce-providers → ce-core
-ce-memory → ce-core
 ```
 
 ### Memory Stores
@@ -158,10 +142,12 @@ import { createMemoryStore } from "@context-engineering/memory";
 
 const mem = createMemoryStore("memory"); // In-memory
 const file = createMemoryStore("file", { path: "mem.jsonl" }); // JSONL with atomic writes
-const db = createMemoryStore("sqlite", { path: "db.sqlite" }); // SQLite
+const db = createMemoryStore("sqlite", { path: "db.sqlite" }); // SQLite with WAL
 ```
 
-### CLI Commands
+All stores implement `put()`, `get()`, `query()`, `forget()`, `close()` with consistent TTL semantics.
+
+### CLI
 
 | Command               | Purpose                        |
 | --------------------- | ------------------------------ |
@@ -183,66 +169,32 @@ The Python SDK includes everything above plus:
 
 - **Advanced pack**: negation/supersession, hierarchical inclusion, semantic redundancy detection, relation boosts
 - **AgentContextManager**: orchestration with adaptive budgeting, segmentation, memory, handoff
-- **Segmenters**: structural, semantic, perplexity, hybrid — with boundary protection
+- **Segmenters**: structural, semantic, perplexity, hybrid with boundary protection
 - **Budget simulation**: `simulate_budgets()` across a range
-- **Extra scoring weights**: `cost`, `latency`, `relation_boost` in weighted scoring
 
 ## Development
 
 ### Prerequisites
 
-- Node.js 18+
-- pnpm 10.4.1+
+- Node.js 18+, pnpm 10.4.1+
 - Python 3.11+
 
 ### Setup
 
 ```bash
-# TypeScript
-pnpm install
-pnpm build:all
-
-# Python
-cd python
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+pnpm install && pnpm build:all              # TypeScript
+cd python && pip install -e ".[dev]"         # Python
 ```
 
 ### Testing
 
 ```bash
-# Root web/tooling smoke test
-pnpm test
-
-# All TypeScript tests (root smoke test + package suites)
-pnpm test:all
-
-# All Python tests
-cd python && python -m pytest
-
-# Single TS package
-cd packages/ce-core && npx vitest run
-
-# Single Python file
-cd python && python -m pytest tests/test_core.py
+pnpm test:all                               # TypeScript (699 tests)
+cd python && python -m pytest               # Python (583 tests)
+pnpm check:all                              # Type checking
 ```
 
-### Type Checking
-
-```bash
-pnpm check        # Web app + server
-pnpm check:all    # Root app plus all TypeScript packages
-```
-
-## Examples
-
-See the [`examples/`](./examples) directory:
-
-- [`node-basic/`](./examples/node-basic/) — Minimal Node.js usage
-- [`python-basic/`](./examples/python-basic/) — Minimal Python usage
-- [`full-pipeline/`](./examples/full-pipeline/) — TypeScript pipeline with all features
-- [`python-full-pipeline/`](./examples/python-full-pipeline/) — Python pipeline equivalent
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for full development guide.
 
 ## Error Handling
 
@@ -253,10 +205,6 @@ All errors inherit from `ContextEngineeringError` with a `code` field:
 | `ValidationError`     | `VALIDATION_ERROR` | Bad inputs — includes structured `details[].path` and `details[].message` |
 | `BudgetExceededError` | `BUDGET_EXCEEDED`  | `reserveTokens >= maxTokens`                                              |
 | `EstimationError`     | `ESTIMATION_ERROR` | Unknown model or bad pricing data                                         |
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and contribution guidelines.
 
 ## License
 
