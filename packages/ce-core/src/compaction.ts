@@ -222,50 +222,10 @@ export function createContextManager(
       // Re-sort by timestamp for conversation order
       compactedOlder.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
     } else if (olderTurns.length > 0 && olderTurns.length >= summarizeAfter) {
-      // Fallback: Group older turns and truncate to fit token budget.
-      // Use the token estimator to measure actual token cost rather than
-      // assuming a fixed character-to-token ratio.
-      const combinedContent = olderTurns
-        .map(t => `[${t.role}]: ${t.content}`)
-        .join("\n");
-
-      const targetTokens = Math.floor(availableTokens * 0.3);
-      const prefix = `[Summary of ${olderTurns.length} earlier turns]\n`;
-      const prefixTokens = estimate(prefix);
-      const contentBudget = Math.max(0, targetTokens - prefixTokens);
-
-      // Truncate by splitting into words and trimming until within budget
-      const words = combinedContent.split(/\s+/);
-      let truncated = combinedContent;
-      const truncatedTokens = estimate(truncated);
-
-      if (truncatedTokens > contentBudget) {
-        // Binary search for the number of words that fits
-        let lo = 0;
-        let hi = words.length;
-        while (lo < hi) {
-          const mid = Math.ceil((lo + hi) / 2);
-          const candidate = words.slice(0, mid).join(" ");
-          if (estimate(candidate) <= contentBudget) {
-            lo = mid;
-          } else {
-            hi = mid - 1;
-          }
-        }
-        truncated = words.slice(0, lo).join(" ");
-      }
-
-      const summaryContent = prefix + truncated;
-      const summaryTokens = estimate(summaryContent);
-
-      compactedOlder.push({
-        role: "system",
-        content: summaryContent,
-        tokens: summaryTokens,
-        isSummary: true,
-        timestamp: olderTurns[0]?.timestamp,
-      });
-      availableTokens -= summaryTokens;
+      // Fallback: truncate older turns to fit token budget
+      const { turn, tokens } = truncateOlderTurns(olderTurns, availableTokens);
+      compactedOlder.push(turn);
+      availableTokens -= tokens;
     } else {
       // Include older turns as-is
       for (const turn of olderTurns) {
@@ -277,27 +237,7 @@ export function createContextManager(
     }
 
     // Phase 3: Pack context items into remaining budget
-    let selectedItems: ContextItem[] = [];
-    if (items.length > 0 && availableTokens > 0) {
-      const itemScorer = scorer ?? ((i: ContextItem) => i.score ?? 0);
-
-      const scored = items
-        .map(i => ({
-          ...i,
-          tokens: i.tokens ?? estimate(i.content),
-        }))
-        .map(i => ({ ...i, score: itemScorer(i) }))
-        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-
-      let usedTokens = 0;
-      selectedItems = scored.filter(item => {
-        if (usedTokens + (item.tokens ?? 0) <= availableTokens) {
-          usedTokens += item.tokens ?? 0;
-          return true;
-        }
-        return false;
-      });
-    }
+    const selectedItems = packItems(availableTokens, scorer);
 
     const allTurns = [...compactedOlder, ...recentTurns];
     const totalTokens =
