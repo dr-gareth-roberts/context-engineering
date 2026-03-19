@@ -21,12 +21,21 @@ export class FileStore implements MemoryStore {
   private items = new Map<string, MemoryItem>();
   private writeQueue: Promise<void> = Promise.resolve();
   private loadPromise: Promise<void> | null = null;
+  private closed = false;
+
   constructor(filePath: string, options: FileStoreOptions = {}) {
     this.filePath = filePath;
     this.options = options;
   }
 
+  private assertOpen(): void {
+    if (this.closed) {
+      throw new Error("FileStore is closed");
+    }
+  }
+
   private ensureLoaded(): Promise<void> {
+    this.assertOpen();
     if (!this.loadPromise) {
       this.loadPromise = this.doLoad();
     }
@@ -191,6 +200,10 @@ export class FileStore implements MemoryStore {
   }
 
   async close(): Promise<void> {
+    if (this.closed) return;
     await this.writeQueue;
+    this.items.clear();
+    this.loadPromise = null;
+    this.closed = true;
   }
 }
