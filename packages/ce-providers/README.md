@@ -33,10 +33,10 @@ const response = await llm.generate([{ role: "user", content: "Hello" }]);
 
 ## Token Estimators
 
-| Export                    | Method                         | Accuracy             |
-| ------------------------- | ------------------------------ | -------------------- |
-| `openaiTokenEstimator`    | tiktoken (`cl100k_base`)       | Exact for GPT models |
-| `anthropicTokenEstimator` | Word heuristic (`words * 1.4`) | Approximate          |
+| Export                    | Method                                                                | Accuracy             |
+| ------------------------- | --------------------------------------------------------------------- | -------------------- |
+| `openaiTokenEstimator`    | tiktoken (`o200k_base`, falls back to `cl100k_base` for older models) | Exact for GPT models |
+| `anthropicTokenEstimator` | Word heuristic (`words * 1.4`)                                        | Approximate          |
 
 Both implement `TokenEstimator` from `@context-engineering/core` and work with `pack()`.
 
@@ -51,10 +51,10 @@ presets.anthropic.estimator; // anthropicTokenEstimator
 
 ## LLM Providers
 
-| Class               | SDK                 | Default Model                |
-| ------------------- | ------------------- | ---------------------------- |
-| `OpenAIProvider`    | `openai`            | `gpt-4o-mini`                |
-| `AnthropicProvider` | `@anthropic-ai/sdk` | `claude-3-5-sonnet-20241022` |
+| Class               | SDK                 | Default Model       |
+| ------------------- | ------------------- | ------------------- |
+| `OpenAIProvider`    | `openai`            | `gpt-4o-mini`       |
+| `AnthropicProvider` | `@anthropic-ai/sdk` | `claude-sonnet-4-6` |
 
 Both implement the `LLMProvider` interface:
 
@@ -67,7 +67,26 @@ interface LLMProvider {
 }
 ```
 
-Options: `model`, `maxTokens`, `temperature`. API keys fall back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` env vars.
+### OpenAIProvider Options
+
+| Option         | Description                          | Env Var Fallback  |
+| -------------- | ------------------------------------ | ----------------- |
+| `apiKey`       | OpenAI API key                       | `OPENAI_API_KEY`  |
+| `baseURL`      | Custom API base URL                  | `OPENAI_BASE_URL` |
+| `organization` | OpenAI organization ID               | `OPENAI_ORG`      |
+| `model`        | Model to use (default `gpt-4o-mini`) | —                 |
+| `maxTokens`    | Maximum tokens in response           | —                 |
+| `temperature`  | Sampling temperature                 | —                 |
+
+### AnthropicProvider Options
+
+| Option        | Description                                | Env Var Fallback    |
+| ------------- | ------------------------------------------ | ------------------- |
+| `apiKey`      | Anthropic API key                          | `ANTHROPIC_API_KEY` |
+| `baseURL`     | Custom API base URL                        | —                   |
+| `model`       | Model to use (default `claude-sonnet-4-6`) | —                   |
+| `maxTokens`   | Maximum tokens in response                 | —                   |
+| `temperature` | Sampling temperature                       | —                   |
 
 ## Embedding Provider
 
@@ -84,13 +103,29 @@ interface EmbeddingProvider {
 }
 ```
 
+## Utility Exports
+
+```ts
+import {
+  createLLMSummarizer,
+  adaptEmbeddingProvider,
+  createLazyClient,
+} from "@context-engineering/providers";
+```
+
+| Export                             | Description                                                                       |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| `createLLMSummarizer(provider)`    | Creates an `AsyncSummarizer` compatible with ce-core, wrapping an `LLMProvider`   |
+| `adaptEmbeddingProvider(provider)` | Bridges ce-providers `EmbeddingProvider` to ce-core `EmbeddingProvider` interface |
+| `createLazyClient(factory)`        | Lazy-initializes API clients on first use                                         |
+
 ## Model Metadata
 
 ```ts
 import { MODEL_METADATA } from "@context-engineering/providers";
 
 MODEL_METADATA.openai["gpt-4o"].maxTokens; // 128000
-MODEL_METADATA.anthropic["claude-3-5-sonnet-20241022"].maxTokens; // 200000
+MODEL_METADATA.anthropic["claude-sonnet-4-6"].maxTokens; // 200000
 ```
 
 ## License

@@ -1,5 +1,7 @@
 # Roadmap 06: Distributed Memory Stores
 
+> **Status: IMPLEMENTED** — Redis and PostgreSQL memory stores are available. TypeScript: `RedisStore` in `ce-memory`. Python: `RedisMemoryStore` and `PostgresMemoryStore` in `context_engineering`. Install with `pip install context-engineering[redis]` or `pip install context-engineering[postgres]`.
+
 ## Objective
 
 Scale the `context-engineering` toolkit from single-script demos to multi-user, production-grade applications.

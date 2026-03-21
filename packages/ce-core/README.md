@@ -125,9 +125,9 @@ session.setItems(pickup.items); // resume where Agent A left off
 
 ### Sessions
 
-| Export                            | Description                                         |
-| --------------------------------- | --------------------------------------------------- |
-| `createSession(budget, options?)` | Stateful context session with differential tracking |
+| Export                                   | Description                                                                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `createSession(options: SessionOptions)` | Stateful context session with differential tracking (`SessionOptions = { budget: Budget; packOptions?: PackOptions }`) |
 
 ### Pipeline
 
@@ -169,38 +169,87 @@ session.setItems(pickup.items); // resume where Agent A left off
 | ------------------------------- | -------------------------------------------------- |
 | `createContextManager(options)` | Automatic context compaction for multi-turn agents |
 
+### Async Packing
+
+| Export                               | Description                                     |
+| ------------------------------------ | ----------------------------------------------- |
+| `packAsync(items, budget, options?)` | Async version of `pack` with the same interface |
+
+### Scoring
+
+| Export                                                    | Description                                |
+| --------------------------------------------------------- | ------------------------------------------ |
+| `createCausalScorer(issues, activeTaskId?, baseWeights?)` | Causal-aware scoring for agent task graphs |
+| `createQueryAwareScorer(query, options?)`                 | Query-relevance-boosted scoring            |
+
+### Deduplication
+
+| Export                    | Description                       |
+| ------------------------- | --------------------------------- |
+| `eliminateRedundancy`     | Async context deduplication       |
+| `eliminateRedundancySync` | Synchronous context deduplication |
+
+### Prompt Formatting
+
+| Export               | Description                           |
+| -------------------- | ------------------------------------- |
+| `toMessages`         | Convert packed items to message array |
+| `formatForAnthropic` | Format packed items for Anthropic API |
+| `formatForOpenAI`    | Format packed items for OpenAI API    |
+
+### Telemetry & Remote
+
+| Export                      | Description                         |
+| --------------------------- | ----------------------------------- |
+| `createWebhookReporter`     | Telemetry webhook reporter          |
+| `fetchBudgetRecommendation` | Fetch remote budget recommendations |
+
+### Search
+
+| Export            | Description                 |
+| ----------------- | --------------------------- |
+| `createBM25Index` | BM25 full-text search index |
+
 ### Types
 
-| Export             | Description                                                                   |
-| ------------------ | ----------------------------------------------------------------------------- |
-| `ContextItem`      | Input item with `id`, `content`, `priority`, `recency`, `compressions`, `supersedes`, `parentId`, `cost`, `latency`, `links` |
-| `Budget`           | `{ maxTokens, reserveTokens? }`                                               |
-| `ContextPack`      | Pack result with `selected`, `dropped`, `totalTokens`, `stats`, `notes`       |
-| `ContextPlan`      | Plan with `budget`, `items`, `strategy?`, `options?`                          |
-| `PackDiff`         | Diff result with `added`, `removed`, `kept`, `changed`                        |
-| `ContextTrace`     | Trace result with `pack`, `steps[]`, `createdAt`                              |
-| `CacheAwarePack`   | Extends ContextPack with `cacheKey`, `cacheableTokens`, `cacheEfficiency`     |
-| `AllocatedPack`    | Extends ContextPack with per-kind allocation results                          |
-| `SessionPack`      | Session compile result with differential `delta`                              |
-| `PipelineResult`   | Pipeline output with all stage metadata                                       |
-| `CostEstimate`     | Per-request cost breakdown with cache savings                                 |
-| `CostProjection`   | Multi-request projection with monthly estimates                               |
-| `BeadsIssue`       | BEADS issue type for agent handoff                                            |
-| `ContextQuality`   | Quality metrics: `density`, `diversity`, `freshness`, `redundancy`, `overall` |
-| `AttentionProfile` | Model attention curve: `name`, `effectiveCapacity`, `positionWeights[]`       |
-| `KindAllocation`   | Per-kind budget: `kind`, `targetRatio`, `minRatio?`, `maxRatio?`              |
+| Export             | Description                                                                                                                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ContextItem`      | Input item with `id`, `content`, `priority`, `recency`, `kind`, `tokens`, `score`, `metadata`, `embedding`, `taskId`, `isOutcome`, `dependsOn`, `compressions`, `supersedes`, `parentId`, `cost`, `latency`, `links` |
+| `Budget`           | `{ maxTokens, reserveTokens? }`                                                                                                                                                                                      |
+| `ContextPack`      | Pack result with `selected`, `dropped`, `totalTokens`, `stats`, `notes`                                                                                                                                              |
+| `ContextPlan`      | Plan with `budget`, `items`, `strategy?`, `options?`                                                                                                                                                                 |
+| `PackDiff`         | Diff result with `added`, `removed`, `kept`, `changed`                                                                                                                                                               |
+| `ContextTrace`     | Trace result with `pack`, `steps[]`, `createdAt`                                                                                                                                                                     |
+| `CacheAwarePack`   | Extends ContextPack with `cacheKey`, `cacheableTokens`, `cacheEfficiency`                                                                                                                                            |
+| `AllocatedPack`    | Extends ContextPack with per-kind allocation results                                                                                                                                                                 |
+| `SessionPack`      | Session compile result with differential `delta`                                                                                                                                                                     |
+| `PipelineResult`   | Pipeline output with all stage metadata                                                                                                                                                                              |
+| `CostEstimate`     | Per-request cost breakdown with cache savings                                                                                                                                                                        |
+| `CostProjection`   | Multi-request projection with monthly estimates                                                                                                                                                                      |
+| `BeadsIssue`       | BEADS issue type for agent handoff                                                                                                                                                                                   |
+| `ContextQuality`   | Quality metrics: `density`, `diversity`, `freshness`, `redundancy`, `overall`                                                                                                                                        |
+| `AttentionProfile` | Model attention curve: `name`, `effectiveCapacity`, `positionWeights[]`                                                                                                                                              |
+| `KindAllocation`   | Per-kind budget: `kind`, `targetRatio`, `minRatio?`, `maxRatio?`                                                                                                                                                     |
 
 ### Errors
 
-| Export                | Code                                         |
-| --------------------- | -------------------------------------------- |
-| `ValidationError`     | `VALIDATION_ERROR` — invalid items or budget |
-| `BudgetExceededError` | `BUDGET_EXCEEDED` — reserve >= max           |
-| `EstimationError`     | `ESTIMATION_ERROR` — token estimator failure |
+| Export                    | Code                                         |
+| ------------------------- | -------------------------------------------- |
+| `ContextEngineeringError` | Base class for all ce-core errors            |
+| `ValidationError`         | `VALIDATION_ERROR` — invalid items or budget |
+| `BudgetExceededError`     | `BUDGET_EXCEEDED` — reserve >= max           |
+| `EstimationError`         | `ESTIMATION_ERROR` — token estimator failure |
 
 ### Schemas (Zod)
 
-`ContextItemSchema`, `BudgetSchema`, `CompressionSchema`, `PackOptionsSchema`, `ContextPlanSchema`
+`ContextItemSchema`, `BudgetSchema`, `CompressionSchema`, `ContextPlanSchema`, `KindAllocationSchema`, `CacheConfigSchema`, `PlacementOptionsSchema`, `CompactionOptionsSchema`
+
+### Schema Utilities
+
+| Export               | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| `validateWithSchema` | Validate any value against a Zod schema, returning a typed result |
+| `validatePackInputs` | Validate `items` and `budget` before packing                      |
 
 ### Utilities
 

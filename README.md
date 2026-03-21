@@ -66,22 +66,22 @@ ce pack -i items.json -b 4096                              # Python
 
 Six functions form the tight center. Everything else builds on these.
 
-| Function                         | What it does                                               |
-| -------------------------------- | ---------------------------------------------------------- |
-| `pack(items, budget)`            | Select items that fit a token budget (greedy, score-based) |
-| `tracePack(items, budget)`       | Pack with per-item decision log                            |
-| `diff(before, after)`            | Compare two context states (added/removed/kept/changed)    |
-| `estimateTokens(content)`        | Count tokens (heuristic, OpenAI, or Anthropic)             |
-| `createContextItem(id, content)` | Convenience factory for items                              |
-| `createScorer(weights?)`         | Custom scoring with priority/recency/salience weights      |
+| Function                         | What it does                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------------------- |
+| `pack(items, budget)`            | Select items that fit a token budget (greedy, score-based)                                |
+| `tracePack(items, budget)`       | Pack with per-item decision log                                                           |
+| `diff(before, after)`            | Compare two context states (added/removed/kept/changed)                                   |
+| `estimateTokens(content)`        | Count tokens (heuristic by default; pluggable for OpenAI/Anthropic via providers package) |
+| `createContextItem(id, content)` | Convenience factory for items                                                             |
+| `createScorer(weights?)`         | Custom scoring with priority/recency/salience weights                                     |
 
-Scoring formula: `priority * 1.0 + recency * 0.7 + salience * 0.5`
+Scoring formula: `priority * 1.0 + recency * 0.7 + salience * 0.5 + relevance * 0.0` (relevance activates when a query is provided; salience is read from `item.metadata.salience`)
 
 ## Extended Features
 
 | Feature               | Entry point                           | Purpose                                                                           |
 | --------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
-| **Causal Compaction** | `createCausalScorer()`                | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
+| **Causal Compaction** | `createCausalScorer(issues)`          | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
 | **Cache Topology**    | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse                              |
 | **Allocation**        | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints                          |
 | **Sessions**          | `createSession()`                     | Track what changed between context compiles                                       |
@@ -119,7 +119,7 @@ import { packWithCacheTopology, estimateCost } from "@context-engineering/core";
 const packed = packWithCacheTopology(items, { maxTokens: 8000 });
 const cost = estimateCost(packed, "claude-sonnet-4-6");
 console.log(
-  `Saving $${cost.savings.toFixed(4)} per request (${cost.savingsPercent}%)`
+  `Saving $${cost.savings.toFixed(4)} per request (${cost.savingsPercent.toFixed(1)}%)`
 );
 ```
 
@@ -131,6 +131,8 @@ packages/
   ce-providers/   OpenAI + Anthropic adapters, token estimators
   ce-memory/      Memory stores (InMemory, File, SQLite, Redis)
   ce-cli/         CLI with 11 commands
+  ce-web-client/  Interactive playground UI (internal, not published)
+  ce-web-server/  Dev server for playground (internal, not published)
 python/           Python SDK (full API parity + advanced features)
 schemas/          JSON Schemas shared across languages
 ```
@@ -176,7 +178,7 @@ The Python SDK includes everything above plus:
 
 ### Prerequisites
 
-- Node.js 18+, pnpm 10.4.1+
+- Node.js 18+, pnpm 10+
 - Python 3.11+
 
 ### Setup
@@ -189,8 +191,8 @@ cd python && pip install -e ".[dev]"         # Python
 ### Testing
 
 ```bash
-pnpm test:all                               # TypeScript (699 tests)
-cd python && python -m pytest               # Python (583 tests)
+pnpm test:all                               # TypeScript (~700 tests, as of March 2026)
+cd python && python -m pytest               # Python (~580 tests, as of March 2026)
 pnpm check:all                              # Type checking
 ```
 

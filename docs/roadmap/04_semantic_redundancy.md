@@ -1,5 +1,7 @@
 # Roadmap 04: Semantic Redundancy Elimination
 
+> **Status: IMPLEMENTED** — Core redundancy elimination is available in both TypeScript (`eliminateRedundancy`, `eliminateRedundancySync`) and Python (`RedundancyEliminator`, `eliminate_redundancy_sync`). See `ce-core/src/redundancy.ts` and `python/context_engineering/redundancy.py`.
+
 ## Objective
 
 Automatically detect and merge context items that contain the same information, preventing "context bloat" and model confusion.
