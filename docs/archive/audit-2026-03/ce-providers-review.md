@@ -119,7 +119,7 @@ Tests could not be executed in this review session due to sandbox restrictions. 
 
 ### 1. Strengthen the C1 encoding test
 
-The test "uses cl100k_base for older models when specified" only asserts both counts are positive. A stronger test would assert the counts _differ_ for a carefully chosen input, since that is the whole point of model-aware encoding selection:
+The test "uses cl100k*base for older models when specified" only asserts both counts are positive. A stronger test would assert the counts \_differ* for a carefully chosen input, since that is the whole point of model-aware encoding selection:
 
 ```ts
 it("uses cl100k_base for older models when specified", () => {

@@ -6,8 +6,8 @@ Thanks for your interest in contributing to the Context Engineering Toolkit.
 
 ### Prerequisites
 
-- Node.js 18+
-- pnpm 10.4.1+ (`corepack enable && corepack prepare pnpm@10.4.1 --activate`)
+- Node.js 22+ (`.nvmrc` pins to Node 22)
+- pnpm 10.30.3+ (`corepack enable && corepack prepare pnpm@10.30.3 --activate`)
 - Python 3.11+
 - Git
 
@@ -23,18 +23,18 @@ pnpm build:all
 
 # Python
 cd python
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 pip install -e ".[dev]"
 ```
 
 ### Verify Everything Works
 
 ```bash
-# TypeScript (699 tests across 4 packages)
+# TypeScript (~700 tests across 4 packages)
 pnpm test:all
 
-# Python (583 tests)
+# Python (~580 tests)
 cd python && python -m pytest
 
 # Type checking
@@ -45,7 +45,7 @@ pnpm check:all
 
 ```
 packages/
-  ce-core/        Core algorithms (pack, diff, trace, place, quality, cost, sessions, pipeline)
+  ce-core/        Core algorithms (22+ modules including pack, diff, trace, placement, quality, cost, session, pipeline, and more)
   ce-providers/   OpenAI + Anthropic adapters, token estimators, summarizer
   ce-memory/      Memory stores (InMemory, File, SQLite, Redis)
   ce-cli/         CLI (11 commands)
@@ -80,7 +80,7 @@ Changes to `ce-core` may affect all downstream packages. Changes to `ce-memory` 
 
 ```bash
 # Testing
-pnpm test:all                           # All TS package tests (Vitest)
+pnpm test:all                           # Type-checks, builds, then runs all Vitest suites
 cd packages/ce-core && npx vitest run   # Single package
 npx vitest run src/pack.test.ts         # Single file (from package dir)
 cd python && python -m pytest           # All Python tests
@@ -90,7 +90,7 @@ cd python && python -m pytest tests/test_core.py  # Single file
 pnpm check:all    # TypeScript strict mode across all packages
 
 # Building
-pnpm build:all    # Build all workspace packages (tsc per package)
+pnpm build:all    # Build all workspace packages (tsc) + frontend (Vite) + server (esbuild)
 pnpm build        # Build frontend (Vite) + bundle server (esbuild)
 
 # Formatting & linting

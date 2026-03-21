@@ -79,6 +79,7 @@ Create a BEADS JSONL handoff from context items for agent-to-agent transfer.
 ce handoff -i items.json -b 8000 -o .beads/issues.jsonl --agent agent-1
 ce handoff -i items.json -b 8000 --cache-topology --include-dropped
 ce handoff -i items.json -b 4096    # outputs JSONL to stdout
+ce handoff -i items.json -b 8000 --session-id sess-42 --notes "Handing off search context"
 ```
 
 ### pickup
@@ -87,7 +88,7 @@ Pick up context from a BEADS JSONL handoff.
 
 ```bash
 ce pickup -i .beads/issues.jsonl
-ce pickup -i .beads/issues.jsonl --ready   # only open, non-blocked items
+ce pickup -i .beads/issues.jsonl --ready   # only open, non-blocked, non-deferred items
 ```
 
 ### cost
@@ -100,7 +101,7 @@ ce cost -i items.json -m claude-opus-4-6 --requests 10000 --requests-per-day 500
 ce cost -i items.json -m gpt-4.1 --output-tokens 1000 --json
 ```
 
-Supported models: `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`, `o3`, `o4-mini`
+Supported models: `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5`, `gpt-4.1`, `gpt-4o`, `o3`, `o4-mini`
 
 ### lint
 
@@ -112,7 +113,7 @@ ce lint -s context-pack -i pack.json
 ce lint -s context-item -i items.jsonl
 ```
 
-Schemas: `context-item`, `context-pack`, `context-plan`, `context-trace`, `memory-item`
+Schemas: `context-item`, `context-pack`, `context-plan`, `context-trace`, `memory-item`, `cache-aware-pack`, `cost-estimate`, `beads-issue`, `pipeline-result`, `webhook-analytics`
 
 ### budget
 
@@ -125,18 +126,22 @@ ce budget -f document.txt -p openai
 
 ## Common Options
 
-| Flag                    | Description                                   | Default     |
-| ----------------------- | --------------------------------------------- | ----------- |
-| `-i, --input <file>`    | Input file path (use `-` for stdin)           | --          |
-| `-b, --budget <n>`      | Token budget                                  | `4096`      |
-| `-p, --provider <name>` | Estimator: `openai`, `anthropic`, `heuristic` | `heuristic` |
-| `-m, --model <name>`    | Model for placement/cost/budget               | varies      |
-| `--json`                | Force JSON output                             | off         |
-| `--no-color`            | Disable colored output                        | off         |
+| Flag                          | Description                                   | Default                            |
+| ----------------------------- | --------------------------------------------- | ---------------------------------- |
+| `-i, --input <file>`          | Input file path (use `-` for stdin)           | --                                 |
+| `-b, --budget <n>`            | Token budget                                  | `4096` (or `CE_BUDGET` env)        |
+| `-p, --provider <name>`       | Estimator: `openai`, `anthropic`, `heuristic` | `heuristic` (or `CE_PROVIDER` env) |
+| `-m, --model <name>`          | Model for placement/cost/budget               | varies                             |
+| `--json`                      | Force JSON output                             | off                                |
+| `--no-color`                  | Disable colored output                        | off                                |
+| `--webhook-url <url>`         | Webhook URL for analytics telemetry           | --                                 |
+| `--webhook-handoff-url <url>` | Webhook URL for handoff notifications         | --                                 |
+| `--webhook-quality-url <url>` | Webhook URL for quality regression alerts     | --                                 |
+| `--webhook-cost-url <url>`    | Webhook URL for cost anomaly alerts           | --                                 |
 
 ## Input Format
 
-Items JSON (array or `{ items: [...] }`):
+Items JSON (array, `{ items: [...] }`, or `{ selected: [...] }`):
 
 ```json
 [
