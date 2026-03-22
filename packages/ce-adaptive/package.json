@@ -1,0 +1,52 @@
+{
+  "name": "@context-engineering/adaptive",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Adaptive context learning — observes which context items correlate with good model outputs and automatically adjusts scoring weights over time",
+  "license": "MIT",
+  "author": "Dr Gareth Roberts <gareth@zmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dr-gareth-roberts/context-engineering.git",
+    "directory": "packages/ce-adaptive"
+  },
+  "homepage": "https://github.com/dr-gareth-roberts/context-engineering/tree/main/packages/ce-adaptive",
+  "bugs": {
+    "url": "https://github.com/dr-gareth-roberts/context-engineering/issues"
+  },
+  "keywords": [
+    "context-engineering",
+    "llm",
+    "adaptive-learning",
+    "weight-optimization",
+    "feedback-loop",
+    "ai"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "@context-engineering/core": "workspace:*"
+  }
+}
