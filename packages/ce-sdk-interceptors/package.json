@@ -1,0 +1,68 @@
+{
+  "name": "@context-engineering/sdk-interceptors",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Drop-in context management wrappers for OpenAI and Anthropic SDKs",
+  "license": "MIT",
+  "author": "Dr Gareth Roberts <gareth@zmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dr-gareth-roberts/context-engineering.git",
+    "directory": "packages/ce-sdk-interceptors"
+  },
+  "homepage": "https://github.com/dr-gareth-roberts/context-engineering/tree/main/packages/ce-sdk-interceptors",
+  "bugs": {
+    "url": "https://github.com/dr-gareth-roberts/context-engineering/issues"
+  },
+  "keywords": [
+    "context-engineering",
+    "openai",
+    "anthropic",
+    "llm",
+    "context-window",
+    "token-management",
+    "sdk-wrapper",
+    "interceptor"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/providers": "workspace:*"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.39.0",
+    "openai": ">=4.78.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.4"
+  }
+}

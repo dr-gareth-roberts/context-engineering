@@ -32,3 +32,6 @@ export * from "./cost.js";
 export * from "./webhook.js";
 export * from "./recommendations.js";
 export * from "./bm25.js";
+export * from "./replay-types.js";
+export { createContextRecorder, type ContextRecorder } from "./recorder.js";
+export { replay } from "./replay.js";
