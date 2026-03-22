@@ -1,4 +1,4 @@
-import type { ContextPack } from "@context-engineering/core";
+import type { ContextPack, ContextRecorder } from "@context-engineering/core";
 
 /** A function that summarizes dropped messages into a single string. */
 export type SummarizeFunction = (
@@ -100,6 +100,12 @@ export interface InterceptorOptions {
     trim?: ContextEventListener;
     error?: (error: unknown) => void;
   };
+
+  /**
+   * A ContextRecorder instance to automatically record every pack decision.
+   * Use with replay() from ce-core to A/B test context strategies.
+   */
+  recorder?: ContextRecorder;
 }
 
 /** Internal resolved config with defaults applied. */
@@ -116,6 +122,7 @@ export interface ResolvedConfig {
     trim?: ContextEventListener;
     error?: (error: unknown) => void;
   };
+  recorder?: ContextRecorder;
 }
 
 export function resolveConfig(options: InterceptorOptions = {}): ResolvedConfig {
@@ -128,5 +135,6 @@ export function resolveConfig(options: InterceptorOptions = {}): ResolvedConfig 
     recentMessageCount: options.recentMessageCount ?? 2,
     includePack: options.includePack ?? false,
     on: options.on ?? {},
+    recorder: options.recorder,
   };
 }
