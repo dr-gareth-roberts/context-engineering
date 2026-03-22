@@ -77,6 +77,17 @@ export async function interceptMessages<T extends GenericMessage>(
   // Pack: score and select items within budget
   const packResult: ContextPack = pack(items, budget);
 
+  // Record for replay if a recorder is attached
+  if (config.recorder) {
+    config.recorder.record({
+      model,
+      items,
+      budget,
+      result: packResult,
+      metadata: { provider },
+    });
+  }
+
   // Apply strategy (trim, summarize, or custom)
   const summary = await applyStrategy(config.strategy, messages, packResult);
 
