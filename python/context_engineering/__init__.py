@@ -83,6 +83,16 @@ from .cost import (
     estimate_cost,
     project_costs,
 )
+from .debugger import (
+    ComparisonResult,
+    ContextDebugger,
+    Diagnosis,
+    DiagnosticIssue,
+    DroppedAnalysis,
+    QualityThresholds,
+    Recommendation,
+    create_context_debugger,
+)
 from .errors import (
     BudgetExceededError,
     ContextEngineeringError,
@@ -112,6 +122,18 @@ from .providers import (
     create_llm_summarizer,
 )
 from .quality import ContextQuality, analyze_context, analyze_context_pack
+from .rag import (
+    ContextAwareRetriever,
+    InformationGainResult,
+    RetrievedPack,
+    RetrieveOptions,
+    RetrieverConfig,
+    VectorResult,
+    VectorStoreLike,
+    compute_information_gain,
+    create_context_aware_retriever,
+    create_hybrid_retriever,
+)
 from .recommendations import (
     BudgetRecommendation,
     RecommendationOptions,
@@ -138,6 +160,17 @@ from .replay import (
     ReplayVariant,
     VariantSummary,
     replay,
+)
+from .router import (
+    AdaptiveRouter,
+    ComplexityBreakdown,
+    ContextRouter,
+    ModelTier,
+    RouterInsights,
+    RoutingDecision,
+    analyze_complexity,
+    create_adaptive_router,
+    create_context_router,
 )
 from .sdk_interceptors import (
     ContextEvent,
@@ -380,4 +413,34 @@ __all__ = [
     "with_context_llamaindex",
     "with_context_crewai",
     "with_context_generic",
+    # RAG
+    "VectorResult",
+    "VectorStoreLike",
+    "RetrieverConfig",
+    "RetrieveOptions",
+    "RetrievedPack",
+    "InformationGainResult",
+    "ContextAwareRetriever",
+    "compute_information_gain",
+    "create_context_aware_retriever",
+    "create_hybrid_retriever",
+    # Debugger
+    "QualityThresholds",
+    "DiagnosticIssue",
+    "Recommendation",
+    "DroppedAnalysis",
+    "Diagnosis",
+    "ComparisonResult",
+    "ContextDebugger",
+    "create_context_debugger",
+    # Router
+    "ModelTier",
+    "ComplexityBreakdown",
+    "RoutingDecision",
+    "RouterInsights",
+    "ContextRouter",
+    "AdaptiveRouter",
+    "analyze_complexity",
+    "create_context_router",
+    "create_adaptive_router",
 ]
