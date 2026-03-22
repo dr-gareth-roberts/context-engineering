@@ -3,11 +3,13 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Inspector from "./pages/Inspector";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/inspector"} component={Inspector} />
       <Route component={NotFound} />
     </Switch>
   );
