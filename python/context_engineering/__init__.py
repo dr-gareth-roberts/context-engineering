@@ -1,3 +1,21 @@
+from .adaptive import (
+    ContextOptimizer,
+    ItemFeature,
+    KindInsight,
+    OptimizedPack,
+    OptimizerConfig,
+    OptimizerState,
+    Outcome,
+    WeightInsights,
+    WeightOptimizer,
+    create_context_optimizer,
+)
+from .adaptive import (
+    FileFeedbackStore as AdaptiveFileFeedbackStore,
+)
+from .adaptive import (
+    InMemoryFeedbackStore as AdaptiveInMemoryFeedbackStore,
+)
 from .allocation import (
     AllocatedPack,
     KindAllocation,
@@ -73,6 +91,13 @@ from .errors import (
     ValidationError,
 )
 from .framework import AgentContextManager
+from .framework_middleware import (
+    FrameworkMiddlewareOptions,
+    with_context_crewai,
+    with_context_generic,
+    with_context_langchain,
+    with_context_llamaindex,
+)
 from .memory import FileStore, InMemoryStore, MemoryItem, MemoryQuery, SqliteStore
 from .pipeline import ContextPipeline, PipelineResult, create_pipeline
 from .placement import ATTENTION_PROFILES, AttentionProfile, effective_budget, place_items
@@ -104,6 +129,21 @@ from .relevance import (
     extract_keywords,
     keyword_relevance,
     normalize_query,
+)
+from .replay import (
+    ContextRecorder,
+    ContextRecording,
+    ReplayReport,
+    ReplayResult,
+    ReplayVariant,
+    VariantSummary,
+    replay,
+)
+from .sdk_interceptors import (
+    ContextEvent,
+    InterceptorOptions,
+    with_context,
+    with_context_anthropic,
 )
 from .segmentation import (
     BoundaryProtector,
@@ -308,4 +348,36 @@ __all__ = [
     "format_for_anthropic",
     "format_for_openai",
     "compile_to_messages",
+    # SDK Interceptors
+    "ContextEvent",
+    "InterceptorOptions",
+    "with_context",
+    "with_context_anthropic",
+    # Replay
+    "ContextRecorder",
+    "ContextRecording",
+    "ReplayVariant",
+    "ReplayResult",
+    "VariantSummary",
+    "ReplayReport",
+    "replay",
+    # Adaptive Learning
+    "ContextOptimizer",
+    "OptimizerConfig",
+    "OptimizerState",
+    "OptimizedPack",
+    "Outcome",
+    "ItemFeature",
+    "KindInsight",
+    "WeightInsights",
+    "WeightOptimizer",
+    "AdaptiveInMemoryFeedbackStore",
+    "AdaptiveFileFeedbackStore",
+    "create_context_optimizer",
+    # Framework Middleware
+    "FrameworkMiddlewareOptions",
+    "with_context_langchain",
+    "with_context_llamaindex",
+    "with_context_crewai",
+    "with_context_generic",
 ]
