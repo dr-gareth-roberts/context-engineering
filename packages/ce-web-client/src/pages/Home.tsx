@@ -126,6 +126,7 @@ export default function Home() {
     { label: "Patterns", id: "patterns" },
     { label: "Causal Demo", id: "causal" },
     { label: "Playground", id: "playground" },
+    { label: "Inspector", id: "inspector", href: "/inspector" },
   ];
 
   return (
@@ -151,7 +152,7 @@ export default function Home() {
             {navItems.map(item => (
               <a
                 key={item.id}
-                href={`#${item.id}`}
+                href={item.href ?? `#${item.id}`}
                 className="text-sm font-bold marker-black/60 hover:marker-blue transition-all uppercase tracking-tight"
               >
                 {item.label}
