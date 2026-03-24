@@ -21,13 +21,6 @@ authors = [
 
 dependencies = [
   "pydantic>=2.7.0",
-  "httpx>=0.27.0",
-  "tiktoken>=0.7.0",
-  "jsonschema>=4.21.0",
-  "structlog>=24.1.0",
-  "fastapi>=0.110.0",
-  "uvicorn>=0.29.0",
-  "rank-bm25>=0.2.2"
 ]
 
 [project.urls]
@@ -38,14 +31,42 @@ Issues = "https://github.com/dr-gareth-roberts/context-engineering/issues"
 Changelog = "https://github.com/dr-gareth-roberts/context-engineering/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+# Provider adapters and token counting
+providers = ["httpx>=0.27.0", "tiktoken>=0.7.0"]
+# REST API server
+server = ["fastapi>=0.110.0", "uvicorn>=0.29.0", "httpx>=0.27.0"]
+# Structured logging
+logging = ["structlog>=24.1.0"]
+# CLI with schema validation
+cli = ["jsonschema>=4.21.0", "tiktoken>=0.7.0"]
+# Webhook telemetry
+webhooks = ["httpx>=0.27.0"]
+# Storage backends
+redis = ["redis>=5.0.0"]
+postgres = ["asyncpg>=0.29.0"]
+# Domain runtimes (context_framework)
+runtimes = ["httpx>=0.27.0", "structlog>=24.1.0"]
+# Everything
+all = [
+  "httpx>=0.27.0",
+  "tiktoken>=0.7.0",
+  "jsonschema>=4.21.0",
+  "structlog>=24.1.0",
+  "fastapi>=0.110.0",
+  "uvicorn>=0.29.0",
+]
 dev = [
+  "httpx>=0.27.0",
+  "tiktoken>=0.7.0",
+  "jsonschema>=4.21.0",
+  "structlog>=24.1.0",
+  "fastapi>=0.110.0",
+  "uvicorn>=0.29.0",
   "pytest>=7.0",
   "pytest-asyncio>=0.21.0",
   "ruff>=0.1.0",
   "pyright>=1.1.350",
 ]
-redis = ["redis>=5.0.0"]
-postgres = ["asyncpg>=0.29.0"]
 
 [project.scripts]
 ce = "context_engineering.cli:main"
@@ -56,7 +77,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["context_engineering*", "context_framework*"]
+include = ["context_engineering*"]
+
+# context_framework is available via: pip install context-engineering[runtimes]
+# and must be explicitly included if needed:
+# [tool.setuptools.packages.find]
+# include = ["context_engineering*", "context_framework*"]
 
 [tool.setuptools.package-data]
 context_engineering = ["schemas/*.json"]

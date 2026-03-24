@@ -1,18 +1,49 @@
 # Context Engineering (Python)
 
-This directory contains two Python surfaces:
+Full Python SDK with API parity to the TypeScript packages.
 
-- `context_engineering`: core context-packing, token budgeting, memory stores, and CLI.
-- `context_framework`: tri-provider orchestration and production-style domain runtimes.
-
-## Setup
+## Installation
 
 ```bash
-cd python
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
+# Core only (just pydantic — no heavy deps)
+pip install context-engineering
+
+# With provider adapters (OpenAI/Anthropic)
+pip install context-engineering[providers]
+
+# With CLI
+pip install context-engineering[cli]
+
+# With everything
+pip install context-engineering[all]
+
+# For development
+pip install context-engineering[dev]
 ```
+
+### Optional Extras
+
+| Extra       | What it adds                | When you need it                                         |
+| ----------- | --------------------------- | -------------------------------------------------------- |
+| `providers` | httpx, tiktoken             | Using OpenAI/Anthropic token estimators or LLM providers |
+| `server`    | fastapi, uvicorn, httpx     | Running the REST API server                              |
+| `cli`       | jsonschema, tiktoken        | Using the `ce` command-line tool                         |
+| `logging`   | structlog                   | Structured logging in memory stores and framework        |
+| `webhooks`  | httpx                       | Sending pack telemetry to external endpoints             |
+| `redis`     | redis                       | Redis memory store backend                               |
+| `postgres`  | asyncpg                     | Postgres memory store backend                            |
+| `all`       | everything above            | Full feature set                                         |
+| `dev`       | all + pytest, ruff, pyright | Contributing to the project                              |
+
+### Domain Runtimes (`context_framework`)
+
+The domain-specific runtimes (SOC, claims, supply chain, etc.) are in a separate package:
+
+```bash
+pip install context-engineering[runtimes]
+```
+
+## Core SDK (`context_engineering`)
 
 ## Core SDK (`context_engineering`)
 
