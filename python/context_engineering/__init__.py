@@ -68,6 +68,21 @@ from .cache_topology import (
     pack_with_cache_topology_async,
 )
 from .compaction import AsyncSummarizer, CompileResult, ContextManager, Turn, create_context_manager
+from .compiler import (
+    CompileDiagnostic,
+    CompileTarget,
+    Constraint,
+    ContextCompiler,
+    ContextProgram,
+    ContextProgramBuilder,
+    OptimizationPass,
+    Slot,
+    SlotStats,
+    context_program,
+    create_context_compiler,
+    optimize_for_target,
+    validate_constraints,
+)
 from .core import (
     Budget,
     Compression,
@@ -142,6 +157,22 @@ from .drift import (
     generate_alerts,
     generate_recommendation,
 )
+from .entangle import (
+    AgentHandle,
+    AgentRegistration,
+    EntangledItem,
+    EntanglementMesh,
+    EntangleOptions,
+    MeshConfig,
+    MeshState,
+    MeshStats,
+    PropagationPolicy,
+    create_entanglement_mesh,
+    filter_for_agent,
+    is_expired,
+    matches_kind_filter,
+    matches_scope,
+)
 from .errors import (
     BudgetExceededError,
     ContextEngineeringError,
@@ -156,6 +187,30 @@ from .framework_middleware import (
     with_context_generic,
     with_context_langchain,
     with_context_llamaindex,
+)
+from .immune import (
+    Antibody,
+    FailureRecord,
+    Fingerprint,
+    ImmuneSystem,
+    ImmuneSystemConfig,
+    ImmuneSystemState,
+    ScreeningAlert,
+    ScreeningResult,
+    compare_fingerprints,
+    create_antibody,
+    create_immune_system,
+    extract_fingerprint,
+    match_antibody,
+)
+from .immune import (
+    Stats as ImmuneStats,
+)
+from .immune import (
+    compute_stats as immune_compute_stats,
+)
+from .immune import (
+    reset_id_counter as immune_reset_id_counter,
 )
 from .memory import FileStore, InMemoryStore, MemoryItem, MemoryQuery, SqliteStore
 from .pipeline import ContextPipeline, PipelineResult, create_pipeline
@@ -367,6 +422,20 @@ __all__ = [
     "CompileResult",
     "ContextManager",
     "create_context_manager",
+    # Compiler
+    "Slot",
+    "Constraint",
+    "CompileTarget",
+    "CompileDiagnostic",
+    "OptimizationPass",
+    "SlotStats",
+    "ContextProgram",
+    "ContextProgramBuilder",
+    "ContextCompiler",
+    "context_program",
+    "create_context_compiler",
+    "optimize_for_target",
+    "validate_constraints",
     # Cache
     "create_cached_estimator",
     # Stream
@@ -543,6 +612,23 @@ __all__ = [
     "generate_alerts",
     "generate_recommendation",
     "create_drift_monitor",
+    # Context Immune System
+    "Antibody",
+    "FailureRecord",
+    "Fingerprint",
+    "ImmuneSystem",
+    "ImmuneSystemConfig",
+    "ImmuneSystemState",
+    "ScreeningAlert",
+    "ScreeningResult",
+    "ImmuneStats",
+    "compare_fingerprints",
+    "immune_compute_stats",
+    "create_antibody",
+    "create_immune_system",
+    "extract_fingerprint",
+    "match_antibody",
+    "immune_reset_id_counter",
     # Time Travel
     "TimelineBranch",
     "BranchComparison",
@@ -569,4 +655,19 @@ __all__ = [
     "count_injected",
     "create_adversarial_tester",
     "describe_attack",
+    # Entanglement Mesh
+    "PropagationPolicy",
+    "EntangledItem",
+    "AgentRegistration",
+    "AgentHandle",
+    "EntangleOptions",
+    "MeshConfig",
+    "MeshState",
+    "MeshStats",
+    "EntanglementMesh",
+    "create_entanglement_mesh",
+    "filter_for_agent",
+    "is_expired",
+    "matches_kind_filter",
+    "matches_scope",
 ]
