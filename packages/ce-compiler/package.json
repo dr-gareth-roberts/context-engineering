@@ -1,0 +1,53 @@
+{
+  "name": "@context-engineering/compiler",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Context Compiler — declarative context programs compiled into optimized layouts for specific target models",
+  "license": "MIT",
+  "author": "Dr Gareth Roberts <gareth@zmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dr-gareth-roberts/context-engineering.git",
+    "directory": "packages/ce-compiler"
+  },
+  "homepage": "https://github.com/dr-gareth-roberts/context-engineering/tree/main/packages/ce-compiler",
+  "bugs": {
+    "url": "https://github.com/dr-gareth-roberts/context-engineering/issues"
+  },
+  "keywords": [
+    "context-engineering",
+    "llm",
+    "compiler",
+    "context-optimization",
+    "model-aware",
+    "declarative",
+    "ai"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@context-engineering/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
