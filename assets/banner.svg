@@ -57,8 +57,8 @@
     <text x="185" y="159" font-family="monospace" font-size="10" fill="#10b981" opacity="0.6">budget</text>
 
     <!-- Dropped items (faded, below the line) -->
-    <rect x="10" y="165" width="80" height="20" rx="3" fill="#ef4444" opacity="0.15" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.3"/>
-    <rect x="96" y="165" width="74" height="20" rx="3" fill="#ef4444" opacity="0.15" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.3"/>
+    <rect x="10" y="165" width="80" height="20" rx="3" fill="#ef4444" fill-opacity="0.15" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" stroke-opacity="0.3"/>
+    <rect x="96" y="165" width="74" height="20" rx="3" fill="#ef4444" fill-opacity="0.15" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" stroke-opacity="0.3"/>
 
     <!-- Item labels -->
     <text x="20" y="32" font-family="monospace" font-size="12" fill="white" font-weight="bold" opacity="0.9">system prompt</text>
