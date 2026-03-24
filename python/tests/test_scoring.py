@@ -7,7 +7,6 @@ import pytest
 from context_framework.models import ContextItem, ContextKind
 from context_framework.scoring import KeywordOverlapScorer, cosine_similarity
 
-
 # ---------------------------------------------------------------------------
 # KeywordOverlapScorer
 # ---------------------------------------------------------------------------
