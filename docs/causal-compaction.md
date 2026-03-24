@@ -1,6 +1,6 @@
 # Causal Graph-Aware Compaction
 
-Causal Graph-Aware Compaction is an advanced context management strategy that prevents "Agent Drift" in long-running LLM sessions. It uses the structural relationship between tasks (via the BEADS format) to intelligently prune conversation history while protecting mission-critical goals and outcomes.
+Causal Graph-Aware Compaction is an advanced context management strategy that prevents "Agent Drift" in long-running LLM sessions. It uses the structural relationship between tasks (via the BEADS format) to prune conversation history intelligently while protecting mission-critical goals and outcomes.
 
 ## The Problem: Agent Drift & Contextual Alzheimer's
 
@@ -15,7 +15,7 @@ This creates a fatal flaw for autonomous agents:
 
 ## The Solution: Functional Context Value (FCV)
 
-The Context Engineering Toolkit replaces chronological pruning with **Causal Prioritization**. Instead of keeping the most _recent_ items, we maximize the **Functional Context Value (FCV)**—the percentage of the window dedicated to:
+The Context Engineering Toolkit replaces chronological pruning with **Causal Prioritisation**. Instead of keeping the most _recent_ items, we maximise the **Functional Context Value (FCV)** -- the percentage of the window dedicated to:
 
 - **Root Goals:** The "North Star" instructions.
 - **The Active Path:** Turns related to the current task.
@@ -91,5 +91,5 @@ result = ctx.compile()
 ## Implementation Details
 
 - **Automatic Attribution:** If a turn is added without a `taskId`, it inherits the `activeTaskId` currently set on the manager.
-- **Outcome Protection:** By marking a turn with `isOutcome: true`, you ensure it stays in the context window even after its parent task is closed and the rest of the task's history is pruned.
+- **Outcome Protection:** Marking a turn with `isOutcome: true` ensures it stays in the context window even after its parent task is closed and the rest of the task's history is pruned.
 - **Graph Distance:** BFS-based hop-distance scoring is used to weight items by proximity to the active task in the dependency graph.

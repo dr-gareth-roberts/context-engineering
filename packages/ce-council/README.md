@@ -1,6 +1,6 @@
 # @context-engineering/council
 
-Council of Experts — multi-model deliberation with structured debate strategies. Multiple LLM "experts" with distinct perspectives deliberate on a question through structured rounds, then a synthesizer merges the best insights into a single answer.
+Council of Experts — multi-model deliberation with structured debate strategies. Multiple LLM "experts" with distinct perspectives deliberate on a question through structured rounds, then a synthesiser merges the best insights into a single answer.
 
 ## Why
 
@@ -55,7 +55,7 @@ console.log(result.rounds); // full deliberation transcript
 
 ### `parallel`
 
-All experts respond independently in a single round. No interaction. The synthesizer merges perspectives.
+All experts respond independently in a single round. No interaction. The synthesiser merges perspectives.
 
 Best for: quick multi-perspective surveys, when you want diverse views without debate overhead.
 
@@ -133,7 +133,7 @@ Pre-written system prompts for common expert archetypes:
 | `domain-expert`   | Grounds discussion in technical reality                              |
 | `devils-advocate` | Argues the opposing position to stress-test ideas                    |
 | `user-advocate`   | Evaluates through the lens of user experience                        |
-| `risk-analyst`    | Analyzes risk across technical, financial, and regulatory dimensions |
+| `risk-analyst`    | Analyses risk across technical, financial, and regulatory dimensions |
 
 Use with spread syntax:
 
@@ -151,13 +151,13 @@ Compute average pairwise Jaccard similarity across all member responses. Returns
 
 `CouncilLLMProvider` matches the `LLMProvider` interface from `ce-providers` without importing it. This means ce-council has zero provider dependencies — use any LLM client that implements `generate(messages) → { text, model }`.
 
-### Why structured strategies over freeform chat
+### Why structured strategies over free-form chat
 
-Freeform multi-agent chat is hard to control and often devolves into agreement loops. Structured strategies (debate, stepladder, delphi) are backed by decades of group decision-making research and produce reliably diverse outputs. Each strategy has specific anti-bias properties.
+Free-form multi-agent chat is hard to control and often devolves into agreement loops. Structured strategies (debate, stepladder, delphi) are backed by decades of group decision-making research and produce reliably diverse outputs. Each strategy has specific anti-bias properties.
 
-### Why a separate synthesizer
+### Why a separate synthesiser
 
-The synthesis step uses a dedicated model call rather than asking one of the members to synthesize. This prevents any single expert's bias from dominating the final answer and allows using a more capable model for the high-stakes synthesis step.
+The synthesis step uses a dedicated model call rather than asking one of the members to synthesise. This prevents any single expert's bias from dominating the final answer and allows using a more capable model for the high-stakes synthesis step.
 
 ### Why convergence detection for delphi
 
@@ -190,7 +190,7 @@ const council = createCouncil({
 
 ### ce-adaptive
 
-Feed deliberation quality back to the adaptive optimizer to learn which council configurations produce the best outcomes over time.
+Feed deliberation quality back to the adaptive optimiser to learn which council configurations produce the best outcomes over time.
 
 ## License
 

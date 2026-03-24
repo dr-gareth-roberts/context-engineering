@@ -71,7 +71,7 @@ console.log(`Monthly savings: $${monthly.monthlyEstimate.monthlySavings}/mo`);
 
 ### Agent Handoff (BEADS)
 
-Serialize context for agent-to-agent handoff via git:
+Serialise context for agent-to-agent handoff via git:
 
 ```ts
 import { createHandoff, pickupHandoff } from "@context-engineering/core";
@@ -147,12 +147,12 @@ session.setItems(pickup.items); // resume where Agent A left off
 
 | Export                               | Description                              |
 | ------------------------------------ | ---------------------------------------- |
-| `createHandoff(pack, options?)`      | Serialize context pack to BEADS JSONL    |
+| `createHandoff(pack, options?)`      | Serialise context pack to BEADS JSONL    |
 | `pickupHandoff(jsonl)`               | Recover context items from BEADS JSONL   |
 | `contextItemToBeads(item, options?)` | Convert ContextItem to BEADS issue       |
 | `beadsToContextItem(issue)`          | Convert BEADS issue back to ContextItem  |
 | `readBeadsJSONL(input)`              | Parse BEADS JSONL string                 |
-| `writeBeadsJSONL(issues)`            | Serialize BEADS issues to JSONL          |
+| `writeBeadsJSONL(issues)`            | Serialise BEADS issues to JSONL          |
 | `mergeBeadsJSONL(existing, updates)` | Merge BEADS JSONL by ID                  |
 | `getReadyIssues(issues)`             | Filter to ready (open, unblocked) issues |
 

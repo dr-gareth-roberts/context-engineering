@@ -52,7 +52,7 @@ console.log(result.allocationEfficiency); // how close to target ratios
 
 ## With Cache Topology
 
-Maximize prefix cache hits by ordering items by volatility:
+Maximise prefix cache hits by ordering items by volatility:
 
 ```ts
 const result = pipeline(8000)

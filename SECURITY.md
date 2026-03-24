@@ -33,5 +33,5 @@ This project processes user-provided context items and token budgets. Relevant s
 
 - All inputs are validated via Zod (TypeScript) and Pydantic (Python) before processing
 - File writes use atomic write-to-tmp + rename to prevent partial writes
-- SQLite uses parameterized queries
+- SQLite uses parameterised queries
 - Dependencies are kept minimal and version-pinned

@@ -21,7 +21,7 @@ This toolkit provides **algorithms for deciding what goes in**, with scoring, ca
 
 ## Novel Features
 
-These aren't wrappers around existing APIs — they're new capabilities for managing context:
+These are not wrappers around existing APIs — they are new capabilities for managing context:
 
 **Council of Experts** — Multiple LLM models with distinct perspectives (critic, architect, user-advocate) deliberate on a question through [4 structured strategies](./docs/wiki/Deliberation-Strategies.md): parallel, debate, stepladder (prevents anchoring bias), and delphi (anonymous with convergence detection).
 
@@ -29,17 +29,17 @@ These aren't wrappers around existing APIs — they're new capabilities for mana
 
 **Context Immune System** — Records failure patterns as fingerprints and develops [antibodies](./docs/wiki/Context-Immune-System.md) that screen future packs. Individual items can be fine but certain _combinations_ are toxic — the immune system learns these.
 
-**Context Compiler** — [Declare what you want](./docs/wiki/Context-Compilation.md), not how to arrange it. Slots, constraints, and per-model optimization passes for Claude, GPT-4, and Gemini. Like a C compiler targeting different architectures.
+**Context Compiler** — [Declare what you want](./docs/wiki/Context-Compilation.md), not how to arrange it. Slots, constraints, and per-model optimisation passes for Claude, GPT-4, and Gemini. Like a C compiler targeting different architectures.
 
 **Context Entanglement** — A [pub/sub mesh](./docs/wiki/Multi-Agent-Entanglement.md) for multi-agent systems. When Agent A discovers something, Agent B's next `pack()` automatically includes it — with scoped propagation, TTL expiry, and budget-aware injection.
 
-**Drift Detector** — Monitors [6 quality dimensions](./docs/wiki/Drift-Detection.md) (relevance, redundancy, diversity, density, freshness, utilization) across a sliding window. Alerts when your context is silently degrading before the model starts hallucinating.
+**Drift Detector** — Monitors [6 quality dimensions](./docs/wiki/Drift-Detection.md) (relevance, redundancy, diversity, density, freshness, utilisation) across a sliding window. Alerts when your context is silently degrading before the model starts hallucinating.
 
 **Context Time Travel** — [Git for context states](./docs/wiki/Context-Time-Travel.md). Checkpoint, rewind, fork, compare, and merge with 5 strategies (union, intersection, best-quality, highest-priority, manual).
 
 **Semantic Boundary Segmentation** — Split documents at semantic boundaries (topic shifts, structural markers, perplexity spikes) rather than arbitrary token limits. Hybrid segmenters combine structural, semantic, and perplexity signals with boundary protection.
 
-**Cache Topology Optimization** — Orders items by volatility (static/session/request) so the stable prefix stays constant across requests. Up to 90% cost reduction with Anthropic's prefix caching.
+**Cache Topology Optimisation** — Orders items by volatility (static/session/request) so the stable prefix stays constant across requests. Up to 90% cost reduction with Anthropic's prefix caching.
 
 **Causal Graph Compaction** — Uses [BEADS task graphs](./docs/causal-compaction.md) to prune conversation history by causal relevance, not recency. Protects root goals and task outcomes while aggressively pruning process noise from closed tasks.
 
@@ -50,7 +50,7 @@ These aren't wrappers around existing APIs — they're new capabilities for mana
 | **Core**         | [core](./packages/ce-core/) / [providers](./packages/ce-providers/) / [memory](./packages/ce-memory/) / [cli](./packages/ce-cli/)                 | Pack, score, diff, place, quality, cost, cache topology, BEADS handoff |
 | **Multi-Model**  | [council](./packages/ce-council/) / [entangle](./packages/ce-entangle/) / [router](./packages/ce-router/)                                         | Experts debate; agents share context; route to cheapest model          |
 | **Quality**      | [adversarial](./packages/ce-adversarial/) / [immune](./packages/ce-immune/) / [debugger](./packages/ce-debugger/) / [drift](./packages/ce-drift/) | Red-team; learn from failures; diagnose outputs; monitor degradation   |
-| **Optimization** | [compiler](./packages/ce-compiler/) / [adaptive](./packages/ce-adaptive/) / [time-travel](./packages/ce-time-travel/)                             | Declarative compilation; learn weights; checkpoint/fork/merge          |
+| **Optimisation** | [compiler](./packages/ce-compiler/) / [adaptive](./packages/ce-adaptive/) / [time-travel](./packages/ce-time-travel/)                             | Declarative compilation; learn weights; checkpoint/fork/merge          |
 | **Integration**  | [sdk-interceptors](./packages/ce-sdk-interceptors/) / [frameworks](./packages/ce-frameworks/) / [rag](./packages/ce-rag/)                         | OpenAI/Anthropic wrappers; LangChain middleware; info-gain retrieval   |
 
 ## Install

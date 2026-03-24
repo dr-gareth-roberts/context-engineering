@@ -4,7 +4,7 @@ The Adversarial Context Tester (`ce-adversarial`) red-teams your context pipelin
 
 ## Why Adversarial Testing?
 
-Context pipelines fail silently. A bad context configuration doesn't throw an error — it produces a subtly wrong answer that looks plausible. Adversarial testing proactively discovers which failure modes your pipeline is vulnerable to before users hit them in production.
+Context pipelines fail silently. A bad context configuration does not throw an error — it produces a subtly wrong answer that looks plausible. Adversarial testing proactively discovers which failure modes your pipeline is vulnerable to before users hit them in production.
 
 ## The Six Attack Types
 

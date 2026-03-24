@@ -161,7 +161,7 @@ docs: update CLI examples in README
 
 ### Testing
 
-- Test behavior, not implementation
+- Test behaviour, not implementation
 - Descriptive test names that explain the scenario
 - Arrange-Act-Assert pattern
 - Mock at boundaries (APIs, file system), not internal code

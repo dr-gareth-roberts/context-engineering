@@ -59,7 +59,7 @@ console.log(comparison.insights); // human-readable analysis
 | `missing-context`  | Dropped items appear relevant to the query      |
 | `redundancy`       | Too much overlapping content wastes tokens      |
 | `stale-context`    | Most items have low recency scores              |
-| `budget-waste`     | Budget is significantly under- or over-utilized |
+| `budget-waste`     | Budget is significantly under- or over-utilised |
 | `wrong-priorities` | High-priority items were dropped                |
 | `low-diversity`    | Context is too narrow in topic coverage         |
 
@@ -93,9 +93,9 @@ const debugger_ = createContextDebugger({
 
 - **Threshold-based analysis**: Configurable thresholds rather than ML-based detection. Simple, predictable, and no external dependencies.
 - **Reuses `quality.ts` from ce-core**: Consistent quality metrics across the ecosystem. The debugger adds diagnostic interpretation on top of the raw metrics.
-- **Pure functions internally**: All analyzers are stateless pure functions, making them easy to test and compose.
+- **Pure functions internally**: All analysers are stateless pure functions, making them easy to test and compose.
 - **Works with both `ContextPack` and `ContextTrace`**: Pass either format — traces are unwrapped automatically.
 
 ## Optional Integration with ce-adaptive
 
-The debugger pairs well with `@context-engineering/adaptive` for closed-loop optimization: use the debugger to identify issues, then feed the recommendations into adaptive weight tuning.
+The debugger pairs well with `@context-engineering/adaptive` for closed-loop optimisation: use the debugger to identify issues, then feed the recommendations into adaptive weight tuning.

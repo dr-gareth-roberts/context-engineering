@@ -54,7 +54,7 @@ const response = await client.messages.create({
 | ----------- | ------------------------------------------------------------------------------- |
 | `trim`      | Drop lowest-scored older messages. System prompt and recent messages protected. |
 | `summarize` | Replace dropped messages with a bullet-point digest.                            |
-| Custom `fn` | Pass a `SummarizeFunction` for LLM-powered or custom summarization.             |
+| Custom `fn` | Pass a `SummarizeFunction` for LLM-powered or custom summarisation.             |
 
 ## API Reference
 
@@ -93,7 +93,7 @@ Wraps an Anthropic client. Intercepts `client.messages.create()`. Handles the An
 | `summarized`      | `boolean` | Whether a summary was injected |
 | `tokensUsed`      | `number`  | Tokens after packing           |
 | `tokenBudget`     | `number`  | Total model budget             |
-| `utilization`     | `number`  | Utilization percentage (0-100) |
+| `utilization`     | `number`  | Utilisation percentage (0-100) |
 | `packTimeMs`      | `number`  | Time taken to pack             |
 
 ## Message Scoring
@@ -104,11 +104,11 @@ Messages are converted to `ContextItem[]` with this priority scheme:
 - **Recent N messages**: priority `90` (protected from trimming)
 - **Older messages**: priority decays from `50` to `10` based on position
 
-Recency is normalized 0-1 across the conversation. This means the system prompt and most recent turns are always preserved, while older middle-of-conversation messages are candidates for trimming.
+Recency is normalised 0-1 across the conversation. The system prompt and most recent turns are always preserved, while older middle-of-conversation messages are candidates for trimming.
 
 ## Design Decisions
 
-**Why a Proxy-based wrapper instead of middleware?** Proxies are transparent — the wrapped client has the exact same API as the original. No new abstractions to learn, no middleware registration, no request/response pipeline to understand. You swap one line of client initialization and everything else stays the same.
+**Why a Proxy-based wrapper instead of middleware?** Proxies are transparent — the wrapped client has the exact same API as the original. No new abstractions to learn, no middleware registration, no request/response pipeline to understand. You swap one line of client initialisation and everything else stays the same.
 
 **Why fall through on packing errors?** If packing fails (malformed messages, unexpected types), the interceptor forwards the original request unchanged rather than throwing. This makes the interceptor safe to add to production code — the worst case is that packing doesn't happen, not that your API call fails.
 

@@ -1,6 +1,6 @@
 # @context-engineering/adaptive
 
-Adaptive context learning for LLM applications. This package observes which context items correlate with good model outputs and automatically adjusts scoring weights over time, creating a feedback loop that improves context selection without manual tuning.
+Adaptive context learning for LLM applications. This package observes which context items correlate with good model outputs and adjusts scoring weights over time, creating a feedback loop that improves context selection without manual tuning.
 
 ## Install
 
@@ -10,7 +10,7 @@ pnpm add @context-engineering/adaptive
 
 ## Quick Start
 
-Three steps: create an optimizer, pack context, report outcomes.
+Three steps: create an optimiser, pack context, report outcomes.
 
 ```typescript
 import { createContextOptimizer } from "@context-engineering/adaptive";
@@ -35,13 +35,13 @@ await optimizer.reportOutcome(result.optimizerId, {
 });
 ```
 
-After enough feedback cycles (default: 20), the optimizer begins shifting scoring weights toward dimensions that correlate with higher quality outcomes.
+After enough feedback cycles (default: 20), the optimiser begins shifting scoring weights towards dimensions that correlate with higher quality outcomes.
 
 ## API Reference
 
 ### `createContextOptimizer(config: OptimizerConfig): ContextOptimizer`
 
-Factory function to create an optimizer instance.
+Factory function to create an optimiser instance.
 
 #### `OptimizerConfig`
 
@@ -51,8 +51,8 @@ Factory function to create an optimizer instance.
 | `qualityMetric`  | `(response, context) => number`        | —                       | Custom quality function (required for `'metric'` mode) |
 | `minSamples`     | `number`                               | `20`                    | Minimum observations before adjusting weights          |
 | `learningRate`   | `number`                               | `0.1`                   | How aggressively to shift weights (0-1)                |
-| `regularization` | `number`                               | `0.01`                  | Pulls weights toward defaults to prevent overfitting   |
-| `baseWeights`    | `ScoringWeights`                       | all `1.0`               | Starting weights and regularization target             |
+| `regularization` | `number`                               | `0.01`                  | Pulls weights towards defaults to prevent overfitting  |
+| `baseWeights`    | `ScoringWeights`                       | all `1.0`               | Starting weights and regularisation target             |
 | `store`          | `FeedbackStore`                        | `InMemoryFeedbackStore` | Where to persist feedback data                         |
 | `segment`        | `string`                               | `'default'`             | Isolate learning by application/scenario               |
 
@@ -60,7 +60,7 @@ Factory function to create an optimizer instance.
 
 #### `pack(items, budget, options?): Promise<OptimizedPack>`
 
-Packs items using learned weights. Records feedback for later analysis. Returns an `OptimizedPack` extending `ContextPack` with `optimizerId` and `weightsUsed`.
+Packs items using learned weights. Records feedback for later analysis. Returns an `OptimizedPack` extending `ContextPack` with an `optimizerId` and `weightsUsed`.
 
 #### `reportOutcome(optimizerId, outcome): Promise<void>`
 
@@ -86,7 +86,7 @@ Clears all feedback data for the current segment and returns to base weights.
 
 #### `exportState(): Promise<OptimizerState>`
 
-Exports current optimizer state for persistence or sharing between instances.
+Exports the current optimiser state for persistence or sharing between instances.
 
 #### `importState(state: OptimizerState): Promise<void>`
 
@@ -142,13 +142,13 @@ All types are exported: `OptimizerConfig`, `Outcome`, `FeedbackRecord`, `ItemFea
 
 Exponential moving average is simpler, works well with small sample sizes, and produces interpretable weight updates. Gradient descent requires careful hyperparameter tuning and can oscillate with sparse feedback. EMA provides stable, monotonic convergence that practitioners can reason about.
 
-### Why regularization
+### Why regularisation
 
-L2 regularization pulls weights back toward base values, preventing the optimizer from overfitting to small or unrepresentative samples. Without it, a few lucky outcomes could push weights to extremes that perform poorly on the next batch of inputs.
+L2 regularisation pulls weights back towards base values, preventing the optimiser from overfitting to small or unrepresentative samples. Without it, a few lucky outcomes could push weights to extremes that perform poorly on the next batch of inputs.
 
 ### Why a minSamples threshold
 
-Statistical correlations computed from fewer than ~20 samples are unreliable. The threshold prevents the optimizer from making premature adjustments based on noise. Below this threshold, the optimizer returns base weights unchanged.
+Statistical correlations computed from fewer than ~20 samples are unreliable. The threshold prevents the optimiser from making premature adjustments based on noise. Below this threshold, the optimiser returns base weights unchanged.
 
 ### Why per-kind insights
 
@@ -158,7 +158,7 @@ Different item types (code, documentation, conversation history, tool results) c
 
 ### ce-core
 
-The adaptive optimizer wraps `pack()` from `@context-engineering/core`, adding feedback tracking and weight learning on top. All `PackOptions` are forwarded transparently.
+The adaptive optimiser wraps `pack()` from `@context-engineering/core`, adding feedback tracking and weight learning on top. All `PackOptions` are forwarded transparently.
 
 ```typescript
 import { createContextOptimizer } from "@context-engineering/adaptive";
@@ -172,7 +172,7 @@ const result = await optimizer.pack(items, budget, {
 
 ### ce-memory
 
-Use a memory store to provide context items, then let the adaptive optimizer learn which items matter most.
+Use a memory store to provide context items, then let the adaptive optimiser learn which items matter most.
 
 ```typescript
 import { FileStore } from "@context-engineering/memory";

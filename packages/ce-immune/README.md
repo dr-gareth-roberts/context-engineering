@@ -76,7 +76,7 @@ Fingerprints are compared using a weighted combination of cosine similarity (for
 | `getAntibodies()`                 | List all antibodies                                             |
 | `removeAntibody(id)`              | Remove a specific antibody                                      |
 | `reset()`                         | Clear all antibodies                                            |
-| `exportState()` / `importState()` | Serialize/restore for persistence                               |
+| `exportState()` / `importState()` | Serialise/restore for persistence                               |
 
 ### `FailureRecord`
 
@@ -99,9 +99,9 @@ Fingerprints are compared using a weighted combination of cosine similarity (for
 
 ## Design Decisions
 
-**Why fingerprint-based matching instead of exact item comparison?** Context configurations are rarely identical between requests. The same failure pattern manifests with different specific items but the same structural signature — too many stale docs, extreme priority skew, heavy redundancy. Fingerprinting captures these structural properties so antibodies generalize across specific item sets.
+**Why fingerprint-based matching instead of exact item comparison?** Context configurations are rarely identical between requests. The same failure pattern manifests with different specific items but the same structural signature — too many stale docs, extreme priority skew, heavy redundancy. Fingerprinting captures these structural properties so antibodies generalise across specific item sets.
 
-**Why weighted multi-dimension similarity?** Kind distribution matters more than item count for predicting failures. The weight vector (kind ratios 0.2, priority/recency stats 0.15 each, token utilization 0.15, redundancy 0.15, staleness 0.1, item count 0.1) reflects empirical importance. The 0.7 default threshold is conservative — it catches clear matches without false positives on structurally different configurations.
+**Why weighted multi-dimension similarity?** Kind distribution matters more than item count for predicting failures. The weight vector (kind ratios 0.2, priority/recency stats 0.15 each, token utilisation 0.15, redundancy 0.15, staleness 0.1, item count 0.1) reflects empirical importance. The 0.7 default threshold is conservative — it catches clear matches without false positives on structurally different configurations.
 
 **Why two severity levels (warning vs. block)?** Warnings flag potentially problematic configurations without stopping the pipeline. Blocks prevent known-bad patterns from reaching the model. This separation lets you be aggressive with warnings while keeping blocks for confirmed, reproducible failure patterns.
 
@@ -117,7 +117,7 @@ When adversarial probes reveal vulnerabilities, record the attacked context as a
 
 ### ce-drift
 
-When the drift monitor detects critical degradation, create an immune system antibody from the degraded context snapshot so the pattern is recognized if it recurs.
+When the drift monitor detects critical degradation, create an immune system antibody from the degraded context snapshot so the pattern is recognised if it recurs.
 
 ## License
 

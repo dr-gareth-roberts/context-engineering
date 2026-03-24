@@ -1,12 +1,12 @@
 # @context-engineering/router
 
-Model Router that analyzes context complexity and routes to the cheapest model that can handle it, saving 40-60% on API costs.
+Model Router that analyses context complexity and routes to the cheapest model that can handle it, saving 40-60% on API costs.
 
 ## How It Works
 
 Instead of always sending requests to your most capable (and expensive) model, the router:
 
-1. Analyzes the **complexity** of your context across six dimensions
+1. Analyses the **complexity** of your context across six dimensions
 2. Routes to the **cheapest model** whose complexity threshold covers the request
 3. Optionally **learns from outcomes** to refine routing over time
 4. Supports **quality-based fallback** to upgrade on the fly when the cheap model underperforms
@@ -111,7 +111,7 @@ console.log(result.attempts); // number of model calls made
 
 ## Standalone Complexity Analysis
 
-Use the complexity analyzer directly without routing.
+Use the complexity analyser directly without routing.
 
 ```typescript
 import { analyzeComplexity } from "@context-engineering/router";
@@ -131,7 +131,7 @@ const weighted = analyzeComplexity(items, {
 
 ## Complexity Dimensions
 
-| Dimension           | What it measures                               | Normalization        |
+| Dimension           | What it measures                               | Normalisation        |
 | ------------------- | ---------------------------------------------- | -------------------- |
 | `diversity`         | Topic diversity via unique bigram ratio        | 0-1 from ce-core     |
 | `density`           | Information density via unique words per token | 0-1 from ce-core     |

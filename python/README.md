@@ -45,8 +45,6 @@ pip install context-engineering[runtimes]
 
 ## Core SDK (`context_engineering`)
 
-## Core SDK (`context_engineering`)
-
 ### Core Functions
 
 | Export                                                                                                                                       | Description                                                   |
@@ -103,12 +101,12 @@ pip install context-engineering[runtimes]
 
 | Export                                 | Description                              |
 | -------------------------------------- | ---------------------------------------- |
-| `create_handoff(pack, ...)`            | Serialize context pack to BEADS JSONL    |
+| `create_handoff(pack, ...)`            | Serialise context pack to BEADS JSONL    |
 | `pickup_handoff(jsonl)`                | Recover context items from BEADS JSONL   |
 | `context_item_to_beads(item, ...)`     | Convert ContextItem to BEADS issue       |
 | `beads_to_context_item(issue)`         | Convert BEADS issue back to ContextItem  |
 | `read_beads_jsonl(input)`              | Parse BEADS JSONL string                 |
-| `write_beads_jsonl(issues)`            | Serialize BEADS issues to JSONL          |
+| `write_beads_jsonl(issues)`            | Serialise BEADS issues to JSONL          |
 | `merge_beads_jsonl(existing, updates)` | Merge BEADS JSONL by ID                  |
 | `get_ready_issues(issues)`             | Filter to ready (open, unblocked) issues |
 
@@ -217,7 +215,7 @@ The SDK also exports the following modules. These are not covered in full above 
 - **BM25 search:** `BM25Index`, `create_bm25_index` -- term-frequency keyword search over context items
 - **Redundancy:** `RedundancyEliminator`, `eliminate_redundancy_sync` -- detect and remove near-duplicate items
 - **Relevance:** `compute_relevance`, `QueryContext` -- query-aware relevance scoring
-- **Providers:** `OpenAIProvider`, `AnthropicProvider`, `CerebrasProvider`, `create_llm_summarizer` -- LLM provider adapters for compression/summarization
+- **Providers:** `OpenAIProvider`, `AnthropicProvider`, `CerebrasProvider`, `create_llm_summarizer` -- LLM provider adapters for compression/summarisation
 - **Template:** `compile_to_messages`, `format_for_anthropic`, `format_for_openai` -- convert context packs to provider-specific message arrays
 - **Webhook:** `WebhookReporter`, `create_webhook_reporter` -- send packing telemetry to external endpoints
 
@@ -230,7 +228,7 @@ The SDK also exports the following modules. These are not covered in full above 
 - Framework bridges for LangGraph, Deep Agents, and PydanticAI.
 - Anthropic agentic text-operation system with deterministic tool-server utilities.
 - Pluggable vector retrieval adapters.
-- Rolling context summarization support.
+- Rolling context summarisation support.
 - Tri-provider use-case pipeline definitions.
 - Production runtime commanders with:
   - signal extraction

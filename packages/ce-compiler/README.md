@@ -1,10 +1,10 @@
 # @context-engineering/compiler
 
-Declarative context compiler — define what your context should contain with slots and constraints, and the compiler optimizes the layout for a target model.
+Declarative context compiler — define what your context should contain with slots and constraints, and the compiler optimises the layout for a target model.
 
 ## How It Works
 
-Instead of manually sorting and slicing context items, you declare a **program**: named slots (e.g., "system", "code", "history") with per-slot strategies and budgets, plus constraints (no contradictions, minimum coverage). The compiler fills slots, runs optimization passes tuned for your target model's attention pattern, and returns diagnostics when constraints are violated.
+Instead of manually sorting and slicing context items, you declare a **program**: named slots (e.g., "system", "code", "history") with per-slot strategies and budgets, plus constraints (no contradictions, minimum coverage). The compiler fills slots, runs optimisation passes tuned for your target model's attention pattern, and returns diagnostics when constraints are violated.
 
 ## Quick Start
 
@@ -69,7 +69,7 @@ A slot declares a category of content your context needs.
 
 ## Compile Targets
 
-| Target    | Optimization Strategy                                               |
+| Target    | Optimisation Strategy                                               |
 | --------- | ------------------------------------------------------------------- |
 | `claude`  | U-shaped attention: high-priority items at start and end of context |
 | `gpt4`    | Recency bias: high-priority items sorted to the start               |
@@ -110,9 +110,9 @@ Fluent builder for declaring programs. Chain `.declare()`, `.constraint()`, then
 
 **Why a two-phase slot fill (required first, then fillRemaining)?** Required slots with explicit budgets get first priority, ensuring critical context (system prompts, active code) is never crowded out by history or retrieved documents. Slots with `fillRemaining: true` absorb whatever budget is left, which naturally adapts to the total context size.
 
-**Why model-specific optimization passes?** Different models attend to different positions in the context window. Claude exhibits U-shaped attention (strong at start and end), GPT-4 has a recency bias favoring the start, and Gemini's attention is more uniform. The compiler exploits these patterns by placing high-priority items where the model will attend most.
+**Why model-specific optimisation passes?** Different models attend to different positions in the context window. Claude exhibits U-shaped attention (strong at start and end), GPT-4 has a recency bias favouring the start, and Gemini's attention is more uniform. The compiler exploits these patterns by placing high-priority items where the model will attend most.
 
-**Why four optimization passes in sequence?** Staleness pruning runs first to remove dead weight. Deduplication follows to eliminate redundancy. Position-aware placement then orders items for the target model. Finally, cache-prefix ordering makes the first section deterministic so prompt caching can kick in across requests.
+**Why four optimisation passes in sequence?** Staleness pruning runs first to remove dead weight. Deduplication follows to eliminate redundancy. Position-aware placement then orders items for the target model. Finally, cache-prefix ordering makes the first section deterministic so prompt caching can kick in across requests.
 
 ## Integration with Other Packages
 

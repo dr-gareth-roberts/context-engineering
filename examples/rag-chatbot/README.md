@@ -1,6 +1,6 @@
 # RAG Chatbot Example
 
-Demonstrates how context-engineering manages the full retrieval-augmented generation loop: retrieve documents, filter by information gain, pack into a budget-aware context window, and optimize for prefix caching.
+Demonstrates how context-engineering manages the full retrieval-augmented generation loop: retrieve documents, filter by information gain, pack into a budget-aware context window, and optimise for prefix caching.
 
 No API keys or external services needed. Everything runs locally with mock data.
 
@@ -17,7 +17,7 @@ npx tsx examples/rag-chatbot/index.ts
 3. **Filters by information gain** via `createContextAwareRetriever` -- candidates that overlap heavily with existing context (system prompt, conversation history) are dropped
 4. **Packs into a pipeline** with `pipeline()`, applying:
    - Budget allocation (system 15%, retrieval 60%, conversation 25%)
-   - Cache topology optimization for Anthropic prefix caching
+   - Cache topology optimisation for Anthropic prefix caching
    - Quality gate (minimum 0.3 overall score)
 5. **Runs two scenarios** -- a comfortable 2000-token budget and a tight 600-token budget -- to show graceful degradation
 6. **Prints a comparison** of quality metrics, token usage, and cache efficiency between the two budgets
@@ -33,7 +33,7 @@ npx tsx examples/rag-chatbot/index.ts
 
 ## Expected output
 
-The script prints color-formatted tables showing:
+The script prints colour-formatted tables showing:
 
 - Retrieved documents with vector scores and information gain bars
 - Pipeline selection/drop decisions with token counts

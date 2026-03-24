@@ -56,7 +56,7 @@ Every stage is optional. The minimal path is `Items → Select → API Call`.
 
 - `ce-council`: Multi-model deliberation — manages context windows for each participant.
 - `ce-entangle`: Multi-agent mesh — shares context items across agents during pack().
-- `ce-router`: Routes to cheapest model by analyzing context complexity.
+- `ce-router`: Routes to cheapest model by analysing context complexity.
 
 ### Quality Layer
 
@@ -65,9 +65,9 @@ Every stage is optional. The minimal path is `Items → Select → API Call`.
 - `ce-debugger`: Diagnostic — traces bad outputs back to context problems.
 - `ce-drift`: Monitoring — detects quality degradation over time.
 
-### Optimization Layer
+### Optimisation Layer
 
-- `ce-compiler`: Declarative — specify what you want, compiler optimizes for the target model.
+- `ce-compiler`: Declarative — specify what you want, compiler optimises for the target model.
 - `ce-adaptive`: Learning — adjusts scoring weights from outcome feedback.
 - `ce-time-travel`: Debugging — branch/merge context states to compare approaches.
 

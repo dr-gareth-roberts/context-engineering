@@ -44,7 +44,7 @@ interface MemoryStore {
 }
 ```
 
-Items are auto-normalized on `put`: missing `id` gets a nanoid, `createdAt`/`updatedAt` default to now, `salience` defaults to 1.
+Items are auto-normalised on `put`: missing `id` gets a nanoid, `createdAt`/`updatedAt` default to now, `salience` defaults to 1.
 
 ## Query Options
 

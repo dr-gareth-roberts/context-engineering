@@ -67,7 +67,7 @@ console.log(result.ownItems); // reviewer's own items that were selected
 | `listAgents()`                    | List all registered agents                 |
 | `stats()`                         | Get mesh statistics (items, agents, scope) |
 | `clear()`                         | Remove all entangled items                 |
-| `exportState()` / `importState()` | Serialize/restore the mesh                 |
+| `exportState()` / `importState()` | Serialise/restore the mesh                 |
 
 ### `AgentHandle` Methods
 

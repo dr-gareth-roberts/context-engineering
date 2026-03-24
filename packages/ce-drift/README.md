@@ -39,7 +39,7 @@ if (report.drifting) {
 | `diversity`   | Topic diversity falling from baseline         | `0.3`             | Lower = bad  |
 | `density`     | Information density dropping                  | `0.25`            | Lower = bad  |
 | `freshness`   | Stale item ratio increasing                   | `0.5`             | Higher = bad |
-| `utilization` | Budget utilization dropping                   | `0.5`             | Lower = bad  |
+| `utilization` | Budget utilisation dropping                   | `0.5`             | Lower = bad  |
 
 ## API Reference
 
@@ -61,7 +61,7 @@ if (report.drifting) {
 | `report()`                    | Get the current `DriftReport`                     |
 | `reset()`                     | Clear all observations and baselines              |
 | `history()`                   | Get the raw observation window                    |
-| `exportState()`               | Serialize for persistence                         |
+| `exportState()`               | Serialise for persistence                         |
 | `importState(state)`          | Restore from a previous export                    |
 
 ### `DriftReport`
@@ -95,7 +95,7 @@ if (report.drifting) {
 
 **Why split-half trend detection?** Comparing the mean of the first half of the window to the second half is a simple, robust way to detect monotonic trends without requiring linear regression or curve fitting. The threshold of 0.02 prevents noisy oscillations from triggering false trend changes.
 
-**Why configurable thresholds per dimension?** Different applications tolerate different kinds of drift. A chatbot might care deeply about freshness but tolerate some redundancy. A code assistant might prioritize relevance and density. Per-dimension thresholds let you tune the monitor to your use case.
+**Why configurable thresholds per dimension?** Different applications tolerate different kinds of drift. A chatbot might care deeply about freshness but tolerate some redundancy. A code assistant might prioritise relevance and density. Per-dimension thresholds let you tune the monitor to your use case.
 
 ## Integration with Other Packages
 

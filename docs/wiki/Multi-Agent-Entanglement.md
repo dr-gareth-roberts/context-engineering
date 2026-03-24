@@ -4,7 +4,7 @@ Context Entanglement (`ce-entangle`) solves the shared knowledge problem in mult
 
 ## The Problem
 
-In multi-agent systems, agents operate independently with separate context windows. When Agent A discovers "the API endpoint moved to /v2", Agent B keeps generating code against /v1 until someone manually updates its context. Current solutions (shared databases, message passing) operate at the application layer and require explicit coordination.
+In multi-agent systems, agents operate independently with separate context windows. When Agent A discovers "the API endpoint moved to /v2", Agent B keeps generating code against /v1 until someone manually updates its context. Current solutions (shared databases, message passing) operate at the application layer and require explicit co-ordination.
 
 ## The Solution: Entanglement Mesh
 

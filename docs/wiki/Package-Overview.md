@@ -1,6 +1,6 @@
 # Package Overview
 
-The toolkit is organized into 17 packages across 5 categories. All packages depend only on `ce-core` (no inter-package dependencies beyond that). Every TypeScript package has full Python parity.
+The toolkit is organised into 17 packages across 5 categories. All packages depend only on `ce-core` (no inter-package dependencies beyond that). Every TypeScript package has full Python parity.
 
 ## Architecture Diagram
 
@@ -28,7 +28,7 @@ The toolkit is organized into 17 packages across 5 categories. All packages depe
 │  │ (red-team)   │ │ (antibodies) │ │ (monitor)    │ │(diag.) ││
 │  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └───┬────┘│
 ├─────────┼────────────────┼────────────────┼──────────────┼──────┤
-│  Optimization                                                   │
+│  Optimisation                                                   │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
 │  │ compiler     │ │ adaptive     │ │ time-travel  │            │
 │  │ (declarative)│ │ (feedback)   │ │ (branching)  │            │
@@ -63,9 +63,9 @@ The toolkit is organized into 17 packages across 5 categories. All packages depe
 
 | Package         | npm                             | Description                                             | Key exports                                                        |
 | --------------- | ------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------ |
-| **ce-council**  | `@context-engineering/council`  | Multiple LLM experts debate and synthesize answers      | `createCouncil`, `ROLE_PRESETS`, `computeConvergence`              |
+| **ce-council**  | `@context-engineering/council`  | Multiple LLM experts debate and synthesise answers      | `createCouncil`, `ROLE_PRESETS`, `computeConvergence`              |
 | **ce-entangle** | `@context-engineering/entangle` | Agents share context through a scoped pub/sub mesh      | `createEntanglementMesh`, `AgentHandle`                            |
-| **ce-router**   | `@context-engineering/router`   | Route to cheapest model by analyzing context complexity | `createContextRouter`, `createAdaptiveRouter`, `analyzeComplexity` |
+| **ce-router**   | `@context-engineering/router`   | Route to cheapest model by analysing context complexity | `createContextRouter`, `createAdaptiveRouter`, `analyzeComplexity` |
 
 ### Quality & Safety
 
@@ -76,13 +76,13 @@ The toolkit is organized into 17 packages across 5 categories. All packages depe
 | **ce-debugger**    | `@context-engineering/debugger`    | Diagnose bad outputs                     | `createContextDebugger`                    |
 | **ce-drift**       | `@context-engineering/drift`       | Monitor quality degradation              | `createDriftMonitor`                       |
 
-### Optimization
+### Optimisation
 
-| Package            | npm                                | Description                            | Key exports                               |
-| ------------------ | ---------------------------------- | -------------------------------------- | ----------------------------------------- |
-| **ce-compiler**    | `@context-engineering/compiler`    | Declarative context → optimized layout | `contextProgram`, `createContextCompiler` |
-| **ce-adaptive**    | `@context-engineering/adaptive`    | Learn scoring weights from outcomes    | `createContextOptimizer`                  |
-| **ce-time-travel** | `@context-engineering/time-travel` | Branch/merge context states            | `createTimeline`                          |
+| Package            | npm                                | Description                             | Key exports                               |
+| ------------------ | ---------------------------------- | --------------------------------------- | ----------------------------------------- |
+| **ce-compiler**    | `@context-engineering/compiler`    | Declarative context to optimised layout | `contextProgram`, `createContextCompiler` |
+| **ce-adaptive**    | `@context-engineering/adaptive`    | Learn scoring weights from outcomes     | `createContextOptimizer`                  |
+| **ce-time-travel** | `@context-engineering/time-travel` | Branch/merge context states             | `createTimeline`                          |
 
 ### Integration
 

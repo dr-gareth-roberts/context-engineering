@@ -31,7 +31,7 @@ This toolkit provides algorithms, strategies, and infrastructure for that decisi
 - **Core** — [ce-core](../../packages/ce-core/), [ce-providers](../../packages/ce-providers/), [ce-memory](../../packages/ce-memory/), [ce-cli](../../packages/ce-cli/)
 - **Multi-Model** — [ce-council](../../packages/ce-council/), [ce-entangle](../../packages/ce-entangle/), [ce-router](../../packages/ce-router/)
 - **Quality** — [ce-adversarial](../../packages/ce-adversarial/), [ce-immune](../../packages/ce-immune/), [ce-debugger](../../packages/ce-debugger/), [ce-drift](../../packages/ce-drift/)
-- **Optimization** — [ce-compiler](../../packages/ce-compiler/), [ce-adaptive](../../packages/ce-adaptive/), [ce-time-travel](../../packages/ce-time-travel/)
+- **Optimisation** — [ce-compiler](../../packages/ce-compiler/), [ce-adaptive](../../packages/ce-adaptive/), [ce-time-travel](../../packages/ce-time-travel/)
 - **Integration** — [ce-sdk-interceptors](../../packages/ce-sdk-interceptors/), [ce-frameworks](../../packages/ce-frameworks/), [ce-rag](../../packages/ce-rag/)
 
 ### Deep Dives
@@ -40,7 +40,7 @@ This toolkit provides algorithms, strategies, and infrastructure for that decisi
 | --------------------------------------------------------- | ------------------------------------------------------------------- |
 | [Deliberation Strategies](./Deliberation-Strategies.md)   | How parallel, debate, stepladder, and delphi strategies work        |
 | [Adversarial Testing](./Adversarial-Testing.md)           | 6 attack types, severity scoring, CI/CD integration                 |
-| [Context Compilation](./Context-Compilation.md)           | Declarative programs, slot-based allocation, per-model optimization |
+| [Context Compilation](./Context-Compilation.md)           | Declarative programs, slot-based allocation, per-model optimisation |
 | [Drift Detection](./Drift-Detection.md)                   | 6 quality dimensions, trend detection, production alerting          |
 | [Multi-Agent Entanglement](./Multi-Agent-Entanglement.md) | Scoped pub/sub mesh, propagation policies, budget-aware injection   |
 | [Context Immune System](./Context-Immune-System.md)       | Fingerprinting, antibodies, failure pattern screening               |

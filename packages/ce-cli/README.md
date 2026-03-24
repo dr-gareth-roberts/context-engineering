@@ -133,7 +133,7 @@ ce budget -f document.txt -p openai
 | `-p, --provider <name>`       | Estimator: `openai`, `anthropic`, `heuristic` | `heuristic` (or `CE_PROVIDER` env) |
 | `-m, --model <name>`          | Model for placement/cost/budget               | varies                             |
 | `--json`                      | Force JSON output                             | off                                |
-| `--no-color`                  | Disable colored output                        | off                                |
+| `--no-color`                  | Disable coloured output                       | off                                |
 | `--webhook-url <url>`         | Webhook URL for analytics telemetry           | --                                 |
 | `--webhook-handoff-url <url>` | Webhook URL for handoff notifications         | --                                 |
 | `--webhook-quality-url <url>` | Webhook URL for quality regression alerts     | --                                 |

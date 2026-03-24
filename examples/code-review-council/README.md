@@ -9,7 +9,7 @@ structured debate on a realistic code change.
 - **Council of Experts** — three reviewers (Architect, Security Lead,
   Performance Engineer) with different role presets and mock LLM providers
 - **Debate strategy** — experts see each other's responses after round 1
-  and refine their positions in round 2, then a synthesizer merges everything
+  and refine their positions in round 2, then a synthesiser merges everything
 - **Delphi strategy** — the same experts deliberate anonymously, with
   convergence scoring that tracks how much agreement increases across rounds
 - **Live callbacks** — `onMemberResponse` and `onRoundComplete` hooks show
@@ -32,7 +32,7 @@ The script does the following:
 1. Defines a realistic code diff (adding a user search API endpoint)
 2. Creates three mock experts using `ROLE_PRESETS` from the council package
 3. Runs a **debate** council (2 rounds) and prints each round's reviews,
-   the synthesized final review, and token usage
+   the synthesised final review, and token usage
 4. Runs a **delphi** council (up to 3 rounds) on the same diff and prints
    convergence scores per round
 

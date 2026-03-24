@@ -107,7 +107,7 @@ The adapters use interface matching (`LangChainLike`, `LlamaIndexLike`, etc.) ra
 
 ### Shared `packMessages()` core
 
-All adapters delegate to a single `packMessages()` function that handles conversion, scoring, packing, strategy application, and event emission. This ensures consistent behavior across frameworks and avoids logic duplication.
+All adapters delegate to a single `packMessages()` function that handles conversion, scoring, packing, strategy application, and event emission. This ensures consistent behaviour across frameworks and avoids logic duplication.
 
 ### Graceful fallthrough
 

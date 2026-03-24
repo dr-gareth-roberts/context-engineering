@@ -9,7 +9,7 @@ In long-running agent sessions, context quality degrades silently:
 - Relevant items get pushed out by noise
 - Retrieval results become stale
 - Redundancy creeps in as similar items accumulate
-- Budget utilization drops as items are removed but not replaced
+- Budget utilisation drops as items are removed but not replaced
 
 By the time you notice (the model gives a wrong answer), the degradation has been happening for many turns.
 
@@ -72,7 +72,7 @@ for (const rec of report.recommendations) {
 | **diversity**   | Topic coverage narrows          | `quality.diversity` trending down    |
 | **density**     | Information per token drops     | `quality.density` trending down      |
 | **freshness**   | Stale items accumulate          | Fraction of items with recency < 0.2 |
-| **utilization** | Budget goes underused           | `totalTokens / maxTokens` dropping   |
+| **utilisation** | Budget goes underused           | `totalTokens / maxTokens` dropping   |
 
 ## Trend Detection
 

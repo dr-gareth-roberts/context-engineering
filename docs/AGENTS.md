@@ -32,7 +32,7 @@ This file helps AI coding agents understand how to work with this project.
 - `ce-debugger` — diagnose bad outputs via context analysis
 - `ce-drift` — quality degradation monitoring
 
-### Optimization
+### Optimisation
 
 - `ce-compiler` — declarative context programs compiled per target model
 - `ce-adaptive` — weight learning from outcome feedback

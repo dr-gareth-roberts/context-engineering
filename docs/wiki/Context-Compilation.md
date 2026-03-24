@@ -1,6 +1,6 @@
 # Context Compilation
 
-The Context Compiler (`ce-compiler`) lets you declare _what_ your context should contain and _compiles_ it into an optimized layout for a specific target model — like a C compiler targeting x86 vs ARM.
+The Context Compiler (`ce-compiler`) lets you declare _what_ your context should contain and _compiles_ it into an optimised layout for a specific target model — like a C compiler targeting x86 vs ARM.
 
 ## Why a Compiler?
 
@@ -8,7 +8,7 @@ The imperative `pipeline()` API requires you to specify _how_ to arrange context
 
 This matters when:
 
-- You target multiple models (compile once, deploy to Claude/GPT/Gemini with different optimizations)
+- You target multiple models (compile once, deploy to Claude/GPT/Gemini with different optimisations)
 - You want constraint enforcement (contradictions, freshness, coverage requirements)
 - You want the system to choose strategies rather than specifying them
 
@@ -82,9 +82,9 @@ console.log(result.slots); // per-slot breakdown
 console.log(result.quality); // quality metrics
 ```
 
-## Per-Model Optimization
+## Per-Model Optimisation
 
-The compiler applies different optimization passes per target:
+The compiler applies different optimisation passes per target:
 
 | Pass                      | Claude                                | GPT-4               | Gemini          | Generic         |
 | ------------------------- | ------------------------------------- | ------------------- | --------------- | --------------- |
@@ -107,5 +107,5 @@ interface CompileDiagnostic {
 ```
 
 - `error`: Required slot empty, critical constraint violated
-- `warning`: Constraint partially violated, low utilization
-- `info`: Optimization applied, items deduplicated
+- `warning`: Constraint partially violated, low utilisation
+- `info`: Optimisation applied, items deduplicated

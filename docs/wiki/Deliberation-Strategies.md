@@ -11,17 +11,17 @@ A single model gives one perspective. A council surfaces genuine intellectual te
 - A user advocate keeps everyone honest
 - A devil's advocate stress-tests consensus
 
-The structured strategies below prevent the common failure modes of freeform multi-agent chat (agreement loops, authority bias, anchoring).
+The structured strategies below prevent the common failure modes of free-form multi-agent chat (agreement loops, authority bias, anchoring).
 
 ## The Four Strategies
 
 ### Parallel
 
-All experts respond independently. No interaction. The synthesizer merges perspectives.
+All experts respond independently. No interaction. The synthesiser merges perspectives.
 
 ```
 Round 1:  Expert A ──→ Response A
-          Expert B ──→ Response B    ──→ Synthesizer ──→ Final Answer
+          Expert B ──→ Response B    ──→ Synthesiser ──→ Final Answer
           Expert C ──→ Response C
 ```
 
@@ -35,7 +35,7 @@ Round 1: independent responses. Round 2+: each expert sees the others' responses
 ```
 Round 1:  A, B, C respond independently
 Round 2:  A sees B+C → refines    B sees A+C → refines    C sees A+B → refines
-          ──→ Synthesizer ──→ Final Answer
+          ──→ Synthesiser ──→ Final Answer
 ```
 
 **Best for**: Contentious topics, when you want experts to challenge each other's reasoning.
@@ -49,7 +49,7 @@ Based on [Rogelberg et al., 1992](https://en.wikipedia.org/wiki/Stepladder_techn
 Step 1:  A responds alone
 Step 2:  B sees A's response → responds with fresh perspective
 Step 3:  C sees A+B → responds with fresh perspective
-         ──→ Synthesizer ──→ Final Answer
+         ──→ Synthesiser ──→ Final Answer
 ```
 
 **Best for**: Reducing anchoring bias, when expert order matters, when you have varying authority levels.
@@ -63,10 +63,10 @@ Based on the [RAND Delphi method](https://en.wikipedia.org/wiki/Delphi_method). 
 Round 1:  A, B, C respond independently (anonymous)
 Round 2:  All see "Expert 1, Expert 2, Expert 3" (no names) → revise
 Round 3:  If convergence > threshold → stop early
-          ──→ Synthesizer ──→ Final Answer
+          ──→ Synthesiser ──→ Final Answer
 ```
 
-**Best for**: Forecasting, risk assessment, when seniority differences might suppress dissent.
+**Best for**: Forecasting, risk assessment, cases where seniority differences might suppress dissent.
 **Anti-bias**: Anonymity prevents authority bias and status-driven conformity.
 
 ## Convergence Detection
@@ -94,7 +94,7 @@ Eight pre-written system prompts for common expert archetypes:
 | `domain-expert`   | Grounds discussion in technical reality            |
 | `devils-advocate` | Argues the opposing position                       |
 | `user-advocate`   | Evaluates through user experience lens             |
-| `risk-analyst`    | Analyzes technical, financial, regulatory risk     |
+| `risk-analyst`    | Analyses technical, financial, and regulatory risk |
 
 ## Example: Architecture Decision
 

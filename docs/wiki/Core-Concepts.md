@@ -34,7 +34,7 @@ score = priority * 1.0 + recency * 0.7 + salience * 0.5 + relevance * 0.0
 - **salience** (from `metadata.salience`): Domain-specific importance signal.
 - **relevance** (0-1): Activates when a query is provided. Uses BM25 or embedding similarity.
 
-Weights are customizable via `createScorer({ priority: 2.0, recency: 0.0 })`.
+Weights are customisable via `createScorer({ priority: 2.0, recency: 0.0 })`.
 
 ## Budgets
 
@@ -84,11 +84,11 @@ Common kinds: `"system"`, `"tool"`, `"retrieval"`, `"conversation"`, `"query"`, 
 
 ## Volatility
 
-Items have three volatility levels for cache optimization:
+Items have three volatility levels for cache optimisation:
 
-| Level     | Changes       | Examples                       | Cache behavior                       |
+| Level     | Changes       | Examples                       | Cache behaviour                      |
 | --------- | ------------- | ------------------------------ | ------------------------------------ |
-| `static`  | Rarely        | System prompt, tools, schemas  | Stable prefix — maximizes cache hits |
+| `static`  | Rarely        | System prompt, tools, schemas  | Stable prefix — maximises cache hits |
 | `session` | Per session   | Conversation history, memories | Middle — changes between sessions    |
 | `request` | Every request | User query, RAG results        | Volatile suffix — always different   |
 

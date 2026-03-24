@@ -6,14 +6,14 @@ We are committed to making participation in this project a harassment-free exper
 
 ## Our Standards
 
-**Positive behavior includes:**
+**Positive behaviour includes:**
 
 - Using welcoming and inclusive language
 - Being respectful of differing viewpoints and experiences
 - Gracefully accepting constructive criticism
 - Focusing on what is best for the community
 
-**Unacceptable behavior includes:**
+**Unacceptable behaviour includes:**
 
 - Trolling, insulting/derogatory comments, and personal or political attacks
 - Public or private harassment
@@ -22,7 +22,7 @@ We are committed to making participation in this project a harassment-free exper
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported by contacting **gareth@zmail.com**. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances.
+Report instances of unacceptable behaviour to **gareth@zmail.com**. All complaints will be reviewed, investigated, and met with a response appropriate to the circumstances.
 
 ## Attribution
 

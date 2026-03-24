@@ -1,10 +1,10 @@
 # Context Immune System
 
-The Immune System (`ce-immune`) learns from past context configurations that caused failures and develops "antibodies" — rules that automatically screen future packs to prevent recurring failure patterns.
+The Immune System (`ce-immune`) learns from past context configurations that caused failures and develops "antibodies" — rules that screen future packs automatically to prevent recurring failure patterns.
 
 ## Key Insight
 
-Individual context items can be fine, but certain _combinations_ are toxic. "API docs" is fine. "Code examples" is fine. "API docs from v1 + code examples from v2" is a known failure pattern that causes hallucinated endpoints. The immune system detects these combination-level patterns.
+Individual context items can be fine on their own, but certain _combinations_ are toxic. "API docs" is fine. "Code examples" is fine. "API docs from v1 + code examples from v2" is a known failure pattern that causes hallucinated endpoints. The immune system detects these combination-level patterns.
 
 ## How It Works
 
@@ -28,7 +28,7 @@ A fingerprint captures the _shape_ of a context configuration, not the specific 
 | `redundancyEstimate` | Fraction of item pairs with >0.8 word overlap             |
 | `itemCount`          | Number of items                                           |
 
-Two fingerprints are compared using weighted similarity (cosine for kind ratios, normalized Euclidean for stats, absolute difference for scalars).
+Two fingerprints are compared using weighted similarity (cosine for kind ratios, normalised Euclidean for stats, absolute difference for scalars).
 
 ## Usage
 
