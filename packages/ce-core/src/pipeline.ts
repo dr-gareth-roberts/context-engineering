@@ -31,6 +31,7 @@
 import type {
   Budget,
   ContextItem,
+  ContextPack,
   EmbeddingProvider,
   PackOptions,
   QueryInput,
@@ -46,11 +47,13 @@ import {
   packWithCacheTopology,
   packWithCacheTopologyAsync,
   type CacheConfig,
+  type CacheAwarePack,
 } from "./cache-topology.js";
 import {
   packWithAllocation,
   packWithAllocationAsync,
   type KindAllocation,
+  type AllocatedPack,
 } from "./allocation.js";
 import { type ContextSession, type SessionDelta } from "./session.js";
 import {
@@ -58,6 +61,8 @@ import {
   type PromptMessages,
   type PromptTemplateConfig,
 } from "./template.js";
+import type { MaybeAsync } from "./maybe-async.js";
+import { chain } from "./maybe-async.js";
 
 /**
  * Result of a pipeline build.
@@ -92,6 +97,27 @@ export interface PipelineResult {
   /** Pipeline stages that were applied */
   stages: string[];
 }
+
+/** Function signatures for the sync/async pack variants. */
+type PackFn = (
+  items: ContextItem[],
+  budget: Budget,
+  options: PackOptions
+) => MaybeAsync<ContextPack>;
+
+type AllocPackFn = (
+  items: ContextItem[],
+  budget: Budget,
+  allocations: KindAllocation[],
+  options: PackOptions
+) => MaybeAsync<AllocatedPack>;
+
+type CachePackFn = (
+  items: ContextItem[],
+  budget: Budget,
+  options: PackOptions,
+  cacheConfig: CacheConfig
+) => MaybeAsync<CacheAwarePack>;
 
 /**
  * A composable pipeline for context engineering.
@@ -278,6 +304,172 @@ export class ContextPipeline {
   }
 
   /**
+   * Shared build implementation using MaybeAsync.
+   * The sync path never creates Promises; the async path chains naturally.
+   */
+  private buildImpl(
+    packFn: PackFn,
+    allocPackFn: AllocPackFn,
+    cachePackFn: CachePackFn
+  ): MaybeAsync<PipelineResult> {
+    const inputCount = this.items.length;
+    const stages: string[] = [...this.stagesApplied];
+
+    // Ensure all items have token estimates
+    const items = this.items.map(item => ({
+      ...item,
+      tokens:
+        item.tokens ??
+        estimateTokens(item.content, {
+          estimator: this.packOptions.tokenEstimator,
+        }),
+    }));
+
+    // Wire query into pack options
+    const packOpts: PackOptions = { ...this.packOptions };
+    if (this.queryConfig) {
+      stages.push("query");
+      packOpts.query = this.queryConfig.query;
+      if (this.queryConfig.embeddingProvider) {
+        packOpts.embeddingProvider = this.queryConfig.embeddingProvider;
+      }
+    }
+
+    // Stage 1: Pack (allocation → cache topology → standard)
+    let packResult: MaybeAsync<{
+      selected: ContextItem[];
+      dropped: ContextItem[];
+      totalTokens: number;
+      cacheKey?: string;
+      cacheEfficiency?: number;
+      cacheableTokens?: number;
+      allocations?: Record<string, unknown>;
+      allocationEfficiency?: number;
+    }>;
+
+    if (this.allocationConfig) {
+      stages.push("allocate");
+      const allocConfig = this.allocationConfig;
+      const cacheConfig = this.cacheTopologyConfig;
+
+      packResult = chain(
+        allocPackFn(items, this.budget, allocConfig, packOpts),
+        result => {
+          const base = {
+            selected: result.selected,
+            dropped: result.dropped,
+            totalTokens: result.totalTokens,
+            allocations: result.allocations as unknown as Record<
+              string,
+              unknown
+            >,
+            allocationEfficiency: result.allocationEfficiency,
+          };
+
+          if (cacheConfig) {
+            stages.push("cacheTopology");
+            return chain(
+              cachePackFn(
+                result.selected,
+                { maxTokens: result.totalTokens + 100 },
+                packOpts,
+                cacheConfig
+              ),
+              cacheResult => ({
+                ...base,
+                selected: cacheResult.selected,
+                cacheKey: cacheResult.cacheKey,
+                cacheEfficiency: cacheResult.cacheEfficiency,
+                cacheableTokens: cacheResult.cacheableTokens,
+              })
+            );
+          }
+
+          return base;
+        }
+      );
+    } else if (this.cacheTopologyConfig) {
+      stages.push("cacheTopology");
+      packResult = chain(
+        cachePackFn(items, this.budget, packOpts, this.cacheTopologyConfig),
+        result => ({
+          selected: result.selected,
+          dropped: result.dropped,
+          totalTokens: result.totalTokens,
+          cacheKey: result.cacheKey,
+          cacheEfficiency: result.cacheEfficiency,
+          cacheableTokens: result.cacheableTokens,
+        })
+      );
+    } else {
+      stages.push("pack");
+      packResult = chain(packFn(items, this.budget, packOpts), result => ({
+        selected: result.selected,
+        dropped: result.dropped,
+        totalTokens: result.totalTokens,
+      }));
+    }
+
+    // Post-pack stages (placement, quality, session, template) are all sync
+    return chain(packResult, packed => {
+      let { selected, totalTokens } = packed;
+      const { dropped } = packed;
+
+      // Stage 2: Placement
+      if (this.placementConfig) {
+        stages.push("place");
+        selected = placeItems(selected, {
+          strategy: this.placementConfig.strategy,
+          model: this.placementConfig.model,
+        });
+      }
+
+      // Stage 3: Quality gate
+      const qualityResult = this.applyQualityGate(
+        selected,
+        dropped,
+        totalTokens
+      );
+      const quality = qualityResult.quality;
+      totalTokens = qualityResult.totalTokens;
+      if (quality) stages.push("quality");
+
+      // Stage 4: Session tracking
+      let delta: SessionDelta | null | undefined;
+      if (this.sessionInstance) {
+        stages.push("session");
+        this.sessionInstance.setItems(selected);
+        const sessionResult = this.sessionInstance.compile();
+        delta = sessionResult.delta;
+      }
+
+      // Stage 5: Template
+      let promptMessages: PromptMessages | undefined;
+      if (this.templateConfig) {
+        stages.push("template");
+        promptMessages = toMessages(selected, this.templateConfig);
+      }
+
+      return {
+        selected,
+        dropped,
+        totalTokens,
+        budget: this.budget,
+        quality,
+        cacheKey: packed.cacheKey,
+        cacheEfficiency: packed.cacheEfficiency,
+        cacheableTokens: packed.cacheableTokens,
+        delta,
+        allocations: packed.allocations,
+        allocationEfficiency: packed.allocationEfficiency,
+        messages: promptMessages,
+        inputCount,
+        stages,
+      };
+    });
+  }
+
+  /**
    * Build the pipeline and return the result.
    *
    * Stages are applied in this order:
@@ -289,136 +481,11 @@ export class ContextPipeline {
    * 6. Session (if configured) — compute delta from previous
    */
   build(): PipelineResult {
-    const inputCount = this.items.length;
-    const stages: string[] = [...this.stagesApplied];
-
-    // Ensure all items have token estimates
-    const items = this.items.map(item => ({
-      ...item,
-      tokens:
-        item.tokens ??
-        estimateTokens(item.content, {
-          estimator: this.packOptions.tokenEstimator,
-        }),
-    }));
-
-    // Wire query into pack options
-    const packOpts: PackOptions = { ...this.packOptions };
-    if (this.queryConfig) {
-      stages.push("query");
-      packOpts.query = this.queryConfig.query;
-      if (this.queryConfig.embeddingProvider) {
-        packOpts.embeddingProvider = this.queryConfig.embeddingProvider;
-      }
-    }
-
-    let selected: ContextItem[];
-    let dropped: ContextItem[];
-    let totalTokens: number;
-    let cacheKey: string | undefined;
-    let cacheEfficiency: number | undefined;
-    let cacheableTokens: number | undefined;
-    let allocations: Record<string, unknown> | undefined;
-    let allocationEfficiency: number | undefined;
-
-    // Stage 1: Pack (allocation → cache topology → standard)
-    if (this.allocationConfig) {
-      stages.push("allocate");
-      const result = packWithAllocation(
-        items,
-        this.budget,
-        this.allocationConfig,
-        packOpts
-      );
-      selected = result.selected;
-      dropped = result.dropped;
-      totalTokens = result.totalTokens;
-      allocations = result.allocations as unknown as Record<string, unknown>;
-      allocationEfficiency = result.allocationEfficiency;
-
-      // If also cache topology, reorder the selected items
-      if (this.cacheTopologyConfig) {
-        stages.push("cacheTopology");
-        const cacheResult = packWithCacheTopology(
-          selected,
-          { maxTokens: totalTokens + 100 }, // generous budget since already packed
-          packOpts,
-          this.cacheTopologyConfig
-        );
-        selected = cacheResult.selected;
-        cacheKey = cacheResult.cacheKey;
-        cacheEfficiency = cacheResult.cacheEfficiency;
-        cacheableTokens = cacheResult.cacheableTokens;
-      }
-    } else if (this.cacheTopologyConfig) {
-      stages.push("cacheTopology");
-      const result = packWithCacheTopology(
-        items,
-        this.budget,
-        packOpts,
-        this.cacheTopologyConfig
-      );
-      selected = result.selected;
-      dropped = result.dropped;
-      totalTokens = result.totalTokens;
-      cacheKey = result.cacheKey;
-      cacheEfficiency = result.cacheEfficiency;
-      cacheableTokens = result.cacheableTokens;
-    } else {
-      stages.push("pack");
-      const result = pack(items, this.budget, packOpts);
-      selected = result.selected;
-      dropped = result.dropped;
-      totalTokens = result.totalTokens;
-    }
-
-    // Stage 2: Placement
-    if (this.placementConfig) {
-      stages.push("place");
-      selected = placeItems(selected, {
-        strategy: this.placementConfig.strategy,
-        model: this.placementConfig.model,
-      });
-    }
-
-    // Stage 3: Quality gate
-    const qualityResult = this.applyQualityGate(selected, dropped, totalTokens);
-    const quality = qualityResult.quality;
-    totalTokens = qualityResult.totalTokens;
-    if (quality) stages.push("quality");
-
-    // Stage 4: Session tracking
-    let delta: SessionDelta | null | undefined;
-    if (this.sessionInstance) {
-      stages.push("session");
-      this.sessionInstance.setItems(selected);
-      const sessionResult = this.sessionInstance.compile();
-      delta = sessionResult.delta;
-    }
-
-    // Stage 5: Template
-    let promptMessages: PromptMessages | undefined;
-    if (this.templateConfig) {
-      stages.push("template");
-      promptMessages = toMessages(selected, this.templateConfig);
-    }
-
-    return {
-      selected,
-      dropped,
-      totalTokens,
-      budget: this.budget,
-      quality,
-      cacheKey,
-      cacheEfficiency,
-      cacheableTokens,
-      delta,
-      allocations,
-      allocationEfficiency,
-      messages: promptMessages,
-      inputCount,
-      stages,
-    };
+    return this.buildImpl(
+      pack,
+      packWithAllocation,
+      packWithCacheTopology
+    ) as PipelineResult;
   }
 
   /**
@@ -428,136 +495,11 @@ export class ContextPipeline {
    * Uses async pack variants that support embedding-based redundancy.
    */
   async buildAsync(): Promise<PipelineResult> {
-    const inputCount = this.items.length;
-    const stages: string[] = [...this.stagesApplied];
-
-    // Ensure all items have token estimates
-    const items = this.items.map(item => ({
-      ...item,
-      tokens:
-        item.tokens ??
-        estimateTokens(item.content, {
-          estimator: this.packOptions.tokenEstimator,
-        }),
-    }));
-
-    // Wire query into pack options
-    const packOpts: PackOptions = { ...this.packOptions };
-    if (this.queryConfig) {
-      stages.push("query");
-      packOpts.query = this.queryConfig.query;
-      if (this.queryConfig.embeddingProvider) {
-        packOpts.embeddingProvider = this.queryConfig.embeddingProvider;
-      }
-    }
-
-    let selected: ContextItem[];
-    let dropped: ContextItem[];
-    let totalTokens: number;
-    let cacheKey: string | undefined;
-    let cacheEfficiency: number | undefined;
-    let cacheableTokens: number | undefined;
-    let allocations: Record<string, unknown> | undefined;
-    let allocationEfficiency: number | undefined;
-
-    // Stage 1: Pack (allocation → cache topology → standard)
-    if (this.allocationConfig) {
-      stages.push("allocate");
-      const result = await packWithAllocationAsync(
-        items,
-        this.budget,
-        this.allocationConfig,
-        packOpts
-      );
-      selected = result.selected;
-      dropped = result.dropped;
-      totalTokens = result.totalTokens;
-      allocations = result.allocations as unknown as Record<string, unknown>;
-      allocationEfficiency = result.allocationEfficiency;
-
-      // If also cache topology, reorder the selected items
-      if (this.cacheTopologyConfig) {
-        stages.push("cacheTopology");
-        const cacheResult = await packWithCacheTopologyAsync(
-          selected,
-          { maxTokens: totalTokens + 100 },
-          packOpts,
-          this.cacheTopologyConfig
-        );
-        selected = cacheResult.selected;
-        cacheKey = cacheResult.cacheKey;
-        cacheEfficiency = cacheResult.cacheEfficiency;
-        cacheableTokens = cacheResult.cacheableTokens;
-      }
-    } else if (this.cacheTopologyConfig) {
-      stages.push("cacheTopology");
-      const result = await packWithCacheTopologyAsync(
-        items,
-        this.budget,
-        packOpts,
-        this.cacheTopologyConfig
-      );
-      selected = result.selected;
-      dropped = result.dropped;
-      totalTokens = result.totalTokens;
-      cacheKey = result.cacheKey;
-      cacheEfficiency = result.cacheEfficiency;
-      cacheableTokens = result.cacheableTokens;
-    } else {
-      stages.push("pack");
-      const result = await packAsync(items, this.budget, packOpts);
-      selected = result.selected;
-      dropped = result.dropped;
-      totalTokens = result.totalTokens;
-    }
-
-    // Stage 2: Placement
-    if (this.placementConfig) {
-      stages.push("place");
-      selected = placeItems(selected, {
-        strategy: this.placementConfig.strategy,
-        model: this.placementConfig.model,
-      });
-    }
-
-    // Stage 3: Quality gate
-    const qualityResult = this.applyQualityGate(selected, dropped, totalTokens);
-    const quality = qualityResult.quality;
-    totalTokens = qualityResult.totalTokens;
-    if (quality) stages.push("quality");
-
-    // Stage 4: Session tracking
-    let delta: SessionDelta | null | undefined;
-    if (this.sessionInstance) {
-      stages.push("session");
-      this.sessionInstance.setItems(selected);
-      const sessionResult = this.sessionInstance.compile();
-      delta = sessionResult.delta;
-    }
-
-    // Stage 5: Template
-    let promptMessages: PromptMessages | undefined;
-    if (this.templateConfig) {
-      stages.push("template");
-      promptMessages = toMessages(selected, this.templateConfig);
-    }
-
-    return {
-      selected,
-      dropped,
-      totalTokens,
-      budget: this.budget,
-      quality,
-      cacheKey,
-      cacheEfficiency,
-      cacheableTokens,
-      delta,
-      allocations,
-      allocationEfficiency,
-      messages: promptMessages,
-      inputCount,
-      stages,
-    };
+    return this.buildImpl(
+      packAsync,
+      packWithAllocationAsync,
+      packWithCacheTopologyAsync
+    ) as Promise<PipelineResult>;
   }
 }
 

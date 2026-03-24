@@ -1,29 +1,28 @@
 {
-  "name": "@context-engineering/frameworks",
+  "name": "@context-engineering/adversarial",
   "version": "0.1.0",
   "type": "module",
-  "description": "Framework middleware for LangChain, LlamaIndex, and CrewAI — drop-in context management via duck-typing",
+  "description": "Adversarial Context Tester — red-team context pipelines by injecting failure modes and measuring quality degradation",
   "license": "MIT",
   "author": "Dr Gareth Roberts <gareth@zmail.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/dr-gareth-roberts/context-engineering.git",
-    "directory": "packages/ce-frameworks"
+    "directory": "packages/ce-adversarial"
   },
-  "homepage": "https://github.com/dr-gareth-roberts/context-engineering/tree/main/packages/ce-frameworks",
+  "homepage": "https://github.com/dr-gareth-roberts/context-engineering/tree/main/packages/ce-adversarial",
   "bugs": {
     "url": "https://github.com/dr-gareth-roberts/context-engineering/issues"
   },
   "keywords": [
     "context-engineering",
-    "langchain",
-    "llamaindex",
-    "crewai",
     "llm",
-    "context-window",
-    "token-management",
-    "middleware",
-    "framework"
+    "adversarial",
+    "red-team",
+    "testing",
+    "quality",
+    "robustness",
+    "ai"
   ],
   "engines": {
     "node": ">=18"
@@ -48,7 +47,6 @@
     "@context-engineering/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.7.0",
     "@vitest/coverage-v8": "^4.1.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"

@@ -65,11 +65,12 @@ export class AnthropicProvider implements LLMProvider {
       );
     }
 
-    // Build request params, only including defined optional fields
-    const params: Record<string, unknown> = {
+    // Build request params with explicit stream: false to get Message return type
+    const params: Anthropic.MessageCreateParamsNonStreaming = {
       model: options.model ?? DEFAULT_MODEL,
       max_tokens: options.maxTokens ?? 1024,
       messages: anthropicMessages,
+      stream: false,
     };
 
     if (system) {
@@ -80,26 +81,23 @@ export class AnthropicProvider implements LLMProvider {
       params.temperature = options.temperature;
     }
 
-    const response = await client.messages.create(
-      params as Parameters<typeof client.messages.create>[0]
-    );
+    const message = await client.messages.create(params);
 
-    const text = response.content
+    const text = message.content
       .map(block => ("text" in block ? block.text : ""))
       .join("");
 
-    const usage = response.usage
+    const usage = message.usage
       ? {
-          inputTokens: response.usage.input_tokens,
-          outputTokens: response.usage.output_tokens,
-          totalTokens:
-            response.usage.input_tokens + response.usage.output_tokens,
+          inputTokens: message.usage.input_tokens,
+          outputTokens: message.usage.output_tokens,
+          totalTokens: message.usage.input_tokens + message.usage.output_tokens,
         }
       : undefined;
 
     return {
       text,
-      model: response.model,
+      model: message.model,
       usage,
     };
   }

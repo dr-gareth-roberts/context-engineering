@@ -16,6 +16,19 @@ from .adaptive import (
 from .adaptive import (
     InMemoryFeedbackStore as AdaptiveInMemoryFeedbackStore,
 )
+from .adversarial import (
+    AdversarialConfig,
+    AdversarialTester,
+    AttackConfig,
+    AttackResult,
+    AttackType,
+    ProbeReport,
+    QualityCallback,
+    apply_attack,
+    count_injected,
+    create_adversarial_tester,
+    describe_attack,
+)
 from .allocation import (
     AllocatedPack,
     KindAllocation,
@@ -83,6 +96,20 @@ from .cost import (
     estimate_cost,
     project_costs,
 )
+from .council import (
+    ROLE_PRESETS as COUNCIL_ROLE_PRESETS,
+)
+from .council import (
+    CouncilConfig,
+    CouncilMember,
+    DeliberationResult,
+    DeliberationRound,
+    MemberResponse,
+    SynthesizerConfig,
+    compute_convergence,
+    create_council,
+    deliberate,
+)
 from .debugger import (
     ComparisonResult,
     ContextDebugger,
@@ -92,6 +119,28 @@ from .debugger import (
     QualityThresholds,
     Recommendation,
     create_context_debugger,
+)
+from .drift import (
+    DimensionReport as DriftDimensionReport,
+)
+from .drift import (
+    DriftAlert,
+    DriftMonitor,
+    DriftMonitorConfig,
+    DriftMonitorState,
+    DriftObservation,
+    DriftReport,
+    DriftThresholds,
+    analyze_density_drop,
+    analyze_redundancy_creep,
+    analyze_relevance_drift,
+    analyze_staleness,
+    analyze_topic_drift,
+    analyze_utilization,
+    classify_severity,
+    create_drift_monitor,
+    generate_alerts,
+    generate_recommendation,
 )
 from .errors import (
     BudgetExceededError,
@@ -207,6 +256,27 @@ from .template import (
     format_for_anthropic,
     format_for_openai,
     to_messages,
+)
+from .time_travel import (
+    Branch as TimelineBranch,
+)
+from .time_travel import (
+    BranchComparison,
+    Snapshot,
+    SnapshotDiff,
+    Timeline,
+    TimelineOptions,
+    TimelineState,
+    create_snapshot,
+    create_timeline,
+    diff_snapshots,
+    execute_merge,
+)
+from .time_travel import (
+    MergeOptions as TimelineMergeOptions,
+)
+from .time_travel import (
+    MergeResult as TimelineMergeResult,
 )
 from .webhook import (
     HandoffReportExtras,
@@ -443,4 +513,60 @@ __all__ = [
     "analyze_complexity",
     "create_context_router",
     "create_adaptive_router",
+    # Council of Experts
+    "CouncilConfig",
+    "CouncilMember",
+    "SynthesizerConfig",
+    "MemberResponse",
+    "DeliberationRound",
+    "DeliberationResult",
+    "COUNCIL_ROLE_PRESETS",
+    "compute_convergence",
+    "create_council",
+    "deliberate",
+    # Drift Detector
+    "DriftThresholds",
+    "DriftMonitorConfig",
+    "DriftObservation",
+    "DriftAlert",
+    "DriftDimensionReport",
+    "DriftReport",
+    "DriftMonitorState",
+    "DriftMonitor",
+    "classify_severity",
+    "analyze_relevance_drift",
+    "analyze_redundancy_creep",
+    "analyze_topic_drift",
+    "analyze_staleness",
+    "analyze_utilization",
+    "analyze_density_drop",
+    "generate_alerts",
+    "generate_recommendation",
+    "create_drift_monitor",
+    # Time Travel
+    "TimelineBranch",
+    "BranchComparison",
+    "TimelineMergeOptions",
+    "TimelineMergeResult",
+    "Snapshot",
+    "SnapshotDiff",
+    "Timeline",
+    "TimelineOptions",
+    "TimelineState",
+    "create_snapshot",
+    "create_timeline",
+    "diff_snapshots",
+    "execute_merge",
+    # Adversarial Context Tester
+    "AdversarialConfig",
+    "AdversarialTester",
+    "AttackConfig",
+    "AttackResult",
+    "AttackType",
+    "ProbeReport",
+    "QualityCallback",
+    "apply_attack",
+    "count_injected",
+    "create_adversarial_tester",
+    "describe_attack",
 ]

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **SDK Interceptors** (`@context-engineering/sdk-interceptors`): Drop-in context management wrappers for OpenAI and Anthropic SDKs — intercept API calls and automatically pack messages within budget
+- **Adaptive Learning** (`@context-engineering/adaptive`): Observes which context items correlate with good model outputs and adjusts scoring weights over time via EMA-based feedback loops
+- **Framework Middleware** (`@context-engineering/frameworks`): Duck-typed middleware for LangChain, LlamaIndex, and CrewAI — zero framework dependencies
+- **Context Debugger** (`@context-engineering/debugger`): Diagnoses bad model outputs by tracing them to context quality problems (missing context, redundancy, stale items, budget waste)
+- **Context-Aware RAG** (`@context-engineering/rag`): Retrieves chunks based on information gain relative to existing context, not just similarity — supports hybrid vector + BM25 retrieval
+- **Model Router** (`@context-engineering/router`): Analyzes context complexity across six dimensions and routes to the cheapest capable model, with adaptive learning and quality-based fallback
+- **Context Replay**: Record pack decisions and replay with different strategies for A/B testing
+- **Context Inspector**: Web UI for debugging context windows (internal)
+- **Python parity**: SDK interceptors, replay, adaptive learning, framework middleware, RAG, debugger, and router all ported to Python
+
+### Changed
+
+- **Pipeline**: Eliminated sync/async code duplication using `MaybeAsync` pattern — `build()` and `buildAsync()` now share a single implementation
+- **Provider adapters**: Use properly typed SDK params (`ChatCompletionCreateParamsNonStreaming`, `MessageCreateParamsNonStreaming`) instead of `Record<string, unknown>` casts — fixes type checking against latest OpenAI/Anthropic SDK versions
+- **Python `context_framework`**: Domain runtime modules now use lazy imports via `__getattr__` — importing the package no longer eagerly loads all 12 runtime modules
+
+### Fixed
+
+- Type errors in `ce-providers` caused by OpenAI/Anthropic SDK union return types (`Stream | ChatCompletion`)
+- Harmonized vitest versions across all packages (^4.1.0)
+
 ## [0.1.0] - 2026-02-27
 
 ### Added
