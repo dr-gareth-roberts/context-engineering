@@ -61,11 +61,14 @@ export class OpenAIProvider implements LLMProvider {
     const client = await this.getClient();
     const model = options.model ?? DEFAULT_CHAT_MODEL;
 
-    // Build request params, only including defined optional fields
-    const params: Record<string, unknown> = {
-      model,
-      messages,
-    };
+    // Build request params with explicit stream: false to get ChatCompletion return type
+    const params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming =
+      {
+        model,
+        messages:
+          messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        stream: false,
+      };
 
     if (options.maxTokens !== undefined) {
       if (usesMaxCompletionTokens(model)) {
@@ -79,23 +82,21 @@ export class OpenAIProvider implements LLMProvider {
       params.temperature = options.temperature;
     }
 
-    const response = await client.chat.completions.create(
-      params as Parameters<typeof client.chat.completions.create>[0]
-    );
+    const completion = await client.chat.completions.create(params);
 
-    const choice = response.choices[0];
+    const choice = completion.choices[0];
     const text = choice?.message?.content ?? "";
-    const usage = response.usage
+    const usage = completion.usage
       ? {
-          inputTokens: response.usage.prompt_tokens,
-          outputTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
+          inputTokens: completion.usage.prompt_tokens,
+          outputTokens: completion.usage.completion_tokens,
+          totalTokens: completion.usage.total_tokens,
         }
       : undefined;
 
     return {
       text,
-      model: response.model,
+      model: completion.model,
       usage,
     };
   }

@@ -127,14 +127,20 @@ console.log(
 
 ```
 packages/
-  ce-core/        Core algorithms (pack, diff, trace, place, quality, cost)
-  ce-providers/   OpenAI + Anthropic adapters, token estimators
-  ce-memory/      Memory stores (InMemory, File, SQLite, Redis)
-  ce-cli/         CLI with 11 commands
-  ce-web-client/  Interactive playground UI (internal, not published)
-  ce-web-server/  Dev server for playground (internal, not published)
-python/           Python SDK (full API parity + advanced features)
-schemas/          JSON Schemas shared across languages
+  ce-core/              Core algorithms (pack, diff, trace, place, quality, cost)
+  ce-providers/         OpenAI + Anthropic adapters, token estimators
+  ce-memory/            Memory stores (InMemory, File, SQLite, Redis)
+  ce-cli/               CLI with 11 commands
+  ce-sdk-interceptors/  Drop-in wrappers for OpenAI/Anthropic SDKs
+  ce-adaptive/          Adaptive weight learning from outcome feedback
+  ce-frameworks/        Middleware for LangChain, LlamaIndex, CrewAI
+  ce-debugger/          Diagnose bad model outputs via context analysis
+  ce-rag/               Context-aware RAG with information gain scoring
+  ce-router/            Route to cheapest model by context complexity
+  ce-web-client/        Interactive playground UI (internal, not published)
+  ce-web-server/        Dev server for playground (internal, not published)
+python/                 Python SDK (full API parity + advanced features)
+schemas/                JSON Schemas shared across languages
 ```
 
 ### Memory Stores
@@ -191,8 +197,8 @@ cd python && pip install -e ".[dev]"         # Python
 ### Testing
 
 ```bash
-pnpm test:all                               # TypeScript (~700 tests, as of March 2026)
-cd python && python -m pytest               # Python (~580 tests, as of March 2026)
+pnpm test:all                               # TypeScript (915+ tests across 10 packages)
+cd python && python -m pytest               # Python (700+ tests)
 pnpm check:all                              # Type checking
 ```
 

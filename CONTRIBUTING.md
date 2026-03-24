@@ -6,7 +6,7 @@ Thanks for your interest in contributing to the Context Engineering Toolkit.
 
 ### Prerequisites
 
-- Node.js 22+ (`.nvmrc` pins to Node 22)
+- Node.js 18+ (CI tests 18, 20, 22; `.nvmrc` pins to 22 for local dev)
 - pnpm 10.30.3+ (`corepack enable && corepack prepare pnpm@10.30.3 --activate`)
 - Python 3.11+
 - Git
@@ -31,10 +31,10 @@ pip install -e ".[dev]"
 ### Verify Everything Works
 
 ```bash
-# TypeScript (~700 tests across 4 packages)
+# TypeScript (915+ tests across 10 packages)
 pnpm test:all
 
-# Python (~580 tests)
+# Python (700+ tests)
 cd python && python -m pytest
 
 # Type checking
@@ -45,24 +45,36 @@ pnpm check:all
 
 ```
 packages/
-  ce-core/        Core algorithms (22+ modules including pack, diff, trace, placement, quality, cost, session, pipeline, and more)
-  ce-providers/   OpenAI + Anthropic adapters, token estimators, summarizer
-  ce-memory/      Memory stores (InMemory, File, SQLite, Redis)
-  ce-cli/         CLI (11 commands)
-  ce-web-client/  React 19 docs + demos web app
-  ce-web-server/  Express server for the web app
+  ce-core/              Core algorithms (pack, diff, trace, placement, quality, cost, session, pipeline)
+  ce-providers/         OpenAI + Anthropic adapters, token estimators, summarizer
+  ce-memory/            Memory stores (InMemory, File, SQLite, Redis)
+  ce-cli/               CLI (11 commands)
+  ce-sdk-interceptors/  Drop-in wrappers for OpenAI/Anthropic SDKs
+  ce-adaptive/          Adaptive weight learning from outcome feedback
+  ce-frameworks/        Middleware for LangChain, LlamaIndex, CrewAI
+  ce-debugger/          Diagnose bad model outputs via context analysis
+  ce-rag/               Context-aware RAG with information gain scoring
+  ce-router/            Route to cheapest model by context complexity
+  ce-web-client/        React 19 docs + demos web app
+  ce-web-server/        Express server for the web app
 python/
   context_engineering/  Python SDK (full API parity with TS + advanced features)
-  context_framework/   Tri-provider orchestration and domain runtimes
-schemas/          Shared JSON Schemas (cross-language validation)
+  context_framework/    Tri-provider orchestration and domain runtimes
+schemas/                Shared JSON Schemas (cross-language validation)
 ```
 
 ### Package Dependencies
 
 ```
-ce-cli → ce-core, ce-providers
-ce-providers → ce-core
-ce-memory → ce-core
+ce-cli               → ce-core, ce-providers
+ce-providers         → ce-core
+ce-memory            → ce-core
+ce-sdk-interceptors  → ce-core, ce-providers
+ce-adaptive          → ce-core
+ce-frameworks        → ce-core
+ce-debugger          → ce-core
+ce-rag               → ce-core
+ce-router            → ce-core
 ```
 
 Changes to `ce-core` may affect all downstream packages. Changes to `ce-memory` are isolated.

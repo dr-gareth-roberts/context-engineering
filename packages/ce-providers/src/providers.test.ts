@@ -149,6 +149,7 @@ describe("OpenAIProvider", () => {
         { role: "system", content: "Be helpful" },
         { role: "user", content: "Hi" },
       ],
+      stream: false,
       max_tokens: 200,
       temperature: 0.5,
     });
@@ -174,6 +175,7 @@ describe("OpenAIProvider", () => {
     expect(createMock).toHaveBeenCalledWith({
       model: "gpt-4.1",
       messages: [{ role: "user", content: "Hi" }],
+      stream: false,
       max_tokens: 200,
     });
   });
@@ -198,6 +200,7 @@ describe("OpenAIProvider", () => {
     expect(createMock).toHaveBeenCalledWith({
       model: "o3",
       messages: [{ role: "user", content: "Hi" }],
+      stream: false,
       max_completion_tokens: 500,
     });
   });
@@ -481,6 +484,7 @@ describe("AnthropicProvider", () => {
     expect(createMock).toHaveBeenCalledWith({
       model: "claude-opus-4-6",
       max_tokens: 4096,
+      stream: false,
       temperature: 0.7,
       messages: [{ role: "user", content: "Hi" }],
     });

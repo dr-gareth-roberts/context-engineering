@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file helps Autohand understand how to work with this project.
+This file helps AI coding agents understand how to work with this project.
 
 ## Project Overview
 
