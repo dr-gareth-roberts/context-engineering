@@ -1,0 +1,12 @@
+{
+  "name": "ce-production-agent-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/drift": "workspace:*",
+    "@context-engineering/time-travel": "workspace:*",
+    "@context-engineering/immune": "workspace:*",
+    "@context-engineering/adversarial": "workspace:*"
+  }
+}

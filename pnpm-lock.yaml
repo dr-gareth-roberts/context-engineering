@@ -153,6 +153,15 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@25.5.0)(vite@8.0.1(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
 
+  examples/code-review-council:
+    dependencies:
+      '@context-engineering/core':
+        specifier: workspace:*
+        version: link:../../packages/ce-core
+      '@context-engineering/council':
+        specifier: workspace:*
+        version: link:../../packages/ce-council
+
   examples/full-pipeline:
     dependencies:
       '@context-engineering/core':
@@ -173,6 +182,33 @@ importers:
       '@context-engineering/providers':
         specifier: workspace:*
         version: link:../../packages/ce-providers
+
+  examples/production-agent:
+    dependencies:
+      '@context-engineering/adversarial':
+        specifier: workspace:*
+        version: link:../../packages/ce-adversarial
+      '@context-engineering/core':
+        specifier: workspace:*
+        version: link:../../packages/ce-core
+      '@context-engineering/drift':
+        specifier: workspace:*
+        version: link:../../packages/ce-drift
+      '@context-engineering/immune':
+        specifier: workspace:*
+        version: link:../../packages/ce-immune
+      '@context-engineering/time-travel':
+        specifier: workspace:*
+        version: link:../../packages/ce-time-travel
+
+  examples/rag-chatbot:
+    dependencies:
+      '@context-engineering/core':
+        specifier: workspace:*
+        version: link:../../packages/ce-core
+      '@context-engineering/rag':
+        specifier: workspace:*
+        version: link:../../packages/ce-rag
 
   examples/webhook-telemetry:
     dependencies:
