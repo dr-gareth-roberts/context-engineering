@@ -5,9 +5,11 @@
 [![PyPI](https://img.shields.io/pypi/v/context-engineering)](https://pypi.org/project/context-engineering/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Dual TypeScript/Python toolkit for LLM context management — packing, caching, multi-model deliberation, adversarial testing, and multi-agent orchestration.
+**Most LLM applications waste 30-50% of their context window on redundant, stale, or irrelevant content.** This costs real money at scale — and degrades output quality silently.
 
-When you're building with LLMs, you need to decide **what context fits** in your prompt given a finite token budget. This toolkit gives you algorithms to pack context intelligently, optimize for prefix caching, estimate costs, debug quality issues, red-team your pipeline, and coordinate context across multiple agents and models.
+This toolkit fixes that. It gives you algorithms to **pack context intelligently** (greedy score-based selection), **optimize for prefix caching** (up to 90% cost reduction with Anthropic), **red-team your pipeline** (6 adversarial attack types), **have multiple models debate** (Council of Experts with 4 strategies), and **share context across agents** (entanglement mesh) — all in both TypeScript and Python with full API parity.
+
+> **17 packages** | **2,172 tests** | **Dual TS/Python** | [Wiki](./docs/wiki/Home.md)
 
 ## Quick Start
 
@@ -256,6 +258,23 @@ pnpm check:all                              # Type checking
 ```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for full development guide.
+
+## Why Not Just Truncate?
+
+The naive approach — `messages.slice(-N)` or LangChain's `ConversationBufferWindowMemory` — drops the oldest content. This fails in predictable ways:
+
+| Approach                    | What goes wrong                                                    |
+| --------------------------- | ------------------------------------------------------------------ |
+| **Truncate oldest**         | Loses the original goal/system prompt after enough turns           |
+| **Truncate by token count** | No awareness of what's important — drops high-value items randomly |
+| **Fixed window**            | Wastes budget on stale/redundant items while cutting relevant ones |
+
+This toolkit scores every item by priority, recency, and relevance, then selects the combination that maximizes value within budget. It also:
+
+- **Optimizes for cache reuse** — orders items so the stable prefix stays constant across requests (up to 90% cost reduction)
+- **Allocates by category** — "50% retrieval, 30% conversation, 20% system" ensures no single category dominates
+- **Detects quality degradation** — alerts when your context is silently losing coherence
+- **Red-teams your pipeline** — discovers which attack patterns (contradictions, noise, spoofing) break your system before users do
 
 ## Error Handling
 
