@@ -239,9 +239,7 @@ describe("InMemoryStore", () => {
     );
     await expect(store.get("a")).rejects.toThrow("InMemoryStore is closed");
     await expect(store.query()).rejects.toThrow("InMemoryStore is closed");
-    await expect(store.forget("a")).rejects.toThrow(
-      "InMemoryStore is closed"
-    );
+    await expect(store.forget("a")).rejects.toThrow("InMemoryStore is closed");
   });
 
   it("close() is idempotent", async () => {

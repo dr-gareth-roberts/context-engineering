@@ -332,16 +332,13 @@ function buildPipelinePayload(
 export function createWebhookReporter(
   options: WebhookOptions = {}
 ): WebhookReporter {
-  const analyticsUrl =
-    options.analyticsUrl ?? process.env.CE_WEBHOOK_URL ?? "";
+  const analyticsUrl = options.analyticsUrl ?? process.env.CE_WEBHOOK_URL ?? "";
   const handoffUrl =
     options.handoffUrl ?? process.env.CE_WEBHOOK_HANDOFF_URL ?? "";
   const qualityUrl =
     options.qualityUrl ?? process.env.CE_WEBHOOK_QUALITY_URL ?? "";
-  const costUrl =
-    options.costUrl ?? process.env.CE_WEBHOOK_COST_URL ?? "";
-  const sessionId =
-    options.sessionId ?? `ce-${Date.now().toString(36)}`;
+  const costUrl = options.costUrl ?? process.env.CE_WEBHOOK_COST_URL ?? "";
+  const sessionId = options.sessionId ?? `ce-${Date.now().toString(36)}`;
   const model = options.model ?? "unknown";
   const strategy = options.strategy ?? "greedy-score";
   const logger = options.logger ?? noopLogger;
@@ -388,10 +385,7 @@ export function createWebhookReporter(
       fireWebhook(analyticsUrl, payload, logger, timeoutMs, headers);
     },
 
-    reportHandoff(
-      handoff: HandoffResult,
-      extras?: HandoffReportExtras
-    ): void {
+    reportHandoff(handoff: HandoffResult, extras?: HandoffReportExtras): void {
       if (!handoffUrl) return;
       const payload: WebhookHandoffPayload = {
         event_type: "handoff",

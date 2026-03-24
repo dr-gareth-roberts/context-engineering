@@ -157,7 +157,9 @@ function header(text) {
 }
 
 function kv(key, value, color = C.cyan) {
-  console.log(`  ${C.dim}${key.padEnd(22)}${C.reset}${color}${value}${C.reset}`);
+  console.log(
+    `  ${C.dim}${key.padEnd(22)}${C.reset}${color}${value}${C.reset}`
+  );
 }
 
 function bar(label, value, max, width = 30) {
@@ -166,13 +168,15 @@ function bar(label, value, max, width = 30) {
   const empty = width - filled;
   const color = pct > 0.8 ? C.red : pct > 0.5 ? C.yellow : C.green;
   const barStr = `${color}${"█".repeat(filled)}${C.dim}${"░".repeat(empty)}${C.reset}`;
-  console.log(`  ${label.padEnd(22)}${barStr} ${color}${(pct * 100).toFixed(1)}%${C.reset}`);
+  console.log(
+    `  ${label.padEnd(22)}${barStr} ${color}${(pct * 100).toFixed(1)}%${C.reset}`
+  );
 }
 
 function json(label, obj) {
   console.log(`  ${C.dim}${label}:${C.reset}`);
   const lines = JSON.stringify(obj, null, 2).split("\n");
-  lines.forEach((line) => console.log(`    ${C.dim}${line}${C.reset}`));
+  lines.forEach(line => console.log(`    ${C.dim}${line}${C.reset}`));
 }
 
 // ─── 1. Pack with Telemetry ──────────────────────────────────────────
@@ -189,16 +193,20 @@ kv("Total tokens", `${result.totalTokens}`);
 bar("Budget utilization", result.totalTokens, budget);
 
 console.log(`\n  ${C.bold}Selected items:${C.reset}`);
-result.selected.forEach((item) => {
+result.selected.forEach(item => {
   const icon =
-    item.priority >= 0.9 ? `${C.red}!` : item.priority >= 0.7 ? `${C.yellow}*` : `${C.green}·`;
+    item.priority >= 0.9
+      ? `${C.red}!`
+      : item.priority >= 0.7
+        ? `${C.yellow}*`
+        : `${C.green}·`;
   console.log(
     `    ${icon}${C.reset} ${C.bold}${item.id}${C.reset} ${C.dim}(${item.tokens}t, p=${item.priority})${C.reset}`
   );
 });
 
 console.log(`\n  ${C.bold}Dropped items:${C.reset}`);
-result.dropped.forEach((item) => {
+result.dropped.forEach(item => {
   console.log(
     `    ${C.dim}✗ ${item.id} (${item.tokens}t, p=${item.priority})${C.reset}`
   );
@@ -210,7 +218,11 @@ header("2. Context Quality Analysis");
 
 const quality = analyzeContext(result.selected);
 
-kv("Overall score", quality.overall.toFixed(3), quality.overall > 0.7 ? C.green : C.yellow);
+kv(
+  "Overall score",
+  quality.overall.toFixed(3),
+  quality.overall > 0.7 ? C.green : C.yellow
+);
 bar("Density", quality.density, 1);
 bar("Diversity", quality.diversity, 1);
 bar("Freshness", quality.freshness, 1);
@@ -241,7 +253,7 @@ header("4. Pack Trace — Decision Log");
 
 const trace = tracePack(items, { maxTokens: budget });
 
-trace.steps.forEach((step) => {
+trace.steps.forEach(step => {
   const icon =
     step.decision === "include"
       ? `${C.green}✓`
@@ -286,7 +298,9 @@ const qualityUrl = process.env.CE_WEBHOOK_QUALITY_URL;
 const costUrl = process.env.CE_WEBHOOK_COST_URL;
 
 if (webhookUrl || handoffUrl || qualityUrl || costUrl) {
-  console.log(`  ${C.green}Live webhooks detected — firing telemetry!${C.reset}\n`);
+  console.log(
+    `  ${C.green}Live webhooks detected — firing telemetry!${C.reset}\n`
+  );
   if (webhookUrl) kv("Analytics URL", webhookUrl);
   if (handoffUrl) kv("Handoff URL", handoffUrl);
   if (qualityUrl) kv("Quality URL", qualityUrl);
@@ -310,7 +324,9 @@ if (webhookUrl || handoffUrl || qualityUrl || costUrl) {
 
   console.log(`\n  ${C.green}${C.bold}5 webhook events fired!${C.reset}`);
 } else {
-  console.log(`  ${C.yellow}No webhook URLs configured — showing payload previews${C.reset}\n`);
+  console.log(
+    `  ${C.yellow}No webhook URLs configured — showing payload previews${C.reset}\n`
+  );
 
   // Show what the payloads would look like
   const sessionId = `demo-${Date.now().toString(36)}`;
@@ -372,7 +388,7 @@ console.log(`\n  ${C.bold}JSONL preview (first 3 lines):${C.reset}`);
 handoff.jsonl
   .split("\n")
   .slice(0, 3)
-  .forEach((line) => {
+  .forEach(line => {
     const obj = JSON.parse(line);
     console.log(
       `    ${C.dim}${JSON.stringify(obj).slice(0, 80)}${obj ? "..." : ""}${C.reset}`
@@ -419,7 +435,11 @@ const customScorer = createScorer({
 });
 
 const defaultResult = pack(items, { maxTokens: budget });
-const customResult = pack(items, { maxTokens: budget }, { scorer: customScorer });
+const customResult = pack(
+  items,
+  { maxTokens: budget },
+  { scorer: customScorer }
+);
 
 console.log(`\n  ${C.bold}Default weights vs A/B config:${C.reset}`);
 kv("Default selected", `${defaultResult.selected.length} items`);
@@ -437,14 +457,24 @@ if (weights.id === "default") {
 
 header("Summary");
 
-console.log(`  ${C.bold}${C.green}Context Engineering Telemetry Demo Complete${C.reset}\n`);
+console.log(
+  `  ${C.bold}${C.green}Context Engineering Telemetry Demo Complete${C.reset}\n`
+);
 console.log(`  ${C.bold}Features demonstrated:${C.reset}`);
 console.log(`    ${C.cyan}1.${C.reset} Pack with budget constraints`);
-console.log(`    ${C.cyan}2.${C.reset} Quality analysis (density, diversity, freshness, redundancy)`);
-console.log(`    ${C.cyan}3.${C.reset} Cost estimation with prefix cache savings`);
+console.log(
+  `    ${C.cyan}2.${C.reset} Quality analysis (density, diversity, freshness, redundancy)`
+);
+console.log(
+  `    ${C.cyan}3.${C.reset} Cost estimation with prefix cache savings`
+);
 console.log(`    ${C.cyan}4.${C.reset} Decision trace logging`);
-console.log(`    ${C.cyan}5.${C.reset} Full pipeline (pack → cache topology → quality gate)`);
-console.log(`    ${C.cyan}6.${C.reset} Webhook telemetry (pack, trace, pipeline, quality, cost)`);
+console.log(
+  `    ${C.cyan}5.${C.reset} Full pipeline (pack → cache topology → quality gate)`
+);
+console.log(
+  `    ${C.cyan}6.${C.reset} Webhook telemetry (pack, trace, pipeline, quality, cost)`
+);
 console.log(`    ${C.cyan}7.${C.reset} BEADS agent handoff`);
 console.log(`    ${C.cyan}8.${C.reset} Closed-loop budget recommendations`);
 console.log(`    ${C.cyan}9.${C.reset} A/B scoring weight experimentation`);

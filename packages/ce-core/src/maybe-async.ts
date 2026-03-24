@@ -12,7 +12,7 @@ export type MaybeAsync<T> = T | Promise<T>;
  */
 export function chain<T, U>(
   value: MaybeAsync<T>,
-  fn: (v: T) => MaybeAsync<U>,
+  fn: (v: T) => MaybeAsync<U>
 ): MaybeAsync<U> {
   if (value instanceof Promise) return value.then(fn);
   return fn(value);
@@ -23,7 +23,7 @@ export function chain<T, U>(
  * If all values are sync, returns a plain array (no Promise).
  */
 export function all<T>(values: MaybeAsync<T>[]): MaybeAsync<T[]> {
-  if (values.some((v) => v instanceof Promise)) {
+  if (values.some(v => v instanceof Promise)) {
     return Promise.all(values);
   }
   return values as T[];

@@ -117,7 +117,7 @@ export function classifyVolatility(item: ContextItem): Volatility {
 type PackFn = (
   items: ContextItem[],
   budget: Budget,
-  options: PackOptions,
+  options: PackOptions
 ) => MaybeAsync<ContextPack>;
 
 /**
@@ -131,7 +131,7 @@ function packWithCacheTopologyImpl(
   budget: Budget,
   options: PackOptions,
   cacheConfig: CacheConfig,
-  packFn: PackFn,
+  packFn: PackFn
 ): MaybeAsync<CacheAwarePack> {
   validateWithSchema(CacheConfigSchema, cacheConfig, "cacheConfig");
 
@@ -182,9 +182,15 @@ function packWithCacheTopologyImpl(
   const sessionPackResult: MaybeAsync<ContextPack> =
     remaining > 0
       ? packFn(sessionItems, { maxTokens: remaining }, options)
-      : { selected: [], dropped: sessionItems, totalTokens: 0, budget, stats: {} };
+      : {
+          selected: [],
+          dropped: sessionItems,
+          totalTokens: 0,
+          budget,
+          stats: {},
+        };
 
-  return chain(sessionPackResult, (sessionPack) => {
+  return chain(sessionPackResult, sessionPack => {
     remaining -= sessionPack.totalTokens;
 
     // Request items: pack by score into whatever's left
@@ -199,7 +205,7 @@ function packWithCacheTopologyImpl(
             stats: {},
           };
 
-    return chain(requestPackResult, (requestPack) => {
+    return chain(requestPackResult, requestPack => {
       // 5. Compose final ordered list: static -> session -> request
       const selected = [
         ...selectedStatic,
@@ -207,9 +213,9 @@ function packWithCacheTopologyImpl(
         ...requestPack.selected,
       ];
 
-      const selectedStaticIds = new Set(selectedStatic.map((i) => i.id));
+      const selectedStaticIds = new Set(selectedStatic.map(i => i.id));
       const dropped = [
-        ...staticItems.filter((i) => !selectedStaticIds.has(i.id)),
+        ...staticItems.filter(i => !selectedStaticIds.has(i.id)),
         ...sessionPack.dropped,
         ...requestPack.dropped,
       ];
@@ -241,18 +247,15 @@ function packWithCacheTopologyImpl(
 
       // 7. Compute cache key from stable prefix content
       const staticContent = selectedStatic
-        .map((i) => `${i.id}:${i.content}`)
+        .map(i => `${i.id}:${i.content}`)
         .join("|");
       const cacheKey = hash64(staticContent);
 
       const staticTokens = selectedStatic.reduce(
         (sum, i) => sum + (i.tokens ?? 0),
-        0,
+        0
       );
-      const totalTokens = selected.reduce(
-        (sum, i) => sum + (i.tokens ?? 0),
-        0,
-      );
+      const totalTokens = selected.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
 
       return {
         budget,
@@ -314,14 +317,14 @@ export function packWithCacheTopology(
   items: ContextItem[],
   budget: Budget,
   options: PackOptions = {},
-  cacheConfig: CacheConfig = {},
+  cacheConfig: CacheConfig = {}
 ): CacheAwarePack {
   return packWithCacheTopologyImpl(
     items,
     budget,
     options,
     cacheConfig,
-    pack,
+    pack
   ) as CacheAwarePack;
 }
 
@@ -341,13 +344,13 @@ export async function packWithCacheTopologyAsync(
   items: ContextItem[],
   budget: Budget,
   options: PackOptions = {},
-  cacheConfig: CacheConfig = {},
+  cacheConfig: CacheConfig = {}
 ): Promise<CacheAwarePack> {
   return packWithCacheTopologyImpl(
     items,
     budget,
     options,
     cacheConfig,
-    packAsync,
+    packAsync
   ) as Promise<CacheAwarePack>;
 }

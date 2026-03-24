@@ -215,8 +215,20 @@ describe("createSession", () => {
     const session = createSession({ budget: { maxTokens: 80 } });
 
     // Two items that don't both fit. 'a' has higher priority, 'b' has higher recency.
-    const a: ContextItem = { id: "a", content: "item-a", priority: 10, recency: 1, tokens: 50 };
-    const b: ContextItem = { id: "b", content: "item-b", priority: 1, recency: 10, tokens: 50 };
+    const a: ContextItem = {
+      id: "a",
+      content: "item-a",
+      priority: 10,
+      recency: 1,
+      tokens: 50,
+    };
+    const b: ContextItem = {
+      id: "b",
+      content: "item-b",
+      priority: 1,
+      recency: 10,
+      tokens: 50,
+    };
 
     // With priority-heavy weights, 'a' should be selected
     session.setItems([a, b]);
@@ -261,8 +273,20 @@ describe("createSession", () => {
       packOptions: { weights: { priority: 1.0, recency: 0.0 } },
     });
 
-    const a: ContextItem = { id: "a", content: "item-a", priority: 10, recency: 1, tokens: 50 };
-    const b: ContextItem = { id: "b", content: "item-b", priority: 1, recency: 10, tokens: 50 };
+    const a: ContextItem = {
+      id: "a",
+      content: "item-a",
+      priority: 10,
+      recency: 1,
+      tokens: 50,
+    };
+    const b: ContextItem = {
+      id: "b",
+      content: "item-b",
+      priority: 1,
+      recency: 10,
+      tokens: 50,
+    };
 
     // Default weights should favor 'a' (high priority)
     session.setItems([a, b]);

@@ -431,9 +431,27 @@ describe("pipeline quality gate", () => {
 
   it("drops lowest-scored item first", () => {
     const items = [
-      { id: "high", content: "unique alpha content here", priority: 10, tokens: 50, score: 10 },
-      { id: "mid", content: "unique beta content here", priority: 5, tokens: 50, score: 5 },
-      { id: "low", content: "unique gamma content here", priority: 1, tokens: 50, score: 1 },
+      {
+        id: "high",
+        content: "unique alpha content here",
+        priority: 10,
+        tokens: 50,
+        score: 10,
+      },
+      {
+        id: "mid",
+        content: "unique beta content here",
+        priority: 5,
+        tokens: 50,
+        score: 5,
+      },
+      {
+        id: "low",
+        content: "unique gamma content here",
+        priority: 1,
+        tokens: 50,
+        score: 1,
+      },
     ] as import("./types.js").ContextItem[];
 
     // Use identical content to force low quality so the gate activates

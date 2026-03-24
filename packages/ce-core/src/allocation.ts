@@ -56,7 +56,7 @@ export interface AllocatedPack extends ContextPack {
 type PackFn = (
   items: ContextItem[],
   budget: Budget,
-  options: PackOptions,
+  options: PackOptions
 ) => MaybeAsync<ContextPack>;
 
 /**
@@ -70,23 +70,23 @@ function packWithAllocationImpl(
   budget: Budget,
   allocations: KindAllocation[],
   options: PackOptions,
-  packFn: PackFn,
+  packFn: PackFn
 ): MaybeAsync<AllocatedPack> {
   for (let i = 0; i < allocations.length; i++) {
     validateWithSchema(
       KindAllocationSchema,
       allocations[i],
-      `allocations[${i}]`,
+      `allocations[${i}]`
     );
   }
 
   const effectiveBudget = budget.maxTokens - (budget.reserveTokens ?? 0);
   const priorityByKind = new Map(
-    allocations.map((alloc) => [alloc.kind, alloc.priority ?? 0]),
+    allocations.map(alloc => [alloc.kind, alloc.priority ?? 0])
   );
 
   // Build a Set of allocated kinds for O(1) lookup (M1 fix)
-  const allocatedKinds = new Set(allocations.map((a) => a.kind));
+  const allocatedKinds = new Set(allocations.map(a => a.kind));
 
   // Group items by kind
   const kindGroups = new Map<string, ContextItem[]>();
@@ -126,7 +126,7 @@ function packWithAllocationImpl(
   if (allocatedTotal > effectiveBudget) {
     let overflow = allocatedTotal - effectiveBudget;
     const adjustable = [...allocations].sort(
-      (a, b) => (a.priority ?? 0) - (b.priority ?? 0),
+      (a, b) => (a.priority ?? 0) - (b.priority ?? 0)
     );
 
     for (const alloc of adjustable) {
@@ -177,7 +177,7 @@ function packWithAllocationImpl(
 
       return chain(
         packFn(kindItems, { maxTokens: kindBudget }, options),
-        (result) => {
+        result => {
           kindResults.set(alloc.kind, {
             selected: result.selected,
             dropped: result.dropped,
@@ -186,7 +186,7 @@ function packWithAllocationImpl(
 
           const surplus = kindBudget - result.totalTokens;
           if (surplus > 0) totalSurplus += surplus;
-        },
+        }
       );
     });
   }
@@ -197,7 +197,7 @@ function packWithAllocationImpl(
 
     if (totalSurplus > 0) {
       const sortedByPriority = [...allocations].sort(
-        (a, b) => (b.priority ?? 0) - (a.priority ?? 0),
+        (a, b) => (b.priority ?? 0) - (a.priority ?? 0)
       );
 
       for (const alloc of sortedByPriority) {
@@ -217,17 +217,17 @@ function packWithAllocationImpl(
           const extraBudget = Math.min(totalSurplus, maxExtra);
           return chain(
             packFn(result.dropped, { maxTokens: extraBudget }, options),
-            (extraPack) => {
+            extraPack => {
               result.selected.push(...extraPack.selected);
               result.dropped = extraPack.dropped;
               result.used += extraPack.totalTokens;
               kindBudgets.set(
                 alloc.kind,
                 (kindBudgets.get(alloc.kind) ?? result.used) +
-                  extraPack.totalTokens,
+                  extraPack.totalTokens
               );
               totalSurplus -= extraPack.totalTokens;
-            },
+            }
           );
         });
       }
@@ -237,7 +237,7 @@ function packWithAllocationImpl(
     return chain(redistributeChain, () => {
       const usedSoFar = Array.from(kindResults.values()).reduce(
         (sum, r) => sum + r.used,
-        0,
+        0
       );
       const remainingBudget = effectiveBudget - usedSoFar;
 
@@ -248,14 +248,14 @@ function packWithAllocationImpl(
         uncategorized.length > 0 && remainingBudget > 0
           ? chain(
               packFn(uncategorized, { maxTokens: remainingBudget }, options),
-              (result) => ({
+              result => ({
                 selected: result.selected,
                 dropped: result.dropped,
-              }),
+              })
             )
           : { selected: [], dropped: uncategorized };
 
-      return chain(uncatPack, (uncategorizedResult) => {
+      return chain(uncatPack, uncategorizedResult => {
         // Compose final result
         const allSelected: ContextItem[] = [];
         const allDropped: ContextItem[] = [];
@@ -273,7 +273,7 @@ function packWithAllocationImpl(
             itemCount: result.selected.length,
             surplus: Math.max(
               0,
-              (kindBudgets.get(alloc.kind) ?? 0) - result.used,
+              (kindBudgets.get(alloc.kind) ?? 0) - result.used
             ),
           };
         }
@@ -295,7 +295,7 @@ function packWithAllocationImpl(
         ) {
           const uncatTokens = uncategorizedResult.selected.reduce(
             (sum, i) => sum + (i.tokens ?? 0),
-            0,
+            0
           );
           allocResult["_uncategorized"] = {
             kind: "_uncategorized",
@@ -308,7 +308,7 @@ function packWithAllocationImpl(
 
         const totalTokens = allSelected.reduce(
           (sum, i) => sum + (i.tokens ?? 0),
-          0,
+          0
         );
 
         // Compute allocation efficiency: how close actual ratios match targets
@@ -379,14 +379,14 @@ export function packWithAllocation(
   items: ContextItem[],
   budget: Budget,
   allocations: KindAllocation[],
-  options: PackOptions = {},
+  options: PackOptions = {}
 ): AllocatedPack {
   return packWithAllocationImpl(
     items,
     budget,
     allocations,
     options,
-    pack,
+    pack
   ) as AllocatedPack;
 }
 
@@ -406,13 +406,13 @@ export async function packWithAllocationAsync(
   items: ContextItem[],
   budget: Budget,
   allocations: KindAllocation[],
-  options: PackOptions = {},
+  options: PackOptions = {}
 ): Promise<AllocatedPack> {
   return packWithAllocationImpl(
     items,
     budget,
     allocations,
     options,
-    packAsync,
+    packAsync
   ) as Promise<AllocatedPack>;
 }

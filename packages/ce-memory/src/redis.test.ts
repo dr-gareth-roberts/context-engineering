@@ -213,7 +213,12 @@ describe("RedisStore - TTL via applyQueryFilter", () => {
   it("pipeline errors cause put() to throw", async () => {
     const store = new RedisStore("redis://localhost:6379");
     pipelineExecOverride = async () => {
-      return [[new Error("READONLY You can't write against a read only replica"), null]];
+      return [
+        [
+          new Error("READONLY You can't write against a read only replica"),
+          null,
+        ],
+      ];
     };
 
     await expect(

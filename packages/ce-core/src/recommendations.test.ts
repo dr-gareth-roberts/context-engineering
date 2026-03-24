@@ -64,9 +64,10 @@ describe("fetchBudgetRecommendation", () => {
 
   it("returns fallback budget on timeout", async () => {
     vi.mocked(fetch).mockImplementationOnce(
-      () => new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("aborted")), 50);
-      })
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("aborted")), 50);
+        })
     );
 
     const rec = await fetchBudgetRecommendation("sess-1", {
@@ -210,9 +211,9 @@ describe("fetchBudgetRecommendation", () => {
     });
 
     const calledOptions = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
-    expect((calledOptions.headers as Record<string, string>).Authorization).toBe(
-      "Bearer test-token"
-    );
+    expect(
+      (calledOptions.headers as Record<string, string>).Authorization
+    ).toBe("Bearer test-token");
   });
 });
 
@@ -305,7 +306,12 @@ describe("fetchWeightConfig", () => {
   it("reads weights URL from env var", async () => {
     process.env.CE_WEIGHTS_URL = "https://env.example.com/weights";
     vi.mocked(fetch).mockResolvedValueOnce(
-      jsonResponse({ id: "env-config", priority: 2.0, recency: 0.1, salience: 0.9 })
+      jsonResponse({
+        id: "env-config",
+        priority: 2.0,
+        recency: 0.1,
+        salience: 0.9,
+      })
     );
 
     const config = await fetchWeightConfig("sess-1");
@@ -319,7 +325,12 @@ describe("fetchWeightConfig", () => {
   it("explicit URL overrides env var", async () => {
     process.env.CE_WEIGHTS_URL = "https://env.example.com/weights";
     vi.mocked(fetch).mockResolvedValueOnce(
-      jsonResponse({ id: "explicit-config", priority: 1.2, recency: 0.6, salience: 0.4 })
+      jsonResponse({
+        id: "explicit-config",
+        priority: 1.2,
+        recency: 0.6,
+        salience: 0.4,
+      })
     );
 
     const config = await fetchWeightConfig("sess-1", {

@@ -1,965 +1,1430 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CE Telemetry Dashboard</title>
-<style>
-  :root {
-    --bg: #0a0e17;
-    --surface: #111827;
-    --surface2: #1a2332;
-    --border: #1e293b;
-    --text: #e2e8f0;
-    --text-dim: #64748b;
-    --cyan: #22d3ee;
-    --green: #10b981;
-    --yellow: #f59e0b;
-    --red: #ef4444;
-    --magenta: #c084fc;
-    --blue: #3b82f6;
-    --orange: #f97316;
-    --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.3);
-    --glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
-    --radius: 12px;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 32px;
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(34, 211, 238, 0.05) 0%, transparent 100%);
-  }
-
-  .header h1 {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-
-  .header h1 span { color: var(--cyan); }
-
-  .header .status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  .header .status .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
-    50% { opacity: 0.5; box-shadow: 0 0 12px var(--green); }
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    padding: 24px 32px;
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-
-  .card:hover {
-    border-color: rgba(34, 211, 238, 0.3);
-    box-shadow: var(--glow-cyan);
-  }
-
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-  }
-
-  .card-title {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-  }
-
-  .card-badge {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(34, 211, 238, 0.1);
-    color: var(--cyan);
-    border: 1px solid rgba(34, 211, 238, 0.2);
-  }
-
-  .big-number {
-    font-size: 36px;
-    font-weight: 700;
-    letter-spacing: -0.04em;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-
-  .big-label {
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  .gauge-container {
-    position: relative;
-    width: 100%;
-    height: 12px;
-    background: var(--surface2);
-    border-radius: 6px;
-    margin-top: 16px;
-    overflow: hidden;
-  }
-
-  .gauge-fill {
-    height: 100%;
-    border-radius: 6px;
-    transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
-    position: relative;
-  }
-
-  .gauge-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 40px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2));
-    animation: shimmer 2s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 1; }
-  }
-
-  .gauge-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 6px;
-  }
-
-  .card.wide { grid-column: span 2; }
-  .card.full { grid-column: span 3; }
-
-  .radar-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 32px;
-  }
-
-  .radar-svg { width: 200px; height: 200px; }
-
-  .radar-labels { display: flex; flex-direction: column; gap: 8px; }
-
-  .radar-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-  }
-
-  .radar-dot { width: 8px; height: 8px; border-radius: 2px; }
-
-  .radar-value {
-    color: var(--text);
-    font-weight: 600;
-    margin-left: auto;
-    min-width: 40px;
-    text-align: right;
-  }
-
-  .timeline { display: flex; flex-direction: column; gap: 8px; }
-
-  .timeline-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
-    background: var(--surface2);
-    border-radius: 8px;
-    font-size: 12px;
-    opacity: 0;
-    transform: translateX(-20px);
-    animation: slideIn 0.5s ease-out forwards;
-  }
-
-  @keyframes slideIn {
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  .timeline-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    flex-shrink: 0;
-  }
-
-  .timeline-text { flex: 1; color: var(--text-dim); }
-  .timeline-text strong { color: var(--text); }
-  .timeline-time { color: var(--text-dim); font-size: 10px; }
-
-  .waterfall {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 12px;
-  }
-
-  .waterfall-stage {
-    flex: 1;
-    padding: 10px 8px;
-    background: var(--surface2);
-    border-radius: 8px;
-    text-align: center;
-    font-size: 11px;
-    border: 1px solid transparent;
-    transition: all 0.3s;
-  }
-
-  .waterfall-stage.active {
-    border-color: var(--cyan);
-    box-shadow: var(--glow-cyan);
-  }
-
-  .waterfall-stage .stage-name { font-weight: 600; color: var(--text); margin-bottom: 2px; }
-  .waterfall-stage .stage-detail { color: var(--text-dim); font-size: 10px; }
-
-  .waterfall-arrow { color: var(--text-dim); font-size: 14px; flex-shrink: 0; }
-
-  .cost-bars { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
-  .cost-bar-row { display: flex; align-items: center; gap: 12px; }
-  .cost-bar-label { width: 100px; font-size: 11px; color: var(--text-dim); text-align: right; }
-
-  .cost-bar-track {
-    flex: 1;
-    height: 24px;
-    background: var(--surface2);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-
-  .cost-bar-fill {
-    height: 100%;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    font-size: 11px;
-    font-weight: 600;
-    transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .handoff-flow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 12px;
-  }
-
-  .agent-node {
-    padding: 12px 20px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    text-align: center;
-    min-width: 120px;
-  }
-
-  .agent-node.source { border-color: var(--cyan); }
-  .agent-node.target { border-color: var(--green); }
-  .agent-name { font-weight: 600; font-size: 13px; }
-  .agent-detail { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
-
-  .flow-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .flow-line {
-    height: 2px;
-    width: 80px;
-    background: linear-gradient(90deg, var(--cyan), var(--green));
-  }
-  .flow-label { font-size: 10px; color: var(--text-dim); }
-
-  .ab-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-
-  .ab-variant {
-    padding: 12px;
-    background: var(--surface2);
-    border-radius: 8px;
-    border: 1px solid var(--border);
-  }
-
-  .ab-variant.winner { border-color: var(--green); }
-
-  .ab-variant-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-
-  .ab-variant-name { font-weight: 600; font-size: 12px; }
-
-  .ab-variant-tag {
-    font-size: 9px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--green);
-  }
-
-  .ab-metric {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    padding: 4px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-  }
-
-  .ab-metric:last-child { border: none; }
-  .ab-metric span:first-child { color: var(--text-dim); }
-  .ab-metric span:last-child { font-weight: 600; }
-
-  .payload-viewer {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    font-size: 11px;
-    line-height: 1.6;
-    max-height: 300px;
-    overflow-y: auto;
-    margin-top: 12px;
-  }
-
-  .payload-key { color: var(--cyan); }
-  .payload-string { color: var(--green); }
-  .payload-number { color: var(--yellow); }
-
-  .controls {
-    padding: 16px 32px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .control-group { display: flex; align-items: center; gap: 8px; }
-  .control-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-
-  input[type="range"] {
-    -webkit-appearance: none;
-    height: 4px;
-    background: var(--surface2);
-    border-radius: 2px;
-    outline: none;
-    width: 120px;
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--cyan);
-    cursor: pointer;
-    box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
-  }
-
-  .control-value { font-size: 12px; font-weight: 600; color: var(--cyan); min-width: 48px; }
-
-  button.run-btn {
-    background: linear-gradient(135deg, var(--cyan), var(--blue));
-    color: var(--bg);
-    border: none;
-    padding: 8px 20px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: inherit;
-    letter-spacing: 0.02em;
-  }
-
-  button.run-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(34, 211, 238, 0.3);
-  }
-
-  .event-counter {
-    margin-left: auto;
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-
-  .event-counter strong { color: var(--cyan); font-size: 14px; }
-</style>
-</head>
-<body>
-
-<div class="header">
-  <h1><span>CE</span> Telemetry Dashboard</h1>
-  <div class="status">
-    <div class="dot"></div>
-    <span id="status-text">Simulation Ready</span>
-  </div>
-</div>
-
-<div class="controls">
-  <div class="control-group">
-    <span class="control-label">Budget</span>
-    <input type="range" id="budget" min="50" max="500" value="200" step="10">
-    <span class="control-value" id="budget-val">200</span>
-  </div>
-  <div class="control-group">
-    <span class="control-label">Priority W</span>
-    <input type="range" id="w-priority" min="0" max="2" value="1" step="0.1">
-    <span class="control-value" id="w-priority-val">1.0</span>
-  </div>
-  <div class="control-group">
-    <span class="control-label">Recency W</span>
-    <input type="range" id="w-recency" min="0" max="2" value="0.7" step="0.1">
-    <span class="control-value" id="w-recency-val">0.7</span>
-  </div>
-  <div class="control-group">
-    <span class="control-label">Salience W</span>
-    <input type="range" id="w-salience" min="0" max="2" value="0.5" step="0.1">
-    <span class="control-value" id="w-salience-val">0.5</span>
-  </div>
-  <button class="run-btn" id="run-btn">RUN SIMULATION</button>
-  <div class="event-counter">
-    Events: <strong id="event-count">0</strong>
-  </div>
-</div>
-
-<div class="grid" id="dashboard">
-  <!-- Budget Utilization -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Budget Utilization</span>
-      <span class="card-badge">pack</span>
-    </div>
-    <div class="big-number" id="util-pct" style="color: var(--green)">0%</div>
-    <div class="big-label"><span id="used-tokens">0</span> / <span id="max-tokens">200</span> tokens</div>
-    <div class="gauge-container">
-      <div class="gauge-fill" id="util-gauge" style="width: 0%; background: linear-gradient(90deg, var(--green), var(--cyan));"></div>
-    </div>
-    <div class="gauge-label">
-      <span>0%</span>
-      <span>Selected: <span id="selected-count">0</span> | Dropped: <span id="dropped-count">0</span></span>
-      <span>100%</span>
-    </div>
-  </div>
-
-  <!-- Quality Radar -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Quality Analysis</span>
-      <span class="card-badge">quality</span>
-    </div>
-    <div class="radar-container">
-      <svg class="radar-svg" viewBox="0 0 200 200" id="radar-svg"></svg>
-      <div class="radar-labels">
-        <div class="radar-label"><div class="radar-dot" style="background: var(--cyan)"></div> Density <span class="radar-value" id="q-density">0</span></div>
-        <div class="radar-label"><div class="radar-dot" style="background: var(--green)"></div> Diversity <span class="radar-value" id="q-diversity">0</span></div>
-        <div class="radar-label"><div class="radar-dot" style="background: var(--yellow)"></div> Freshness <span class="radar-value" id="q-freshness">0</span></div>
-        <div class="radar-label"><div class="radar-dot" style="background: var(--red)"></div> Redundancy <span class="radar-value" id="q-redundancy">0</span></div>
-        <div class="radar-label"><div class="radar-dot" style="background: var(--magenta)"></div> <strong>Overall</strong> <span class="radar-value" id="q-overall" style="color: var(--magenta)">0</span></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CE Telemetry Dashboard</title>
+    <style>
+      :root {
+        --bg: #0a0e17;
+        --surface: #111827;
+        --surface2: #1a2332;
+        --border: #1e293b;
+        --text: #e2e8f0;
+        --text-dim: #64748b;
+        --cyan: #22d3ee;
+        --green: #10b981;
+        --yellow: #f59e0b;
+        --red: #ef4444;
+        --magenta: #c084fc;
+        --blue: #3b82f6;
+        --orange: #f97316;
+        --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.3);
+        --glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
+        --radius: 12px;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 32px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(
+          180deg,
+          rgba(34, 211, 238, 0.05) 0%,
+          transparent 100%
+        );
+      }
+
+      .header h1 {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .header h1 span {
+        color: var(--cyan);
+      }
+
+      .header .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      .header .status .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          box-shadow: 0 0 4px var(--green);
+        }
+        50% {
+          opacity: 0.5;
+          box-shadow: 0 0 12px var(--green);
+        }
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        padding: 24px 32px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        transition:
+          border-color 0.3s,
+          box-shadow 0.3s;
+      }
+
+      .card:hover {
+        border-color: rgba(34, 211, 238, 0.3);
+        box-shadow: var(--glow-cyan);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .card-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-dim);
+      }
+
+      .card-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(34, 211, 238, 0.1);
+        color: var(--cyan);
+        border: 1px solid rgba(34, 211, 238, 0.2);
+      }
+
+      .big-number {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+
+      .big-label {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      .gauge-container {
+        position: relative;
+        width: 100%;
+        height: 12px;
+        background: var(--surface2);
+        border-radius: 6px;
+        margin-top: 16px;
+        overflow: hidden;
+      }
+
+      .gauge-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+        position: relative;
+      }
+
+      .gauge-fill::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 40px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2)
+        );
+        animation: shimmer 2s ease-in-out infinite;
+      }
+
+      @keyframes shimmer {
+        0%,
+        100% {
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      .gauge-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 6px;
+      }
+
+      .card.wide {
+        grid-column: span 2;
+      }
+      .card.full {
+        grid-column: span 3;
+      }
+
+      .radar-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 32px;
+      }
+
+      .radar-svg {
+        width: 200px;
+        height: 200px;
+      }
+
+      .radar-labels {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .radar-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      .radar-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+      }
+
+      .radar-value {
+        color: var(--text);
+        font-weight: 600;
+        margin-left: auto;
+        min-width: 40px;
+        text-align: right;
+      }
+
+      .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .timeline-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        background: var(--surface2);
+        border-radius: 8px;
+        font-size: 12px;
+        opacity: 0;
+        transform: translateX(-20px);
+        animation: slideIn 0.5s ease-out forwards;
+      }
+
+      @keyframes slideIn {
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .timeline-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      .timeline-text {
+        flex: 1;
+        color: var(--text-dim);
+      }
+      .timeline-text strong {
+        color: var(--text);
+      }
+      .timeline-time {
+        color: var(--text-dim);
+        font-size: 10px;
+      }
+
+      .waterfall {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 12px;
+      }
+
+      .waterfall-stage {
+        flex: 1;
+        padding: 10px 8px;
+        background: var(--surface2);
+        border-radius: 8px;
+        text-align: center;
+        font-size: 11px;
+        border: 1px solid transparent;
+        transition: all 0.3s;
+      }
+
+      .waterfall-stage.active {
+        border-color: var(--cyan);
+        box-shadow: var(--glow-cyan);
+      }
+
+      .waterfall-stage .stage-name {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 2px;
+      }
+      .waterfall-stage .stage-detail {
+        color: var(--text-dim);
+        font-size: 10px;
+      }
+
+      .waterfall-arrow {
+        color: var(--text-dim);
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+
+      .cost-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .cost-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .cost-bar-label {
+        width: 100px;
+        font-size: 11px;
+        color: var(--text-dim);
+        text-align: right;
+      }
+
+      .cost-bar-track {
+        flex: 1;
+        height: 24px;
+        background: var(--surface2);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .cost-bar-fill {
+        height: 100%;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        font-size: 11px;
+        font-weight: 600;
+        transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .handoff-flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 12px;
+      }
+
+      .agent-node {
+        padding: 12px 20px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        text-align: center;
+        min-width: 120px;
+      }
+
+      .agent-node.source {
+        border-color: var(--cyan);
+      }
+      .agent-node.target {
+        border-color: var(--green);
+      }
+      .agent-name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .agent-detail {
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+
+      .flow-arrow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .flow-line {
+        height: 2px;
+        width: 80px;
+        background: linear-gradient(90deg, var(--cyan), var(--green));
+      }
+      .flow-label {
+        font-size: 10px;
+        color: var(--text-dim);
+      }
+
+      .ab-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .ab-variant {
+        padding: 12px;
+        background: var(--surface2);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+      }
+
+      .ab-variant.winner {
+        border-color: var(--green);
+      }
+
+      .ab-variant-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .ab-variant-name {
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .ab-variant-tag {
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--green);
+      }
+
+      .ab-metric {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      }
+
+      .ab-metric:last-child {
+        border: none;
+      }
+      .ab-metric span:first-child {
+        color: var(--text-dim);
+      }
+      .ab-metric span:last-child {
+        font-weight: 600;
+      }
+
+      .payload-viewer {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        font-size: 11px;
+        line-height: 1.6;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 12px;
+      }
+
+      .payload-key {
+        color: var(--cyan);
+      }
+      .payload-string {
+        color: var(--green);
+      }
+      .payload-number {
+        color: var(--yellow);
+      }
+
+      .controls {
+        padding: 16px 32px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .control-label {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        height: 4px;
+        background: var(--surface2);
+        border-radius: 2px;
+        outline: none;
+        width: 120px;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--cyan);
+        cursor: pointer;
+        box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+      }
+
+      .control-value {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--cyan);
+        min-width: 48px;
+      }
+
+      button.run-btn {
+        background: linear-gradient(135deg, var(--cyan), var(--blue));
+        color: var(--bg);
+        border: none;
+        padding: 8px 20px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+        letter-spacing: 0.02em;
+      }
+
+      button.run-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 20px rgba(34, 211, 238, 0.3);
+      }
+
+      .event-counter {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+
+      .event-counter strong {
+        color: var(--cyan);
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1><span>CE</span> Telemetry Dashboard</h1>
+      <div class="status">
+        <div class="dot"></div>
+        <span id="status-text">Simulation Ready</span>
       </div>
     </div>
-  </div>
 
-  <!-- Cost Comparison -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Cost Analysis</span>
-      <span class="card-badge">cost</span>
+    <div class="controls">
+      <div class="control-group">
+        <span class="control-label">Budget</span>
+        <input
+          type="range"
+          id="budget"
+          min="50"
+          max="500"
+          value="200"
+          step="10"
+        />
+        <span class="control-value" id="budget-val">200</span>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Priority W</span>
+        <input
+          type="range"
+          id="w-priority"
+          min="0"
+          max="2"
+          value="1"
+          step="0.1"
+        />
+        <span class="control-value" id="w-priority-val">1.0</span>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Recency W</span>
+        <input
+          type="range"
+          id="w-recency"
+          min="0"
+          max="2"
+          value="0.7"
+          step="0.1"
+        />
+        <span class="control-value" id="w-recency-val">0.7</span>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Salience W</span>
+        <input
+          type="range"
+          id="w-salience"
+          min="0"
+          max="2"
+          value="0.5"
+          step="0.1"
+        />
+        <span class="control-value" id="w-salience-val">0.5</span>
+      </div>
+      <button class="run-btn" id="run-btn">RUN SIMULATION</button>
+      <div class="event-counter">
+        Events: <strong id="event-count">0</strong>
+      </div>
     </div>
-    <div class="cost-bars">
-      <div class="cost-bar-row">
-        <span class="cost-bar-label">Without cache</span>
-        <div class="cost-bar-track">
-          <div class="cost-bar-fill" id="cost-nocache-bar" style="width: 0%; background: var(--red);"></div>
+
+    <div class="grid" id="dashboard">
+      <!-- Budget Utilization -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Budget Utilization</span>
+          <span class="card-badge">pack</span>
+        </div>
+        <div class="big-number" id="util-pct" style="color: var(--green)">
+          0%
+        </div>
+        <div class="big-label">
+          <span id="used-tokens">0</span> /
+          <span id="max-tokens">200</span> tokens
+        </div>
+        <div class="gauge-container">
+          <div
+            class="gauge-fill"
+            id="util-gauge"
+            style="
+              width: 0%;
+              background: linear-gradient(90deg, var(--green), var(--cyan));
+            "
+          ></div>
+        </div>
+        <div class="gauge-label">
+          <span>0%</span>
+          <span
+            >Selected: <span id="selected-count">0</span> | Dropped:
+            <span id="dropped-count">0</span></span
+          >
+          <span>100%</span>
         </div>
       </div>
-      <div class="cost-bar-row">
-        <span class="cost-bar-label">With cache</span>
-        <div class="cost-bar-track">
-          <div class="cost-bar-fill" id="cost-cache-bar" style="width: 0%; background: var(--green);"></div>
+
+      <!-- Quality Radar -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Quality Analysis</span>
+          <span class="card-badge">quality</span>
+        </div>
+        <div class="radar-container">
+          <svg class="radar-svg" viewBox="0 0 200 200" id="radar-svg"></svg>
+          <div class="radar-labels">
+            <div class="radar-label">
+              <div class="radar-dot" style="background: var(--cyan)"></div>
+              Density <span class="radar-value" id="q-density">0</span>
+            </div>
+            <div class="radar-label">
+              <div class="radar-dot" style="background: var(--green)"></div>
+              Diversity <span class="radar-value" id="q-diversity">0</span>
+            </div>
+            <div class="radar-label">
+              <div class="radar-dot" style="background: var(--yellow)"></div>
+              Freshness <span class="radar-value" id="q-freshness">0</span>
+            </div>
+            <div class="radar-label">
+              <div class="radar-dot" style="background: var(--red)"></div>
+              Redundancy <span class="radar-value" id="q-redundancy">0</span>
+            </div>
+            <div class="radar-label">
+              <div class="radar-dot" style="background: var(--magenta)"></div>
+              <strong>Overall</strong>
+              <span
+                class="radar-value"
+                id="q-overall"
+                style="color: var(--magenta)"
+                >0</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost Comparison -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Cost Analysis</span>
+          <span class="card-badge">cost</span>
+        </div>
+        <div class="cost-bars">
+          <div class="cost-bar-row">
+            <span class="cost-bar-label">Without cache</span>
+            <div class="cost-bar-track">
+              <div
+                class="cost-bar-fill"
+                id="cost-nocache-bar"
+                style="width: 0%; background: var(--red)"
+              ></div>
+            </div>
+          </div>
+          <div class="cost-bar-row">
+            <span class="cost-bar-label">With cache</span>
+            <div class="cost-bar-track">
+              <div
+                class="cost-bar-fill"
+                id="cost-cache-bar"
+                style="width: 0%; background: var(--green)"
+              ></div>
+            </div>
+          </div>
+        </div>
+        <div
+          style="
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+          "
+        >
+          <span style="color: var(--text-dim)">Savings</span>
+          <span style="color: var(--green); font-weight: 700" id="cost-savings"
+            >$0 (0%)</span
+          >
+        </div>
+        <div class="gauge-container" style="margin-top: 8px">
+          <div
+            class="gauge-fill"
+            id="cache-eff-gauge"
+            style="
+              width: 0%;
+              background: linear-gradient(90deg, var(--blue), var(--green));
+            "
+          ></div>
+        </div>
+        <div class="gauge-label">
+          <span>Cache Efficiency</span>
+          <span id="cache-eff-val">0%</span>
+        </div>
+      </div>
+
+      <!-- Pipeline Waterfall -->
+      <div class="card wide">
+        <div class="card-header">
+          <span class="card-title">Pipeline Stages</span>
+          <span class="card-badge">pipeline</span>
+        </div>
+        <div class="waterfall" id="waterfall"></div>
+      </div>
+
+      <!-- Handoff Flow -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">BEADS Handoff</span>
+          <span class="card-badge">handoff</span>
+        </div>
+        <div class="handoff-flow">
+          <div class="agent-node source">
+            <div class="agent-name">Agent A</div>
+            <div class="agent-detail" id="handoff-active">0 active</div>
+          </div>
+          <div class="flow-arrow">
+            <div class="flow-line"></div>
+            <span class="flow-label" id="handoff-size">0 bytes</span>
+          </div>
+          <div class="agent-node target">
+            <div class="agent-name">Agent B</div>
+            <div class="agent-detail" id="handoff-deferred">0 deferred</div>
+          </div>
+        </div>
+        <div
+          style="
+            margin-top: 16px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-dim);
+          "
+        >
+          Total issues:
+          <strong id="handoff-total" style="color: var(--text)">0</strong>
+        </div>
+      </div>
+
+      <!-- A/B Experiment -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">A/B Scoring Experiment</span>
+          <span class="card-badge">experiment</span>
+        </div>
+        <div class="ab-panel" id="ab-panel"></div>
+      </div>
+
+      <!-- Trace Decisions -->
+      <div class="card wide">
+        <div class="card-header">
+          <span class="card-title">Decision Trace</span>
+          <span class="card-badge">trace</span>
+        </div>
+        <div class="timeline" id="trace-timeline"></div>
+      </div>
+
+      <!-- Webhook Payload Viewer -->
+      <div class="card full">
+        <div class="card-header">
+          <span class="card-title">Live Webhook Payloads</span>
+          <span class="card-badge" id="payload-count">0 events</span>
+        </div>
+        <div class="payload-viewer" id="payload-viewer">
+          <span style="color: var(--text-dim)"
+            >Click RUN SIMULATION to generate telemetry events...</span
+          >
         </div>
       </div>
     </div>
-    <div style="margin-top: 16px; display: flex; justify-content: space-between; font-size: 12px;">
-      <span style="color: var(--text-dim)">Savings</span>
-      <span style="color: var(--green); font-weight: 700;" id="cost-savings">$0 (0%)</span>
-    </div>
-    <div class="gauge-container" style="margin-top: 8px;">
-      <div class="gauge-fill" id="cache-eff-gauge" style="width: 0%; background: linear-gradient(90deg, var(--blue), var(--green));"></div>
-    </div>
-    <div class="gauge-label">
-      <span>Cache Efficiency</span>
-      <span id="cache-eff-val">0%</span>
-    </div>
-  </div>
 
-  <!-- Pipeline Waterfall -->
-  <div class="card wide">
-    <div class="card-header">
-      <span class="card-title">Pipeline Stages</span>
-      <span class="card-badge">pipeline</span>
-    </div>
-    <div class="waterfall" id="waterfall"></div>
-  </div>
+    <script>
+      // NOTE: This dashboard is a self-contained simulation. All data is
+      // generated from the same scoring/packing algorithm used in CE core.
+      // No external data is loaded; all DOM updates use textContent or
+      // safe SVG attribute APIs to avoid XSS risks.
 
-  <!-- Handoff Flow -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">BEADS Handoff</span>
-      <span class="card-badge">handoff</span>
-    </div>
-    <div class="handoff-flow">
-      <div class="agent-node source">
-        <div class="agent-name">Agent A</div>
-        <div class="agent-detail" id="handoff-active">0 active</div>
-      </div>
-      <div class="flow-arrow">
-        <div class="flow-line"></div>
-        <span class="flow-label" id="handoff-size">0 bytes</span>
-      </div>
-      <div class="agent-node target">
-        <div class="agent-name">Agent B</div>
-        <div class="agent-detail" id="handoff-deferred">0 deferred</div>
-      </div>
-    </div>
-    <div style="margin-top: 16px; text-align: center; font-size: 11px; color: var(--text-dim);">
-      Total issues: <strong id="handoff-total" style="color: var(--text)">0</strong>
-    </div>
-  </div>
+      const ITEMS = [
+        {
+          id: "system-prompt",
+          kind: "system",
+          priority: 1.0,
+          recency: 0.5,
+          salience: 0.5,
+          tokens: 25,
+        },
+        {
+          id: "arch-decision",
+          kind: "knowledge",
+          priority: 0.9,
+          recency: 0.8,
+          salience: 0.95,
+          tokens: 35,
+        },
+        {
+          id: "perf-requirement",
+          kind: "constraint",
+          priority: 0.85,
+          recency: 0.3,
+          salience: 0.5,
+          tokens: 22,
+        },
+        {
+          id: "recent-pr",
+          kind: "code-change",
+          priority: 0.7,
+          recency: 1.0,
+          salience: 0.8,
+          tokens: 30,
+        },
+        {
+          id: "debug-context",
+          kind: "debug",
+          priority: 0.95,
+          recency: 1.0,
+          salience: 1.0,
+          tokens: 45,
+        },
+        {
+          id: "team-convention",
+          kind: "convention",
+          priority: 0.6,
+          recency: 0.2,
+          salience: 0.3,
+          tokens: 28,
+        },
+        {
+          id: "stale-meeting-notes",
+          kind: "notes",
+          priority: 0.2,
+          recency: 0.1,
+          salience: 0.1,
+          tokens: 22,
+        },
+        {
+          id: "api-docs",
+          kind: "documentation",
+          priority: 0.75,
+          recency: 0.6,
+          salience: 0.7,
+          tokens: 40,
+        },
+        {
+          id: "low-value-log",
+          kind: "log",
+          priority: 0.1,
+          recency: 0.9,
+          salience: 0.1,
+          tokens: 18,
+        },
+        {
+          id: "security-alert",
+          kind: "alert",
+          priority: 1.0,
+          recency: 1.0,
+          salience: 1.0,
+          tokens: 35,
+        },
+      ];
 
-  <!-- A/B Experiment -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">A/B Scoring Experiment</span>
-      <span class="card-badge">experiment</span>
-    </div>
-    <div class="ab-panel" id="ab-panel"></div>
-  </div>
+      function scoreItem(item, w) {
+        return (
+          (item.priority || 0) * w.priority +
+          (item.recency || 0) * w.recency +
+          (item.salience || 0) * w.salience
+        );
+      }
 
-  <!-- Trace Decisions -->
-  <div class="card wide">
-    <div class="card-header">
-      <span class="card-title">Decision Trace</span>
-      <span class="card-badge">trace</span>
-    </div>
-    <div class="timeline" id="trace-timeline"></div>
-  </div>
+      function simulatePack(items, budget, w) {
+        const scored = items
+          .map(item => ({ ...item, score: scoreItem(item, w) }))
+          .sort((a, b) => b.score - a.score);
+        const selected = [],
+          dropped = [];
+        let totalTokens = 0;
+        for (const item of scored) {
+          if (totalTokens + item.tokens <= budget) {
+            selected.push(item);
+            totalTokens += item.tokens;
+          } else {
+            dropped.push(item);
+          }
+        }
+        return {
+          selected,
+          dropped,
+          totalTokens,
+          budget: { maxTokens: budget },
+        };
+      }
 
-  <!-- Webhook Payload Viewer -->
-  <div class="card full">
-    <div class="card-header">
-      <span class="card-title">Live Webhook Payloads</span>
-      <span class="card-badge" id="payload-count">0 events</span>
-    </div>
-    <div class="payload-viewer" id="payload-viewer">
-      <span style="color: var(--text-dim)">Click RUN SIMULATION to generate telemetry events...</span>
-    </div>
-  </div>
-</div>
+      function simulateQuality(items) {
+        if (!items.length)
+          return {
+            density: 0,
+            diversity: 0,
+            freshness: 0,
+            redundancy: 0,
+            overall: 0,
+          };
+        const totalTokens = items.reduce((s, i) => s + i.tokens, 0);
+        const kinds = new Set(items.map(i => i.kind));
+        const density = Math.min(1, totalTokens / (items.length * 50));
+        const diversity = Math.min(1, kinds.size / 6);
+        const freshness =
+          (items.reduce((s, i) => s + (i.recency || 0), 0) / items.length) *
+          0.3;
+        const redundancy = 0.005;
+        const overall =
+          density * 0.3 +
+          diversity * 0.3 +
+          freshness * 0.2 +
+          (1 - redundancy) * 0.2;
+        return {
+          density: +density.toFixed(3),
+          diversity: +diversity.toFixed(3),
+          freshness: +freshness.toFixed(3),
+          redundancy: +redundancy.toFixed(3),
+          overall: +overall.toFixed(3),
+        };
+      }
 
-<script>
-// NOTE: This dashboard is a self-contained simulation. All data is
-// generated from the same scoring/packing algorithm used in CE core.
-// No external data is loaded; all DOM updates use textContent or
-// safe SVG attribute APIs to avoid XSS risks.
+      function simulateCost(totalTokens) {
+        const inputRate = 0.003 / 1000,
+          cacheRate = 0.00015 / 1000,
+          outputRate = 0.015 / 1000;
+        const outputTokens = 500,
+          cacheRatio = 0.13;
+        const cached = Math.round(totalTokens * cacheRatio),
+          uncached = totalTokens - cached;
+        const without = totalTokens * inputRate + outputTokens * outputRate;
+        const withC =
+          cached * cacheRate + uncached * inputRate + outputTokens * outputRate;
+        return {
+          inputTokens: totalTokens,
+          cachedTokens: cached,
+          uncachedTokens: uncached,
+          costWithoutCache: +without.toFixed(6),
+          costWithCache: +withC.toFixed(6),
+          savings: +(without - withC).toFixed(6),
+          savingsPercent: +(((without - withC) / without) * 100).toFixed(1),
+          cacheEfficiency: +cacheRatio.toFixed(2),
+        };
+      }
 
-const ITEMS = [
-  { id: "system-prompt", kind: "system", priority: 1.0, recency: 0.5, salience: 0.5, tokens: 25 },
-  { id: "arch-decision", kind: "knowledge", priority: 0.9, recency: 0.8, salience: 0.95, tokens: 35 },
-  { id: "perf-requirement", kind: "constraint", priority: 0.85, recency: 0.3, salience: 0.5, tokens: 22 },
-  { id: "recent-pr", kind: "code-change", priority: 0.7, recency: 1.0, salience: 0.8, tokens: 30 },
-  { id: "debug-context", kind: "debug", priority: 0.95, recency: 1.0, salience: 1.0, tokens: 45 },
-  { id: "team-convention", kind: "convention", priority: 0.6, recency: 0.2, salience: 0.3, tokens: 28 },
-  { id: "stale-meeting-notes", kind: "notes", priority: 0.2, recency: 0.1, salience: 0.1, tokens: 22 },
-  { id: "api-docs", kind: "documentation", priority: 0.75, recency: 0.6, salience: 0.7, tokens: 40 },
-  { id: "low-value-log", kind: "log", priority: 0.1, recency: 0.9, salience: 0.1, tokens: 18 },
-  { id: "security-alert", kind: "alert", priority: 1.0, recency: 1.0, salience: 1.0, tokens: 35 },
-];
+      let eventCount = 0;
 
-function scoreItem(item, w) {
-  return (item.priority || 0) * w.priority + (item.recency || 0) * w.recency + (item.salience || 0) * w.salience;
-}
+      function colorForPct(pct) {
+        return pct > 80
+          ? "var(--red)"
+          : pct > 50
+            ? "var(--yellow)"
+            : "var(--green)";
+      }
 
-function simulatePack(items, budget, w) {
-  const scored = items.map(item => ({ ...item, score: scoreItem(item, w) })).sort((a, b) => b.score - a.score);
-  const selected = [], dropped = [];
-  let totalTokens = 0;
-  for (const item of scored) {
-    if (totalTokens + item.tokens <= budget) { selected.push(item); totalTokens += item.tokens; }
-    else { dropped.push(item); }
-  }
-  return { selected, dropped, totalTokens, budget: { maxTokens: budget } };
-}
+      function updateBudget(r) {
+        const pct = Math.round((r.totalTokens / r.budget.maxTokens) * 100);
+        const el = document.getElementById("util-pct");
+        el.textContent = pct + "%";
+        el.style.color = colorForPct(pct);
+        document.getElementById("used-tokens").textContent = r.totalTokens;
+        document.getElementById("max-tokens").textContent = r.budget.maxTokens;
+        document.getElementById("selected-count").textContent =
+          r.selected.length;
+        document.getElementById("dropped-count").textContent = r.dropped.length;
+        const g = document.getElementById("util-gauge");
+        g.style.width = pct + "%";
+        g.style.background =
+          "linear-gradient(90deg, var(--green), " + colorForPct(pct) + ")";
+      }
 
-function simulateQuality(items) {
-  if (!items.length) return { density: 0, diversity: 0, freshness: 0, redundancy: 0, overall: 0 };
-  const totalTokens = items.reduce((s, i) => s + i.tokens, 0);
-  const kinds = new Set(items.map(i => i.kind));
-  const density = Math.min(1, totalTokens / (items.length * 50));
-  const diversity = Math.min(1, kinds.size / 6);
-  const freshness = items.reduce((s, i) => s + (i.recency || 0), 0) / items.length * 0.3;
-  const redundancy = 0.005;
-  const overall = density * 0.3 + diversity * 0.3 + freshness * 0.2 + (1 - redundancy) * 0.2;
-  return { density: +density.toFixed(3), diversity: +diversity.toFixed(3), freshness: +freshness.toFixed(3), redundancy: +redundancy.toFixed(3), overall: +overall.toFixed(3) };
-}
+      function drawRadar(q) {
+        const svg = document.getElementById("radar-svg");
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        const ns = "http://www.w3.org/2000/svg";
+        const cx = 100,
+          cy = 100,
+          r = 70;
+        const metrics = [q.density, q.diversity, q.freshness, 1 - q.redundancy];
+        const colors = [
+          "var(--cyan)",
+          "var(--green)",
+          "var(--yellow)",
+          "var(--red)",
+        ];
+        const n = 4;
+        for (let i = 1; i <= 4; i++) {
+          const c = document.createElementNS(ns, "circle");
+          c.setAttribute("cx", cx);
+          c.setAttribute("cy", cy);
+          c.setAttribute("r", (r * i) / 4);
+          c.setAttribute("fill", "none");
+          c.setAttribute("stroke", "rgba(255,255,255,0.05)");
+          c.setAttribute("stroke-width", "1");
+          svg.appendChild(c);
+        }
+        for (let i = 0; i < n; i++) {
+          const a = ((Math.PI * 2) / n) * i - Math.PI / 2;
+          const l = document.createElementNS(ns, "line");
+          l.setAttribute("x1", cx);
+          l.setAttribute("y1", cy);
+          l.setAttribute("x2", cx + Math.cos(a) * r);
+          l.setAttribute("y2", cy + Math.sin(a) * r);
+          l.setAttribute("stroke", "rgba(255,255,255,0.05)");
+          l.setAttribute("stroke-width", "1");
+          svg.appendChild(l);
+        }
+        let pts = "";
+        for (let i = 0; i < n; i++) {
+          const a = ((Math.PI * 2) / n) * i - Math.PI / 2;
+          pts +=
+            cx +
+            Math.cos(a) * r * (metrics[i] || 0) +
+            "," +
+            (cy + Math.sin(a) * r * (metrics[i] || 0)) +
+            " ";
+        }
+        const poly = document.createElementNS(ns, "polygon");
+        poly.setAttribute("points", pts.trim());
+        poly.setAttribute("fill", "rgba(34, 211, 238, 0.15)");
+        poly.setAttribute("stroke", "var(--cyan)");
+        poly.setAttribute("stroke-width", "2");
+        svg.appendChild(poly);
+        for (let i = 0; i < n; i++) {
+          const a = ((Math.PI * 2) / n) * i - Math.PI / 2;
+          const v = metrics[i] || 0;
+          const dot = document.createElementNS(ns, "circle");
+          dot.setAttribute("cx", cx + Math.cos(a) * r * v);
+          dot.setAttribute("cy", cy + Math.sin(a) * r * v);
+          dot.setAttribute("r", "4");
+          dot.setAttribute("fill", colors[i]);
+          dot.setAttribute("stroke", "var(--bg)");
+          dot.setAttribute("stroke-width", "2");
+          svg.appendChild(dot);
+        }
+        document.getElementById("q-density").textContent = q.density.toFixed(3);
+        document.getElementById("q-diversity").textContent =
+          q.diversity.toFixed(3);
+        document.getElementById("q-freshness").textContent =
+          q.freshness.toFixed(3);
+        document.getElementById("q-redundancy").textContent =
+          q.redundancy.toFixed(3);
+        document.getElementById("q-overall").textContent = q.overall.toFixed(3);
+      }
 
-function simulateCost(totalTokens) {
-  const inputRate = 0.003 / 1000, cacheRate = 0.00015 / 1000, outputRate = 0.015 / 1000;
-  const outputTokens = 500, cacheRatio = 0.13;
-  const cached = Math.round(totalTokens * cacheRatio), uncached = totalTokens - cached;
-  const without = totalTokens * inputRate + outputTokens * outputRate;
-  const withC = cached * cacheRate + uncached * inputRate + outputTokens * outputRate;
-  return {
-    inputTokens: totalTokens, cachedTokens: cached, uncachedTokens: uncached,
-    costWithoutCache: +without.toFixed(6), costWithCache: +withC.toFixed(6),
-    savings: +(without - withC).toFixed(6),
-    savingsPercent: +((without - withC) / without * 100).toFixed(1),
-    cacheEfficiency: +cacheRatio.toFixed(2),
-  };
-}
+      function updateCost(c) {
+        document.getElementById("cost-nocache-bar").style.width = "100%";
+        const nv = document.createElement("span");
+        nv.textContent = "$" + c.costWithoutCache.toFixed(6);
+        const nb = document.getElementById("cost-nocache-bar");
+        nb.textContent = "";
+        nb.appendChild(nv);
+        const pct = Math.round((c.costWithCache / c.costWithoutCache) * 100);
+        document.getElementById("cost-cache-bar").style.width = pct + "%";
+        const cv = document.createElement("span");
+        cv.textContent = "$" + c.costWithCache.toFixed(6);
+        const cb = document.getElementById("cost-cache-bar");
+        cb.textContent = "";
+        cb.appendChild(cv);
+        document.getElementById("cost-savings").textContent =
+          "$" + c.savings.toFixed(6) + " (" + c.savingsPercent + "%)";
+        document.getElementById("cache-eff-gauge").style.width =
+          c.cacheEfficiency * 100 + "%";
+        document.getElementById("cache-eff-val").textContent =
+          (c.cacheEfficiency * 100).toFixed(0) + "%";
+      }
 
-let eventCount = 0;
+      function updateWaterfall(stages) {
+        const container = document.getElementById("waterfall");
+        container.textContent = "";
+        stages.forEach(function (stage, i) {
+          if (i > 0) {
+            const arrow = document.createElement("span");
+            arrow.className = "waterfall-arrow";
+            arrow.textContent = "\u2794";
+            container.appendChild(arrow);
+          }
+          const div = document.createElement("div");
+          div.className =
+            "waterfall-stage" + (i === stages.length - 1 ? " active" : "");
+          const name = document.createElement("div");
+          name.className = "stage-name";
+          name.textContent = stage.name;
+          const detail = document.createElement("div");
+          detail.className = "stage-detail";
+          detail.textContent = stage.detail;
+          div.appendChild(name);
+          div.appendChild(detail);
+          container.appendChild(div);
+        });
+      }
 
-function colorForPct(pct) { return pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--yellow)' : 'var(--green)'; }
+      function updateTrace(result) {
+        const timeline = document.getElementById("trace-timeline");
+        timeline.textContent = "";
+        const all = result.selected
+          .map(function (i) {
+            return Object.assign({}, i, { decision: "include" });
+          })
+          .concat(
+            result.dropped.map(function (i) {
+              return Object.assign({}, i, { decision: "exclude" });
+            })
+          );
+        all.sort(function (a, b) {
+          return (b.score || 0) - (a.score || 0);
+        });
+        all.forEach(function (item, idx) {
+          var row = document.createElement("div");
+          row.className = "timeline-item";
+          row.style.animationDelay = idx * 0.05 + "s";
+          var isInc = item.decision === "include";
+          var icon = document.createElement("div");
+          icon.className = "timeline-icon";
+          icon.style.background = isInc
+            ? "rgba(16,185,129,0.15)"
+            : "rgba(239,68,68,0.15)";
+          icon.style.color = isInc ? "var(--green)" : "var(--red)";
+          icon.textContent = isInc ? "\u2714" : "\u2718";
+          var text = document.createElement("div");
+          text.className = "timeline-text";
+          var strong = document.createElement("strong");
+          strong.textContent = item.id;
+          text.appendChild(strong);
+          text.appendChild(
+            document.createTextNode(
+              " \u2014 " +
+                item.tokens +
+                "t, score " +
+                (item.score || 0).toFixed(2)
+            )
+          );
+          var time = document.createElement("span");
+          time.className = "timeline-time";
+          time.textContent = item.decision;
+          row.appendChild(icon);
+          row.appendChild(text);
+          row.appendChild(time);
+          timeline.appendChild(row);
+        });
+      }
 
-function updateBudget(r) {
-  const pct = Math.round(r.totalTokens / r.budget.maxTokens * 100);
-  const el = document.getElementById('util-pct');
-  el.textContent = pct + '%';
-  el.style.color = colorForPct(pct);
-  document.getElementById('used-tokens').textContent = r.totalTokens;
-  document.getElementById('max-tokens').textContent = r.budget.maxTokens;
-  document.getElementById('selected-count').textContent = r.selected.length;
-  document.getElementById('dropped-count').textContent = r.dropped.length;
-  const g = document.getElementById('util-gauge');
-  g.style.width = pct + '%';
-  g.style.background = 'linear-gradient(90deg, var(--green), ' + colorForPct(pct) + ')';
-}
+      function updateHandoff(result) {
+        document.getElementById("handoff-active").textContent =
+          result.selected.length + " active";
+        document.getElementById("handoff-deferred").textContent =
+          result.dropped.length + " deferred";
+        document.getElementById("handoff-total").textContent =
+          result.selected.length + result.dropped.length;
+        var bytes = result.selected.reduce(function (s, i) {
+          return s + JSON.stringify(i).length;
+        }, 0);
+        document.getElementById("handoff-size").textContent = bytes + " bytes";
+      }
 
-function drawRadar(q) {
-  const svg = document.getElementById('radar-svg');
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
-  const ns = 'http://www.w3.org/2000/svg';
-  const cx = 100, cy = 100, r = 70;
-  const metrics = [q.density, q.diversity, q.freshness, 1 - q.redundancy];
-  const colors = ['var(--cyan)', 'var(--green)', 'var(--yellow)', 'var(--red)'];
-  const n = 4;
-  for (let i = 1; i <= 4; i++) {
-    const c = document.createElementNS(ns, 'circle');
-    c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r * i / 4);
-    c.setAttribute('fill', 'none'); c.setAttribute('stroke', 'rgba(255,255,255,0.05)'); c.setAttribute('stroke-width', '1');
-    svg.appendChild(c);
-  }
-  for (let i = 0; i < n; i++) {
-    const a = (Math.PI * 2 / n) * i - Math.PI / 2;
-    const l = document.createElementNS(ns, 'line');
-    l.setAttribute('x1', cx); l.setAttribute('y1', cy);
-    l.setAttribute('x2', cx + Math.cos(a) * r); l.setAttribute('y2', cy + Math.sin(a) * r);
-    l.setAttribute('stroke', 'rgba(255,255,255,0.05)'); l.setAttribute('stroke-width', '1');
-    svg.appendChild(l);
-  }
-  let pts = '';
-  for (let i = 0; i < n; i++) {
-    const a = (Math.PI * 2 / n) * i - Math.PI / 2;
-    pts += (cx + Math.cos(a) * r * (metrics[i] || 0)) + ',' + (cy + Math.sin(a) * r * (metrics[i] || 0)) + ' ';
-  }
-  const poly = document.createElementNS(ns, 'polygon');
-  poly.setAttribute('points', pts.trim());
-  poly.setAttribute('fill', 'rgba(34, 211, 238, 0.15)');
-  poly.setAttribute('stroke', 'var(--cyan)'); poly.setAttribute('stroke-width', '2');
-  svg.appendChild(poly);
-  for (let i = 0; i < n; i++) {
-    const a = (Math.PI * 2 / n) * i - Math.PI / 2;
-    const v = metrics[i] || 0;
-    const dot = document.createElementNS(ns, 'circle');
-    dot.setAttribute('cx', cx + Math.cos(a) * r * v); dot.setAttribute('cy', cy + Math.sin(a) * r * v);
-    dot.setAttribute('r', '4'); dot.setAttribute('fill', colors[i]); dot.setAttribute('stroke', 'var(--bg)'); dot.setAttribute('stroke-width', '2');
-    svg.appendChild(dot);
-  }
-  document.getElementById('q-density').textContent = q.density.toFixed(3);
-  document.getElementById('q-diversity').textContent = q.diversity.toFixed(3);
-  document.getElementById('q-freshness').textContent = q.freshness.toFixed(3);
-  document.getElementById('q-redundancy').textContent = q.redundancy.toFixed(3);
-  document.getElementById('q-overall').textContent = q.overall.toFixed(3);
-}
+      function updateAB(rA, rB, wA, wB) {
+        var panel = document.getElementById("ab-panel");
+        panel.textContent = "";
+        var qA = simulateQuality(rA.selected),
+          qB = simulateQuality(rB.selected);
+        var aWins = qA.overall >= qB.overall;
+        [
+          { name: "Variant A (Default)", w: wA, r: rA, q: qA, winner: aWins },
+          { name: "Variant B (Custom)", w: wB, r: rB, q: qB, winner: !aWins },
+        ].forEach(function (v) {
+          var div = document.createElement("div");
+          div.className = "ab-variant" + (v.winner ? " winner" : "");
+          var header = document.createElement("div");
+          header.className = "ab-variant-header";
+          var nameEl = document.createElement("span");
+          nameEl.className = "ab-variant-name";
+          nameEl.textContent = v.name;
+          header.appendChild(nameEl);
+          if (v.winner) {
+            var tag = document.createElement("span");
+            tag.className = "ab-variant-tag";
+            tag.textContent = "WINNER";
+            header.appendChild(tag);
+          }
+          div.appendChild(header);
+          var metrics = [
+            ["Priority", v.w.priority],
+            ["Recency", v.w.recency],
+            ["Salience", v.w.salience],
+            ["Selected", v.r.selected.length + " items"],
+            ["Quality", v.q.overall.toFixed(3)],
+          ];
+          metrics.forEach(function (m) {
+            var row = document.createElement("div");
+            row.className = "ab-metric";
+            var label = document.createElement("span");
+            label.textContent = m[0];
+            var val = document.createElement("span");
+            val.textContent = m[1];
+            if (m[0] === "Quality") val.style.color = "var(--cyan)";
+            row.appendChild(label);
+            row.appendChild(val);
+            div.appendChild(row);
+          });
+          panel.appendChild(div);
+        });
+      }
 
-function updateCost(c) {
-  document.getElementById('cost-nocache-bar').style.width = '100%';
-  const nv = document.createElement('span');
-  nv.textContent = '$' + c.costWithoutCache.toFixed(6);
-  const nb = document.getElementById('cost-nocache-bar');
-  nb.textContent = '';
-  nb.appendChild(nv);
-  const pct = Math.round(c.costWithCache / c.costWithoutCache * 100);
-  document.getElementById('cost-cache-bar').style.width = pct + '%';
-  const cv = document.createElement('span');
-  cv.textContent = '$' + c.costWithCache.toFixed(6);
-  const cb = document.getElementById('cost-cache-bar');
-  cb.textContent = '';
-  cb.appendChild(cv);
-  document.getElementById('cost-savings').textContent = '$' + c.savings.toFixed(6) + ' (' + c.savingsPercent + '%)';
-  document.getElementById('cache-eff-gauge').style.width = (c.cacheEfficiency * 100) + '%';
-  document.getElementById('cache-eff-val').textContent = (c.cacheEfficiency * 100).toFixed(0) + '%';
-}
+      function addPayload(eventType, payload) {
+        eventCount++;
+        document.getElementById("event-count").textContent = eventCount;
+        document.getElementById("payload-count").textContent =
+          eventCount + " events";
+        var viewer = document.getElementById("payload-viewer");
+        if (viewer.querySelector("span[style]")) viewer.textContent = "";
+        var entry = document.createElement("div");
+        entry.style.borderBottom = "1px solid var(--border)";
+        entry.style.padding = "8px 0";
+        entry.style.marginBottom = "8px";
+        var title = document.createElement("div");
+        title.style.marginBottom = "4px";
+        title.style.color = "var(--cyan)";
+        title.style.fontWeight = "600";
+        title.textContent =
+          eventType.toUpperCase() +
+          " \u2014 " +
+          new Date().toLocaleTimeString();
+        var pre = document.createElement("pre");
+        pre.style.margin = "0";
+        pre.style.whiteSpace = "pre-wrap";
+        pre.style.color = "var(--text-dim)";
+        pre.textContent = JSON.stringify(payload, null, 2);
+        entry.appendChild(title);
+        entry.appendChild(pre);
+        viewer.insertBefore(entry, viewer.firstChild);
+      }
 
-function updateWaterfall(stages) {
-  const container = document.getElementById('waterfall');
-  container.textContent = '';
-  stages.forEach(function(stage, i) {
-    if (i > 0) {
-      const arrow = document.createElement('span');
-      arrow.className = 'waterfall-arrow';
-      arrow.textContent = '\u2794';
-      container.appendChild(arrow);
-    }
-    const div = document.createElement('div');
-    div.className = 'waterfall-stage' + (i === stages.length - 1 ? ' active' : '');
-    const name = document.createElement('div');
-    name.className = 'stage-name';
-    name.textContent = stage.name;
-    const detail = document.createElement('div');
-    detail.className = 'stage-detail';
-    detail.textContent = stage.detail;
-    div.appendChild(name);
-    div.appendChild(detail);
-    container.appendChild(div);
-  });
-}
+      var budgetSlider = document.getElementById("budget");
+      var prioritySlider = document.getElementById("w-priority");
+      var recencySlider = document.getElementById("w-recency");
+      var salienceSlider = document.getElementById("w-salience");
 
-function updateTrace(result) {
-  const timeline = document.getElementById('trace-timeline');
-  timeline.textContent = '';
-  const all = result.selected.map(function(i) { return Object.assign({}, i, { decision: 'include' }); })
-    .concat(result.dropped.map(function(i) { return Object.assign({}, i, { decision: 'exclude' }); }));
-  all.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
-  all.forEach(function(item, idx) {
-    var row = document.createElement('div');
-    row.className = 'timeline-item';
-    row.style.animationDelay = (idx * 0.05) + 's';
-    var isInc = item.decision === 'include';
-    var icon = document.createElement('div');
-    icon.className = 'timeline-icon';
-    icon.style.background = isInc ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
-    icon.style.color = isInc ? 'var(--green)' : 'var(--red)';
-    icon.textContent = isInc ? '\u2714' : '\u2718';
-    var text = document.createElement('div');
-    text.className = 'timeline-text';
-    var strong = document.createElement('strong');
-    strong.textContent = item.id;
-    text.appendChild(strong);
-    text.appendChild(document.createTextNode(' \u2014 ' + item.tokens + 't, score ' + (item.score || 0).toFixed(2)));
-    var time = document.createElement('span');
-    time.className = 'timeline-time';
-    time.textContent = item.decision;
-    row.appendChild(icon);
-    row.appendChild(text);
-    row.appendChild(time);
-    timeline.appendChild(row);
-  });
-}
+      [budgetSlider, prioritySlider, recencySlider, salienceSlider].forEach(
+        function (s) {
+          s.addEventListener("input", function () {
+            document.getElementById("budget-val").textContent =
+              budgetSlider.value;
+            document.getElementById("w-priority-val").textContent =
+              (+prioritySlider.value).toFixed(1);
+            document.getElementById("w-recency-val").textContent =
+              (+recencySlider.value).toFixed(1);
+            document.getElementById("w-salience-val").textContent =
+              (+salienceSlider.value).toFixed(1);
+          });
+        }
+      );
 
-function updateHandoff(result) {
-  document.getElementById('handoff-active').textContent = result.selected.length + ' active';
-  document.getElementById('handoff-deferred').textContent = result.dropped.length + ' deferred';
-  document.getElementById('handoff-total').textContent = result.selected.length + result.dropped.length;
-  var bytes = result.selected.reduce(function(s, i) { return s + JSON.stringify(i).length; }, 0);
-  document.getElementById('handoff-size').textContent = bytes + ' bytes';
-}
+      document
+        .getElementById("run-btn")
+        .addEventListener("click", runSimulation);
 
-function updateAB(rA, rB, wA, wB) {
-  var panel = document.getElementById('ab-panel');
-  panel.textContent = '';
-  var qA = simulateQuality(rA.selected), qB = simulateQuality(rB.selected);
-  var aWins = qA.overall >= qB.overall;
-  [
-    { name: 'Variant A (Default)', w: wA, r: rA, q: qA, winner: aWins },
-    { name: 'Variant B (Custom)', w: wB, r: rB, q: qB, winner: !aWins },
-  ].forEach(function(v) {
-    var div = document.createElement('div');
-    div.className = 'ab-variant' + (v.winner ? ' winner' : '');
-    var header = document.createElement('div');
-    header.className = 'ab-variant-header';
-    var nameEl = document.createElement('span');
-    nameEl.className = 'ab-variant-name';
-    nameEl.textContent = v.name;
-    header.appendChild(nameEl);
-    if (v.winner) {
-      var tag = document.createElement('span');
-      tag.className = 'ab-variant-tag';
-      tag.textContent = 'WINNER';
-      header.appendChild(tag);
-    }
-    div.appendChild(header);
-    var metrics = [
-      ['Priority', v.w.priority], ['Recency', v.w.recency], ['Salience', v.w.salience],
-      ['Selected', v.r.selected.length + ' items'], ['Quality', v.q.overall.toFixed(3)],
-    ];
-    metrics.forEach(function(m) {
-      var row = document.createElement('div');
-      row.className = 'ab-metric';
-      var label = document.createElement('span');
-      label.textContent = m[0];
-      var val = document.createElement('span');
-      val.textContent = m[1];
-      if (m[0] === 'Quality') val.style.color = 'var(--cyan)';
-      row.appendChild(label);
-      row.appendChild(val);
-      div.appendChild(row);
-    });
-    panel.appendChild(div);
-  });
-}
+      function runSimulation() {
+        var budget = +budgetSlider.value;
+        var customW = {
+          priority: +prioritySlider.value,
+          recency: +recencySlider.value,
+          salience: +salienceSlider.value,
+        };
+        var defaultW = { priority: 1.0, recency: 0.7, salience: 0.5 };
+        document.getElementById("status-text").textContent = "Simulating...";
+        var result = simulatePack(ITEMS, budget, customW);
+        var resultDef = simulatePack(ITEMS, budget, defaultW);
+        updateBudget(result);
+        var quality = simulateQuality(result.selected);
+        drawRadar(quality);
+        var cost = simulateCost(result.totalTokens);
+        updateCost(cost);
+        updateWaterfall([
+          { name: "add", detail: ITEMS.length + " items" },
+          { name: "pack", detail: result.selected.length + " selected" },
+          { name: "cache", detail: cost.cacheEfficiency * 100 + "% hit" },
+          { name: "quality", detail: quality.overall.toFixed(3) },
+          { name: "deliver", detail: result.totalTokens + "t" },
+        ]);
+        updateTrace(result);
+        updateHandoff(result);
+        updateAB(resultDef, result, defaultW, customW);
+        var sid = "ce-" + Date.now().toString(36);
+        addPayload("pack", {
+          event_type: "pack",
+          session_id: sid,
+          model: "claude-sonnet-4-6",
+          strategy: "greedy-score",
+          budget_max_tokens: budget,
+          total_tokens: result.totalTokens,
+          selected_count: result.selected.length,
+          dropped_count: result.dropped.length,
+          budget_utilization_pct:
+            Math.round((result.totalTokens / budget) * 10000) / 100,
+          remaining_tokens: budget - result.totalTokens,
+          timestamp: new Date().toISOString(),
+        });
+        setTimeout(function () {
+          addPayload("quality", {
+            event_type: "quality",
+            session_id: sid,
+            model: "claude-sonnet-4-6",
+            quality_overall: quality.overall,
+            quality_density: quality.density,
+            quality_diversity: quality.diversity,
+            selected_count: result.selected.length,
+            timestamp: new Date().toISOString(),
+          });
+        }, 200);
+        setTimeout(function () {
+          addPayload("cost", {
+            event_type: "cost",
+            session_id: sid,
+            model: "claude-sonnet-4-6",
+            cost_with_cache: cost.costWithCache,
+            cost_without_cache: cost.costWithoutCache,
+            cache_hit_ratio: cost.cacheEfficiency,
+            total_tokens: cost.inputTokens,
+            timestamp: new Date().toISOString(),
+          });
+        }, 400);
+        setTimeout(function () {
+          addPayload("pipeline", {
+            event_type: "pipeline",
+            session_id: sid,
+            model: "claude-sonnet-4-6",
+            stages: ["add", "pack", "cache", "quality", "deliver"],
+            input_count: ITEMS.length,
+            selected_count: result.selected.length,
+            total_tokens: result.totalTokens,
+            budget_utilization_pct:
+              Math.round((result.totalTokens / budget) * 10000) / 100,
+            timestamp: new Date().toISOString(),
+          });
+        }, 600);
+        setTimeout(function () {
+          addPayload("handoff", {
+            event_type: "handoff",
+            session_id: sid,
+            total_issues: result.selected.length + result.dropped.length,
+            active_items: result.selected.length,
+            deferred_items: result.dropped.length,
+            source_agent: "agent-a",
+            target_url: "https://agent-b.example.com",
+            timestamp: new Date().toISOString(),
+          });
+        }, 800);
+        setTimeout(function () {
+          document.getElementById("status-text").textContent =
+            "Simulation Complete";
+        }, 1000);
+      }
 
-function addPayload(eventType, payload) {
-  eventCount++;
-  document.getElementById('event-count').textContent = eventCount;
-  document.getElementById('payload-count').textContent = eventCount + ' events';
-  var viewer = document.getElementById('payload-viewer');
-  if (viewer.querySelector('span[style]')) viewer.textContent = '';
-  var entry = document.createElement('div');
-  entry.style.borderBottom = '1px solid var(--border)';
-  entry.style.padding = '8px 0';
-  entry.style.marginBottom = '8px';
-  var title = document.createElement('div');
-  title.style.marginBottom = '4px';
-  title.style.color = 'var(--cyan)';
-  title.style.fontWeight = '600';
-  title.textContent = eventType.toUpperCase() + ' \u2014 ' + new Date().toLocaleTimeString();
-  var pre = document.createElement('pre');
-  pre.style.margin = '0';
-  pre.style.whiteSpace = 'pre-wrap';
-  pre.style.color = 'var(--text-dim)';
-  pre.textContent = JSON.stringify(payload, null, 2);
-  entry.appendChild(title);
-  entry.appendChild(pre);
-  viewer.insertBefore(entry, viewer.firstChild);
-}
-
-var budgetSlider = document.getElementById('budget');
-var prioritySlider = document.getElementById('w-priority');
-var recencySlider = document.getElementById('w-recency');
-var salienceSlider = document.getElementById('w-salience');
-
-[budgetSlider, prioritySlider, recencySlider, salienceSlider].forEach(function(s) {
-  s.addEventListener('input', function() {
-    document.getElementById('budget-val').textContent = budgetSlider.value;
-    document.getElementById('w-priority-val').textContent = (+prioritySlider.value).toFixed(1);
-    document.getElementById('w-recency-val').textContent = (+recencySlider.value).toFixed(1);
-    document.getElementById('w-salience-val').textContent = (+salienceSlider.value).toFixed(1);
-  });
-});
-
-document.getElementById('run-btn').addEventListener('click', runSimulation);
-
-function runSimulation() {
-  var budget = +budgetSlider.value;
-  var customW = { priority: +prioritySlider.value, recency: +recencySlider.value, salience: +salienceSlider.value };
-  var defaultW = { priority: 1.0, recency: 0.7, salience: 0.5 };
-  document.getElementById('status-text').textContent = 'Simulating...';
-  var result = simulatePack(ITEMS, budget, customW);
-  var resultDef = simulatePack(ITEMS, budget, defaultW);
-  updateBudget(result);
-  var quality = simulateQuality(result.selected);
-  drawRadar(quality);
-  var cost = simulateCost(result.totalTokens);
-  updateCost(cost);
-  updateWaterfall([
-    { name: 'add', detail: ITEMS.length + ' items' },
-    { name: 'pack', detail: result.selected.length + ' selected' },
-    { name: 'cache', detail: cost.cacheEfficiency * 100 + '% hit' },
-    { name: 'quality', detail: quality.overall.toFixed(3) },
-    { name: 'deliver', detail: result.totalTokens + 't' },
-  ]);
-  updateTrace(result);
-  updateHandoff(result);
-  updateAB(resultDef, result, defaultW, customW);
-  var sid = 'ce-' + Date.now().toString(36);
-  addPayload('pack', {
-    event_type: 'pack', session_id: sid, model: 'claude-sonnet-4-6', strategy: 'greedy-score',
-    budget_max_tokens: budget, total_tokens: result.totalTokens,
-    selected_count: result.selected.length, dropped_count: result.dropped.length,
-    budget_utilization_pct: Math.round(result.totalTokens / budget * 10000) / 100,
-    remaining_tokens: budget - result.totalTokens,
-    timestamp: new Date().toISOString(),
-  });
-  setTimeout(function() { addPayload('quality', {
-    event_type: 'quality', session_id: sid, model: 'claude-sonnet-4-6',
-    quality_overall: quality.overall, quality_density: quality.density,
-    quality_diversity: quality.diversity, selected_count: result.selected.length,
-    timestamp: new Date().toISOString(),
-  }); }, 200);
-  setTimeout(function() { addPayload('cost', {
-    event_type: 'cost', session_id: sid, model: 'claude-sonnet-4-6',
-    cost_with_cache: cost.costWithCache, cost_without_cache: cost.costWithoutCache,
-    cache_hit_ratio: cost.cacheEfficiency, total_tokens: cost.inputTokens,
-    timestamp: new Date().toISOString(),
-  }); }, 400);
-  setTimeout(function() { addPayload('pipeline', {
-    event_type: 'pipeline', session_id: sid, model: 'claude-sonnet-4-6',
-    stages: ['add', 'pack', 'cache', 'quality', 'deliver'],
-    input_count: ITEMS.length, selected_count: result.selected.length,
-    total_tokens: result.totalTokens,
-    budget_utilization_pct: Math.round(result.totalTokens / budget * 10000) / 100,
-    timestamp: new Date().toISOString(),
-  }); }, 600);
-  setTimeout(function() { addPayload('handoff', {
-    event_type: 'handoff', session_id: sid,
-    total_issues: result.selected.length + result.dropped.length,
-    active_items: result.selected.length, deferred_items: result.dropped.length,
-    source_agent: 'agent-a', target_url: 'https://agent-b.example.com',
-    timestamp: new Date().toISOString(),
-  }); }, 800);
-  setTimeout(function() { document.getElementById('status-text').textContent = 'Simulation Complete'; }, 1000);
-}
-
-setTimeout(runSimulation, 500);
-</script>
-</body>
+      setTimeout(runSimulation, 500);
+    </script>
+  </body>
 </html>

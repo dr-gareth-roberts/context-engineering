@@ -3,8 +3,8 @@ import { readBeadsJSONL } from "@context-engineering/core";
 
 /**
  * CAUSAL COMPACTION EXAMPLE
- * 
- * Demonstrates how the toolkit prevents "Agent Drift" by using 
+ *
+ * Demonstrates how the toolkit prevents "Agent Drift" by using
  * the BEADS task graph to prune irrelevant history.
  */
 
@@ -21,7 +21,7 @@ const graph = readBeadsJSONL(mockBeadsJSONL);
 const ctx = createContextManager({
   budget: { maxTokens: 2000 },
   systemPrompt: "You are a secure coding expert.",
-  preserveRecentTurns: 1 // Verbatim keep the very last message
+  preserveRecentTurns: 1, // Verbatim keep the very last message
 });
 
 ctx.setBeadsGraph(graph);
@@ -30,26 +30,26 @@ ctx.setActiveTask("task-b");
 console.log("--- Phase 1: Adding History ---");
 
 // Add the Mission Goal
-ctx.addTurn({ 
-  role: "user", 
-  content: "CRITICAL: Build the Auth system using OAuth2. DO NOT use JWT.", 
-  taskId: "root" 
+ctx.addTurn({
+  role: "user",
+  content: "CRITICAL: Build the Auth system using OAuth2. DO NOT use JWT.",
+  taskId: "root",
 } as any);
 
 // Add 10 turns of noise from a task that is now CLOSED
 for (let i = 1; i <= 5; i++) {
-  ctx.addTurn({ 
-    role: "assistant", 
-    content: `Fixed CI error #${i} by updating the dockerfile...`, 
-    taskId: "task-a" 
+  ctx.addTurn({
+    role: "assistant",
+    content: `Fixed CI error #${i} by updating the dockerfile...`,
+    taskId: "task-a",
   } as any);
 }
 
 // Add the active work
-ctx.addTurn({ 
-  role: "user", 
-  content: "I'm starting on the OAuth flow now.", 
-  taskId: "task-b" 
+ctx.addTurn({
+  role: "user",
+  content: "I'm starting on the OAuth flow now.",
+  taskId: "task-b",
 } as any);
 
 console.log("\n--- Phase 2: Compiling Context ---");
@@ -61,9 +61,11 @@ console.log(`Turns kept after causal compaction: ${result.turns.length}`);
 
 console.log("\n--- Active Context Window ---");
 result.turns.forEach((turn, i) => {
-  console.log(`${i+1}. [${turn.role}] (Task: ${turn.taskId}): ${turn.content.substring(0, 60)}...`);
+  console.log(
+    `${i + 1}. [${turn.role}] (Task: ${turn.taskId}): ${turn.content.substring(0, 60)}...`
+  );
 });
 
 // Observation:
-// You will see that the 'root' goal and 'task-b' work are kept, 
+// You will see that the 'root' goal and 'task-b' work are kept,
 // while the 'task-a' (closed) noise has been pruned to stay in budget.

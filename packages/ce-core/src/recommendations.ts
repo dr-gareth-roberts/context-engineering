@@ -117,8 +117,7 @@ async function fetchJson(
 
     return await response.json();
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err);
     logger.warn("Recommendation fetch failed", { url, error: message });
     return null;
   } finally {
@@ -196,10 +195,8 @@ export async function fetchBudgetRecommendation(
     typeof obj.confidence === "number"
       ? Math.max(0, Math.min(1, obj.confidence))
       : 0.5;
-  const source =
-    typeof obj.source === "string" ? obj.source : "custom";
-  const reason =
-    typeof obj.reason === "string" ? obj.reason : undefined;
+  const source = typeof obj.source === "string" ? obj.source : "custom";
+  const reason = typeof obj.reason === "string" ? obj.reason : undefined;
 
   return { maxTokens, reserveTokens, confidence, source, reason };
 }

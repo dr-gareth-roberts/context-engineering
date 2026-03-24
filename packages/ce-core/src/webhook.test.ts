@@ -1,8 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import {
-  createWebhookReporter,
-  noopReporter,
-} from "./webhook.js";
+import { createWebhookReporter, noopReporter } from "./webhook.js";
 import type {
   WebhookAnalyticsPayload,
   WebhookHandoffPayload,
@@ -131,9 +128,7 @@ describe("createWebhookReporter", () => {
     const reporter = createWebhookReporter();
     reporter.reportHandoff(makeHandoff());
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy.mock.calls[0][0]).toBe(
-      "https://hook.example.com/handoff"
-    );
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://hook.example.com/handoff");
   });
 
   it("prefers explicit URL over env var", () => {
@@ -290,9 +285,7 @@ describe("reportHandoff", () => {
     });
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy.mock.calls[0][0]).toBe(
-      "https://hook.example.com/handoff"
-    );
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://hook.example.com/handoff");
 
     const body = JSON.parse(
       fetchSpy.mock.calls[0][1].body
@@ -421,9 +414,7 @@ describe("reportQuality", () => {
     reporter.reportQuality(makePack(), makeQuality());
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy.mock.calls[0][0]).toBe(
-      "https://hook.example.com/quality"
-    );
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://hook.example.com/quality");
 
     const body = JSON.parse(
       fetchSpy.mock.calls[0][1].body
@@ -457,9 +448,7 @@ describe("reportCost", () => {
     reporter.reportCost(makePack(), makeCostEstimate(), 0.8);
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy.mock.calls[0][0]).toBe(
-      "https://hook.example.com/cost"
-    );
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://hook.example.com/cost");
 
     const body = JSON.parse(
       fetchSpy.mock.calls[0][1].body
@@ -502,9 +491,7 @@ describe("env var support for quality and cost URLs", () => {
     const reporter = createWebhookReporter();
     reporter.reportQuality(makePack(), makeQuality());
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy.mock.calls[0][0]).toBe(
-      "https://hook.example.com/quality"
-    );
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://hook.example.com/quality");
   });
 
   it("reads CE_WEBHOOK_COST_URL from env", () => {
@@ -512,9 +499,7 @@ describe("env var support for quality and cost URLs", () => {
     const reporter = createWebhookReporter();
     reporter.reportCost(makePack(), makeCostEstimate());
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy.mock.calls[0][0]).toBe(
-      "https://hook.example.com/cost"
-    );
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://hook.example.com/cost");
   });
 });
 

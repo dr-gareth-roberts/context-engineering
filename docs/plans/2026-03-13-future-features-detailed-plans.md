@@ -9,10 +9,12 @@ This document provides detailed implementation plans, architectures, and task br
 **Goal:** Provide a visual debugging suite to inspect the "Context Packing" process, helping developers understand why specific items were included, compressed, or dropped.
 
 ### Architecture
+
 - **Data Model:** We will expand the `TraceStep` schema to capture detailed scoring metrics, the specific reason for dropping an item, and any comparison/supersession events.
-- **Frontend App:** The `ce-web-client` package will gain an `/inspect` route and new React components (`TraceTimeline`, `TokenBar`, `ItemDetailView`). 
+- **Frontend App:** The `ce-web-client` package will gain an `/inspect` route and new React components (`TraceTimeline`, `TokenBar`, `ItemDetailView`).
 
 ### Task Breakdown
+
 1. **Extend Trace Schema**
    - Update `schemas/context-trace.schema.json` and `packages/ce-core/src/types.ts` to include:
      ```ts
@@ -35,12 +37,12 @@ This document provides detailed implementation plans, architectures, and task br
 
 3. **Develop Frontend Components (`packages/ce-web-client`)**
    - **Route Setup:** Add `/inspect` using standard React Router or `wouter`.
-   - **`TraceTimeline`:** A vertical, chronologically or rank-ordered list showing items going through the packing funnel. 
+   - **`TraceTimeline`:** A vertical, chronologically or rank-ordered list showing items going through the packing funnel.
    - **`TokenBar`:** A D3 or pure CSS/HTML progress bar showing the budget fill state, distinguishing between `usedTokens` and `reserveTokens`.
    - **`ItemDetailView`:** A drawer/modal that displays the raw content of a `ContextItem` along with the mathematical breakdown of its `score`.
 
 4. **Interactive "What-If" Slider**
-   - Implement a slider bound to `maxTokens`. 
+   - Implement a slider bound to `maxTokens`.
    - When the slider is moved, re-run the `runPack()` algorithm in-browser and animate the UI to show items popping in or out of the context window.
 
 ---
@@ -50,9 +52,11 @@ This document provides detailed implementation plans, architectures, and task br
 **Goal:** Automatically detect and merge context items that contain the same information, preventing "context bloat" and model confusion.
 
 ### Architecture
-We will introduce an `EmbeddingProvider` protocol and a `RedundancyEliminator` phase that runs *before* the greedy token packer. It calculates pairwise cosine similarity between context items and resolves duplicates based on configured strategies.
+
+We will introduce an `EmbeddingProvider` protocol and a `RedundancyEliminator` phase that runs _before_ the greedy token packer. It calculates pairwise cosine similarity between context items and resolves duplicates based on configured strategies.
 
 ### Task Breakdown
+
 1. **Define `EmbeddingProvider` Interfaces**
    - TS: `export interface EmbeddingProvider { embed(texts: string[]): Promise<number[][]>; }`
    - Python: `class EmbeddingProvider(Protocol): async def embed(self, texts: list[str]) -> list[list[float]]: ...`
@@ -70,7 +74,7 @@ We will introduce an `EmbeddingProvider` protocol and a `RedundancyEliminator` p
 
 4. **Testing**
    - Create tests using hardcoded mock vectors to verify the clustering logic.
-   - Verify that traces correctly reflect *why* an item was dropped (due to redundancy).
+   - Verify that traces correctly reflect _why_ an item was dropped (due to redundancy).
 
 ---
 
@@ -79,9 +83,11 @@ We will introduce an `EmbeddingProvider` protocol and a `RedundancyEliminator` p
 **Goal:** Scale the `context-engineering` toolkit from single-script demos to multi-user, production-grade applications using Redis and Postgres.
 
 ### Architecture
+
 We will implement robust plugins for `Redis` (ephemeral/TTL-based storage) and `Postgres` via `pgvector` (persistent/semantic search storage), adhering to the existing `BaseStore` abstraction.
 
 ### Task Breakdown
+
 1. **Refine `BaseStore` interfaces**
    - Ensure all `put`, `get`, `query`, and `forget` methods are properly asynchronous in both TS and Python.
    - Add optional `limit`, `offset`, and `similarity_threshold` fields to `MemoryQuery`.
@@ -107,9 +113,11 @@ We will implement robust plugins for `Redis` (ephemeral/TTL-based storage) and `
 **Goal:** Enable developers to use the `context-engineering` toolkit within their existing agent frameworks with zero architectural changes.
 
 ### Architecture
+
 Build subclass adapters that intercept memory loading or document post-processing steps within LangChain and LlamaIndex to apply budget-aware packing.
 
 ### Task Breakdown
+
 1. **Project Configuration**
    - Update `python/pyproject.toml` with `[project.optional-dependencies]` for `langchain = ["langchain>=0.1.0"]` and `llamaindex = ["llama-index>=0.10.0"]`.
 
@@ -120,7 +128,6 @@ Build subclass adapters that intercept memory loading or document post-processin
      - Convert LangChain messages to `ContextItems` (e.g., System Message = high priority, Human Message = high recency).
      - Run `pack()` against a defined token budget.
      - Return the pruned LangChain messages.
-   
 3. **LlamaIndex Integration (`python/context_engineering/extensions/llamaindex.py`)**
    - Implement `CEPostprocessor(BaseNodePostprocessor)`.
    - Override `_postprocess_nodes(self, nodes, query_bundle)` to:
@@ -138,12 +145,13 @@ Build subclass adapters that intercept memory loading or document post-processin
 **Goal:** Provide a "Context-as-a-Service" layer that acts as a drop-in replacement for OpenAI/Anthropic API endpoints, allowing any language to use the toolkit.
 
 ### Architecture
+
 A standalone FastAPI server that intercepts `/v1/chat/completions` requests, parses a custom header (`X-CE-Budget`), runs the context engineering algorithms, and proxies the optimized prompt to the true upstream provider.
 
 ### Task Breakdown
+
 1. **Server Setup**
    - Create a FastAPI application inside `python/context_engineering/proxy/app.py` or a new standalone TS package `packages/ce-proxy`. (We will default to Python/FastAPI for excellent async and streaming support).
-   
 2. **Request Interception**
    - Endpoint: `POST /v1/chat/completions`.
    - Parse the standard OpenAI JSON payload (`messages`, `model`, `stream`, etc.).
@@ -153,11 +161,9 @@ A standalone FastAPI server that intercepts `/v1/chat/completions` requests, par
    - Map payload `messages` to `ContextItems`.
    - If `X-CE-Session-Id` is provided, automatically fetch historical context from a configured `MemoryStore`.
    - Run the `pack()` algorithm to optimize the messages down to the specified budget.
-   
 4. **Upstream Proxying**
    - Reconstruct the OpenAI compatible payload using only the packed messages.
    - Forward the request to the upstream provider using `httpx.AsyncClient`.
-   
 5. **Streaming Support**
    - If `stream=True` was requested, pass the incoming SSE stream directly back to the client using FastAPI's `StreamingResponse`.
 
