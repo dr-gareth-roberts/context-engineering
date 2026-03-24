@@ -1,0 +1,9 @@
+{
+  "name": "ce-code-review-council-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/council": "workspace:*"
+  }
+}
