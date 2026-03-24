@@ -276,6 +276,16 @@ This toolkit scores every item by priority, recency, and relevance, then selects
 - **Detects quality degradation** — alerts when your context is silently losing coherence
 - **Red-teams your pipeline** — discovers which attack patterns (contradictions, noise, spoofing) break your system before users do
 
+## Examples
+
+Runnable example apps showing real use cases (no API keys needed):
+
+| Example                                                | What it shows                                                                    | Run                                             |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [RAG Chatbot](./examples/rag-chatbot/)                 | Retrieval → information-gain filtering → pipeline packing                        | `npx tsx examples/rag-chatbot/index.ts`         |
+| [Code Review Council](./examples/code-review-council/) | 3 experts debate a code change (architect, security, performance)                | `npx tsx examples/code-review-council/index.ts` |
+| [Production Agent](./examples/production-agent/)       | Drift monitoring → time travel recovery → adversarial testing → immune screening | `npx tsx examples/production-agent/index.ts`    |
+
 ## Error Handling
 
 All errors inherit from `ContextEngineeringError` with a `code` field:
