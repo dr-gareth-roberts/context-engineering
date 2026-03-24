@@ -5,9 +5,9 @@
 [![PyPI](https://img.shields.io/pypi/v/context-engineering)](https://pypi.org/project/context-engineering/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Dual TypeScript/Python SDKs + CLI for LLM context packing, token budgeting, and cache optimization.
+Dual TypeScript/Python toolkit for LLM context management — packing, caching, multi-model deliberation, adversarial testing, and multi-agent orchestration.
 
-When you're building with LLMs, you need to decide **what context fits** in your prompt given a finite token budget. This toolkit gives you algorithms to pack context intelligently, optimize for prefix caching, estimate costs, and hand off context between agents.
+When you're building with LLMs, you need to decide **what context fits** in your prompt given a finite token budget. This toolkit gives you algorithms to pack context intelligently, optimize for prefix caching, estimate costs, debug quality issues, red-team your pipeline, and coordinate context across multiple agents and models.
 
 ## Quick Start
 
@@ -62,34 +62,80 @@ npx @context-engineering/cli pack -i items.json -b 4096   # TypeScript
 ce pack -i items.json -b 4096                              # Python
 ```
 
+## Packages
+
+### Core
+
+| Package                                    | What it does                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------- |
+| [`ce-core`](./packages/ce-core/)           | Pack, score, diff, place, quality, cost, sessions, pipeline, BEADS handoff |
+| [`ce-providers`](./packages/ce-providers/) | OpenAI + Anthropic adapters, token estimators                              |
+| [`ce-memory`](./packages/ce-memory/)       | Memory stores (InMemory, File, SQLite, Redis)                              |
+| [`ce-cli`](./packages/ce-cli/)             | CLI with 11 commands                                                       |
+
+### Multi-Model & Multi-Agent
+
+| Package                                  | What it does                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------- |
+| [`ce-council`](./packages/ce-council/)   | Council of Experts — multi-model deliberation with 4 debate strategies |
+| [`ce-entangle`](./packages/ce-entangle/) | Context Entanglement — pub/sub mesh for multi-agent context sharing    |
+| [`ce-router`](./packages/ce-router/)     | Route to cheapest model by context complexity                          |
+
+### Quality & Safety
+
+| Package                                        | What it does                                                           |
+| ---------------------------------------------- | ---------------------------------------------------------------------- |
+| [`ce-adversarial`](./packages/ce-adversarial/) | Red-team context pipelines with 6 attack types                         |
+| [`ce-immune`](./packages/ce-immune/)           | Learn from failures, develop antibodies against toxic context patterns |
+| [`ce-debugger`](./packages/ce-debugger/)       | Diagnose bad model outputs via context analysis                        |
+| [`ce-drift`](./packages/ce-drift/)             | Monitor context quality degradation over time                          |
+
+### Optimization
+
+| Package                                        | What it does                                           |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| [`ce-compiler`](./packages/ce-compiler/)       | Declarative context programs compiled per target model |
+| [`ce-adaptive`](./packages/ce-adaptive/)       | Adaptive weight learning from outcome feedback         |
+| [`ce-time-travel`](./packages/ce-time-travel/) | Git-like checkpoint/fork/merge for context states      |
+
+### Integration
+
+| Package                                                  | What it does                                    |
+| -------------------------------------------------------- | ----------------------------------------------- |
+| [`ce-sdk-interceptors`](./packages/ce-sdk-interceptors/) | Drop-in wrappers for OpenAI/Anthropic SDKs      |
+| [`ce-frameworks`](./packages/ce-frameworks/)             | Middleware for LangChain, LlamaIndex, CrewAI    |
+| [`ce-rag`](./packages/ce-rag/)                           | Context-aware RAG with information gain scoring |
+
+All packages have full **Python parity** in the [`python/`](./python/) directory.
+
 ## Core API
 
 Six functions form the tight center. Everything else builds on these.
 
-| Function                         | What it does                                                                              |
-| -------------------------------- | ----------------------------------------------------------------------------------------- |
-| `pack(items, budget)`            | Select items that fit a token budget (greedy, score-based)                                |
-| `tracePack(items, budget)`       | Pack with per-item decision log                                                           |
-| `diff(before, after)`            | Compare two context states (added/removed/kept/changed)                                   |
-| `estimateTokens(content)`        | Count tokens (heuristic by default; pluggable for OpenAI/Anthropic via providers package) |
-| `createContextItem(id, content)` | Convenience factory for items                                                             |
-| `createScorer(weights?)`         | Custom scoring with priority/recency/salience weights                                     |
+| Function                         | What it does                                                   |
+| -------------------------------- | -------------------------------------------------------------- |
+| `pack(items, budget)`            | Select items that fit a token budget (greedy, score-based)     |
+| `tracePack(items, budget)`       | Pack with per-item decision log                                |
+| `diff(before, after)`            | Compare two context states (added/removed/kept/changed)        |
+| `estimateTokens(content)`        | Count tokens (heuristic; pluggable for tiktoken via providers) |
+| `createContextItem(id, content)` | Convenience factory for items                                  |
+| `createScorer(weights?)`         | Custom scoring with priority/recency/salience weights          |
 
-Scoring formula: `priority * 1.0 + recency * 0.7 + salience * 0.5 + relevance * 0.0` (relevance activates when a query is provided; salience is read from `item.metadata.salience`)
+Scoring formula: `priority * 1.0 + recency * 0.7 + salience * 0.5 + relevance * 0.0` (relevance activates when a query is provided)
 
 ## Extended Features
 
 | Feature               | Entry point                           | Purpose                                                                           |
 | --------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
-| **Causal Compaction** | `createCausalScorer(issues)`          | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
+| **Pipeline**          | `pipeline(budget)`                    | Fluent builder: `.add().allocate().cacheTopology().build()`                       |
 | **Cache Topology**    | `packWithCacheTopology()`             | Partition items by volatility for prefix cache reuse                              |
 | **Allocation**        | `packWithAllocation()`                | Kind-aware budget splits with min/max/target constraints                          |
-| **Sessions**          | `createSession()`                     | Track what changed between context compiles                                       |
-| **Pipeline**          | `pipeline(budget)`                    | Fluent builder: `.add().allocate().cacheTopology().build()`                       |
 | **Placement**         | `placeItems()`                        | Reorder items by model attention profile (start/end bias)                         |
 | **Quality**           | `analyzeContext()`                    | Density, diversity, freshness, redundancy scores                                  |
 | **Cost**              | `estimateCost()`                      | Dollar cost with prefix cache savings                                             |
 | **BEADS Handoff**     | `createHandoff()` / `pickupHandoff()` | Serialize/deserialize context for agent-to-agent transfer                         |
+| **Causal Compaction** | `createCausalScorer(issues)`          | Graph-aware pruning of conversation history ([Docs](./docs/causal-compaction.md)) |
+| **Sessions**          | `createSession()`                     | Track what changed between context compiles                                       |
 | **Compaction**        | `createContextManager()`              | Auto-summarize old turns in conversation                                          |
 | **Stream**            | `packStream()`                        | Async generator variant of pack                                                   |
 
@@ -111,74 +157,81 @@ const result = pipeline(8000)
   .build();
 ```
 
-### Cost Estimation
+### Council of Experts
 
 ```ts
-import { packWithCacheTopology, estimateCost } from "@context-engineering/core";
+import { createCouncil, ROLE_PRESETS } from "@context-engineering/council";
 
-const packed = packWithCacheTopology(items, { maxTokens: 8000 });
-const cost = estimateCost(packed, "claude-sonnet-4-6");
-console.log(
-  `Saving $${cost.savings.toFixed(4)} per request (${cost.savingsPercent.toFixed(1)}%)`
-);
+const council = createCouncil({
+  members: [
+    {
+      id: "arch",
+      name: "Architect",
+      ...ROLE_PRESETS.pragmatist,
+      provider: anthropic,
+    },
+    { id: "sec", name: "Security", ...ROLE_PRESETS.critic, provider: openai },
+    {
+      id: "ux",
+      name: "UX",
+      ...ROLE_PRESETS["user-advocate"],
+      provider: anthropic,
+    },
+  ],
+  strategy: "debate", // or "parallel", "stepladder", "delphi"
+  rounds: 2,
+  synthesizer: { provider: anthropic },
+});
+
+const result = await council.deliberate({
+  query: "Microservices or modular monolith?",
+  contextItems: architectureDocs,
+  budget: { maxTokens: 8000 },
+});
 ```
 
-## Architecture
-
-```
-packages/
-  ce-core/              Core algorithms (pack, diff, trace, place, quality, cost)
-  ce-providers/         OpenAI + Anthropic adapters, token estimators
-  ce-memory/            Memory stores (InMemory, File, SQLite, Redis)
-  ce-cli/               CLI with 11 commands
-  ce-sdk-interceptors/  Drop-in wrappers for OpenAI/Anthropic SDKs
-  ce-adaptive/          Adaptive weight learning from outcome feedback
-  ce-frameworks/        Middleware for LangChain, LlamaIndex, CrewAI
-  ce-debugger/          Diagnose bad model outputs via context analysis
-  ce-rag/               Context-aware RAG with information gain scoring
-  ce-router/            Route to cheapest model by context complexity
-  ce-web-client/        Interactive playground UI (internal, not published)
-  ce-web-server/        Dev server for playground (internal, not published)
-python/                 Python SDK (full API parity + advanced features)
-schemas/                JSON Schemas shared across languages
-```
-
-### Memory Stores
+### Adversarial Testing
 
 ```ts
-import { createMemoryStore } from "@context-engineering/memory";
+import { createAdversarialTester } from "@context-engineering/adversarial";
 
-const mem = createMemoryStore("memory"); // In-memory
-const file = createMemoryStore("file", { path: "mem.jsonl" }); // JSONL with atomic writes
-const db = createMemoryStore("sqlite", { path: "db.sqlite" }); // SQLite with WAL
+const tester = createAdversarialTester({
+  attacks: ["contradiction", "noise-flood", "subtle-error", "authority-spoof"],
+});
+
+const report = await tester.probe(items, budget, async packed => {
+  const response = await llm.generate(packed);
+  return evaluateQuality(response); // 0-1
+});
+// report.overall: "resilient" | "vulnerable" | "critical"
 ```
 
-All stores implement `put()`, `get()`, `query()`, `forget()`, `close()` with consistent TTL semantics.
+### Context Compiler
 
-### CLI
+```ts
+import {
+  contextProgram,
+  createContextCompiler,
+} from "@context-engineering/compiler";
 
-| Command               | Purpose                        |
-| --------------------- | ------------------------------ |
-| `ce pack`             | Pack items into a budget       |
-| `ce trace`            | Pack with decision trace       |
-| `ce diff`             | Compare two context states     |
-| `ce budget`           | Estimate token count           |
-| `ce lint`             | Validate against JSON Schema   |
-| `ce place`            | Attention-optimized placement  |
-| `ce quality`          | Context quality analysis       |
-| `ce effective-budget` | Budget de-rating for attention |
-| `ce handoff`          | Create BEADS agent handoff     |
-| `ce pickup`           | Resume from BEADS handoff      |
-| `ce cost`             | API cost estimation            |
+const program = contextProgram()
+  .declare("goal", { kind: "system", required: true, position: "first" })
+  .declare("tools", { kind: "tool", required: true })
+  .declare("docs", {
+    kind: "retrieval",
+    fillRemaining: true,
+    deduplicate: true,
+  })
+  .constraint("coverage")
+  .constraint("max-redundancy", { threshold: 0.3 })
+  .build();
 
-### Python-Only Features
-
-The Python SDK includes everything above plus:
-
-- **Advanced pack**: negation/supersession, hierarchical inclusion, semantic redundancy detection, relation boosts
-- **AgentContextManager**: orchestration with adaptive budgeting, segmentation, memory, handoff
-- **Segmenters**: structural, semantic, perplexity, hybrid with boundary protection
-- **Budget simulation**: `simulate_budgets()` across a range
+const compiled = createContextCompiler().compile(program, {
+  target: "claude",
+  items: allItems,
+  budget: { maxTokens: 100000 },
+});
+```
 
 ## Development
 
@@ -197,8 +250,8 @@ cd python && pip install -e ".[dev]"         # Python
 ### Testing
 
 ```bash
-pnpm test:all                               # TypeScript (915+ tests across 10 packages)
-cd python && python -m pytest               # Python (700+ tests)
+pnpm test:all                               # TypeScript (1,264 tests across 17 packages)
+cd python && python -m pytest               # Python (908 tests)
 pnpm check:all                              # Type checking
 ```
 

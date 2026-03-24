@@ -17,7 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Model Router** (`@context-engineering/router`): Analyzes context complexity across six dimensions and routes to the cheapest capable model, with adaptive learning and quality-based fallback
 - **Context Replay**: Record pack decisions and replay with different strategies for A/B testing
 - **Context Inspector**: Web UI for debugging context windows (internal)
-- **Python parity**: SDK interceptors, replay, adaptive learning, framework middleware, RAG, debugger, and router all ported to Python
+- **Council of Experts** (`@context-engineering/council`): Multi-model deliberation with 4 strategies (parallel, debate, stepladder, delphi), 8 role presets, Jaccard convergence detection
+- **Adversarial Tester** (`@context-engineering/adversarial`): Red-team context pipelines with 6 attack types (contradiction, noise-flood, subtle-error, authority-spoof, temporal-poison, relevance-dilution)
+- **Context Time Travel** (`@context-engineering/time-travel`): Git-like checkpoint/rewind/fork/merge for context states with 5 merge strategies (union, intersection, best-quality, highest-priority, manual)
+- **Drift Detector** (`@context-engineering/drift`): Continuous monitoring across 6 dimensions (relevance, redundancy, diversity, density, freshness, utilization) with trend detection and alerting
+- **Context Immune System** (`@context-engineering/immune`): Learns from context failures via fingerprint-based similarity matching, generates antibodies to screen future packs
+- **Context Compiler** (`@context-engineering/compiler`): Declarative context programs with slot-based allocation, constraint validation, and per-model optimization (Claude, GPT-4, Gemini)
+- **Context Entanglement** (`@context-engineering/entangle`): Multi-agent context sharing via scoped pub/sub mesh with propagation policies (immediate, next-pack, on-demand)
+- **Python parity**: All packages ported to Python with full API surface
 
 ### Changed
 

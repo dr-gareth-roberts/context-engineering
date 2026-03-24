@@ -31,10 +31,10 @@ pip install -e ".[dev]"
 ### Verify Everything Works
 
 ```bash
-# TypeScript (915+ tests across 10 packages)
+# TypeScript (1,264 tests across 17 packages)
 pnpm test:all
 
-# Python (700+ tests)
+# Python (908 tests)
 cd python && python -m pytest
 
 # Type checking
@@ -55,6 +55,13 @@ packages/
   ce-debugger/          Diagnose bad model outputs via context analysis
   ce-rag/               Context-aware RAG with information gain scoring
   ce-router/            Route to cheapest model by context complexity
+  ce-council/           Multi-model deliberation (4 debate strategies)
+  ce-adversarial/       Red-team context pipelines (6 attack types)
+  ce-time-travel/       Git-like checkpoint/fork/merge for context states
+  ce-drift/             Context quality degradation monitoring
+  ce-immune/            Failure pattern antibodies for context screening
+  ce-compiler/          Declarative context programs compiled per model
+  ce-entangle/          Multi-agent context sharing via pub/sub mesh
   ce-web-client/        React 19 docs + demos web app
   ce-web-server/        Express server for the web app
 python/
@@ -75,6 +82,13 @@ ce-frameworks        → ce-core
 ce-debugger          → ce-core
 ce-rag               → ce-core
 ce-router            → ce-core
+ce-council           → ce-core
+ce-adversarial       → ce-core
+ce-time-travel       → ce-core
+ce-drift             → ce-core
+ce-immune            → ce-core
+ce-compiler          → ce-core
+ce-entangle          → ce-core
 ```
 
 Changes to `ce-core` may affect all downstream packages. Changes to `ce-memory` are isolated.
