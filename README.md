@@ -1,9 +1,13 @@
-# Context Engineering Toolkit
+<p align="center">
+  <img src="./assets/banner.svg" alt="Context Engineering Toolkit" width="100%">
+</p>
 
-[![CI](https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@context-engineering/core)](https://www.npmjs.com/package/@context-engineering/core)
-[![PyPI](https://img.shields.io/pypi/v/context-engineering)](https://pypi.org/project/context-engineering/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+<p align="center">
+  <a href="https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml"><img src="https://github.com/dr-gareth-roberts/context-engineering/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/@context-engineering/core"><img src="https://img.shields.io/npm/v/@context-engineering/core" alt="npm"></a>
+  <a href="https://pypi.org/project/context-engineering/"><img src="https://img.shields.io/pypi/v/context-engineering" alt="PyPI"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
 **Most LLM applications waste 30-50% of their context window on redundant, stale, or irrelevant content.** This costs real money at scale — and degrades output quality silently.
 

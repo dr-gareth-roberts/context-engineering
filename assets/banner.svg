@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="400" fill="url(#bg)" rx="12"/>
+
+  <!-- Grid pattern (subtle) -->
+  <g opacity="0.03" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="50" x2="1200" y2="50"/>
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="150" x2="1200" y2="150"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="250" x2="1200" y2="250"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="350" x2="1200" y2="350"/>
+    <line x1="100" y1="0" x2="100" y2="400"/>
+    <line x1="200" y1="0" x2="200" y2="400"/>
+    <line x1="300" y1="0" x2="300" y2="400"/>
+    <line x1="400" y1="0" x2="400" y2="400"/>
+    <line x1="500" y1="0" x2="500" y2="400"/>
+    <line x1="600" y1="0" x2="600" y2="400"/>
+    <line x1="700" y1="0" x2="700" y2="400"/>
+    <line x1="800" y1="0" x2="800" y2="400"/>
+    <line x1="900" y1="0" x2="900" y2="400"/>
+    <line x1="1000" y1="0" x2="1000" y2="400"/>
+    <line x1="1100" y1="0" x2="1100" y2="400"/>
+  </g>
+
+  <!-- Logo icon: context window with packed items -->
+  <g transform="translate(80, 100)">
+    <!-- Outer frame (the "window") -->
+    <rect x="0" y="0" width="180" height="200" rx="8" stroke="url(#accent)" stroke-width="2.5" fill="none" opacity="0.8"/>
+
+    <!-- Packed items inside (different sizes = different priorities) -->
+    <rect x="10" y="10" width="160" height="35" rx="4" fill="#3b82f6" opacity="0.9"/>
+    <rect x="10" y="52" width="160" height="25" rx="4" fill="#8b5cf6" opacity="0.7"/>
+    <rect x="10" y="84" width="100" height="25" rx="4" fill="#6366f1" opacity="0.6"/>
+    <rect x="116" y="84" width="54" height="25" rx="4" fill="#a78bfa" opacity="0.4"/>
+    <rect x="10" y="116" width="75" height="25" rx="4" fill="#818cf8" opacity="0.5"/>
+    <rect x="91" y="116" width="79" height="25" rx="4" fill="#c4b5fd" opacity="0.3"/>
+
+    <!-- Budget line -->
+    <line x1="0" y1="155" x2="180" y2="155" stroke="#10b981" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+    <text x="185" y="159" font-family="monospace" font-size="10" fill="#10b981" opacity="0.6">budget</text>
+
+    <!-- Dropped items (faded, below the line) -->
+    <rect x="10" y="165" width="80" height="20" rx="3" fill="#ef4444" opacity="0.15" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.3"/>
+    <rect x="96" y="165" width="74" height="20" rx="3" fill="#ef4444" opacity="0.15" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.3"/>
+
+    <!-- Item labels -->
+    <text x="20" y="32" font-family="monospace" font-size="12" fill="white" font-weight="bold" opacity="0.9">system prompt</text>
+    <text x="20" y="69" font-family="monospace" font-size="11" fill="white" opacity="0.7">retrieval docs</text>
+    <text x="20" y="101" font-family="monospace" font-size="10" fill="white" opacity="0.6">history</text>
+    <text x="126" y="101" font-family="monospace" font-size="10" fill="white" opacity="0.4">tools</text>
+    <text x="20" y="133" font-family="monospace" font-size="10" fill="white" opacity="0.5">query</text>
+    <text x="101" y="133" font-family="monospace" font-size="10" fill="white" opacity="0.3">memory</text>
+    <text x="25" y="180" font-family="monospace" font-size="9" fill="#ef4444" opacity="0.4">dropped</text>
+    <text x="111" y="180" font-family="monospace" font-size="9" fill="#ef4444" opacity="0.4">dropped</text>
+  </g>
+
+  <!-- Title text -->
+  <g transform="translate(320, 130)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="56" fill="white" font-weight="800" letter-spacing="-2">
+      Context Engineering
+    </text>
+    <text y="52" font-family="system-ui, -apple-system, sans-serif" font-size="56" fill="url(#accent)" font-weight="800" letter-spacing="-2">
+      Toolkit
+    </text>
+  </g>
+
+  <!-- Tagline -->
+  <text x="320" y="250" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#94a3b8" letter-spacing="0.5">
+    Pack context intelligently. Debug quality. Red-team your pipeline.
+  </text>
+
+  <!-- Stats badges -->
+  <g transform="translate(320, 285)">
+    <rect width="130" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="65" y="21" font-family="monospace" font-size="13" fill="#3b82f6" text-anchor="middle" font-weight="bold">17 packages</text>
+
+    <rect x="145" width="130" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="210" y="21" font-family="monospace" font-size="13" fill="#10b981" text-anchor="middle" font-weight="bold">2,172 tests</text>
+
+    <rect x="290" width="145" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="362" y="21" font-family="monospace" font-size="13" fill="#a78bfa" text-anchor="middle" font-weight="bold">TS + Python</text>
+
+    <rect x="450" width="100" height="32" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="500" y="21" font-family="monospace" font-size="13" fill="#fbbf24" text-anchor="middle" font-weight="bold">MIT</text>
+  </g>
+
+  <!-- Feature pills at bottom -->
+  <g transform="translate(320, 340)">
+    <text font-family="monospace" font-size="11" fill="#64748b" letter-spacing="1">
+      pack  |  pipeline  |  council  |  adversarial  |  compiler  |  drift  |  immune  |  entangle  |  time-travel
+    </text>
+  </g>
+</svg>
