@@ -32,16 +32,36 @@ npm install -g @context-engineering/cli       # CLI tools
 ```bash
 pip install context-engineering
 
-# Optional extras
-pip install context-engineering[redis]     # Redis memory store
-pip install context-engineering[postgres]  # Postgres memory store
+# With provider adapters (OpenAI/Anthropic)
+pip install context-engineering[providers]
+
+# With CLI
+pip install context-engineering[cli]
+
+# With everything
+pip install context-engineering[all]
 ```
+
+#### Optional Extras
+
+| Extra       | What it adds                | When you need it                                         |
+| ----------- | --------------------------- | -------------------------------------------------------- |
+| `providers` | httpx, tiktoken             | Using OpenAI/Anthropic token estimators or LLM providers |
+| `server`    | fastapi, uvicorn, httpx     | Running the REST API server                              |
+| `cli`       | jsonschema, tiktoken        | Using the `ce` command-line tool                         |
+| `logging`   | structlog                   | Structured logging in memory stores and framework        |
+| `webhooks`  | httpx                       | Sending pack telemetry to external endpoints             |
+| `redis`     | redis                       | Redis memory store backend                               |
+| `postgres`  | asyncpg                     | Postgres memory store backend                            |
+| `runtimes`  | domain runtime dependencies | SOC, claims, supply chain domain runtimes                |
+| `all`       | everything above            | Full feature set                                         |
+| `dev`       | all + pytest, ruff, pyright | Contributing to the project                              |
 
 The Python SDK includes all features in a single package. No separate installs needed.
 
 ## Prerequisites
 
-- **Node.js** 18+ (CI tests against 18, 20, 22)
+- **Node.js** 20+ (CI tests against 20, 22)
 - **Python** 3.11+
 - **pnpm** 10+ (for monorepo development)
 
