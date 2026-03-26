@@ -120,16 +120,19 @@ const result = await council.deliberate({
 
 Runnable demos — no API keys needed:
 
-| Example                                                | What it shows                                          |
-| ------------------------------------------------------ | ------------------------------------------------------ |
-| [RAG Chatbot](./examples/rag-chatbot/)                 | Retrieval + info-gain filtering + pipeline packing     |
-| [Code Review Council](./examples/code-review-council/) | 3 experts debate a PR with convergence scoring         |
-| [Production Agent](./examples/production-agent/)       | Drift detection + time-travel recovery + immune system |
-| [Causal Compaction](./examples/causal-compaction/)     | BEADS task graph compaction                            |
-| [Full Pipeline](./examples/full-pipeline/)             | Complete pipeline with allocation + quality gates      |
-| [Node Basic](./examples/node-basic/)                   | Minimal Node.js setup                                  |
-| [Python Basic](./examples/python-basic/)               | Minimal Python setup                                   |
-| [Webhook Telemetry](./examples/webhook-telemetry/)     | Telemetry to external endpoints                        |
+| Example                                                          | What it shows                                          |
+| ---------------------------------------------------------------- | ------------------------------------------------------ |
+| [RAG Chatbot](./examples/rag-chatbot/)                           | Retrieval + info-gain filtering + pipeline packing     |
+| [Code Review Council](./examples/code-review-council/)           | 3 experts debate a PR with convergence scoring         |
+| [Production Agent](./examples/production-agent/)                 | Drift detection + time-travel recovery + immune system |
+| [Causal Compaction](./examples/causal-compaction/)               | BEADS task graph compaction                            |
+| [Full Pipeline](./examples/full-pipeline/)                       | Complete pipeline with allocation + quality gates      |
+| [Node Basic](./examples/node-basic/)                             | Minimal Node.js setup                                  |
+| [Python Basic](./examples/python-basic/)                         | Minimal Python setup                                   |
+| [Webhook Telemetry](./examples/webhook-telemetry/)               | Telemetry to external endpoints                        |
+| [Context Compiler](./examples/context-compiler/)                 | Declarative slots, constraints, per-model compilation  |
+| [Adaptive Weights](./examples/adaptive-weights/)                 | Learn scoring weights from quality feedback            |
+| [Multi-Agent Entanglement](./examples/multi-agent-entanglement/) | Pub/sub context sharing between agents                 |
 
 ```bash
 npx tsx examples/rag-chatbot/index.ts
