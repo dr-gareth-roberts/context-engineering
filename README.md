@@ -29,7 +29,7 @@ These are not wrappers around existing APIs — they are new capabilities for ma
 
 **Context Immune System** — Records failure patterns as fingerprints and develops [antibodies](./docs/wiki/Context-Immune-System.md) that screen future packs. Individual items can be fine but certain _combinations_ are toxic — the immune system learns these.
 
-**Context Compiler** — [Declare what you want](./docs/wiki/Context-Compilation.md), not how to arrange it. Slots, constraints, and per-model optimisation passes for Claude, GPT-4, and Gemini. Like a C compiler targeting different architectures.
+**Context Compiler** — [Declare what you want](./docs/wiki/Context-Compilation.md), not how to arrange it. Slots, constraints, and per-model optimisation passes for Claude, GPT-5.4, and Gemini 2.5. Like a C compiler targeting different architectures.
 
 **Context Entanglement** — A [pub/sub mesh](./docs/wiki/Multi-Agent-Entanglement.md) for multi-agent systems. When Agent A discovers something, Agent B's next `pack()` automatically includes it — with scoped propagation, TTL expiry, and budget-aware injection.
 

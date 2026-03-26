@@ -110,7 +110,7 @@ Fluent builder for declaring programs. Chain `.declare()`, `.constraint()`, then
 
 **Why a two-phase slot fill (required first, then fillRemaining)?** Required slots with explicit budgets get first priority, ensuring critical context (system prompts, active code) is never crowded out by history or retrieved documents. Slots with `fillRemaining: true` absorb whatever budget is left, which naturally adapts to the total context size.
 
-**Why model-specific optimisation passes?** Different models attend to different positions in the context window. Claude exhibits U-shaped attention (strong at start and end), GPT-4 has a recency bias favouring the start, and Gemini's attention is more uniform. The compiler exploits these patterns by placing high-priority items where the model will attend most.
+**Why model-specific optimisation passes?** Different models attend to different positions in the context window. Claude exhibits U-shaped attention (strong at start and end), GPT-5.4 has a recency bias favouring the start, and Gemini 2.5's attention is more uniform. The compiler exploits these patterns by placing high-priority items where the model will attend most.
 
 **Why four optimisation passes in sequence?** Staleness pruning runs first to remove dead weight. Deduplication follows to eliminate redundancy. Position-aware placement then orders items for the target model. Finally, cache-prefix ordering makes the first section deterministic so prompt caching can kick in across requests.
 

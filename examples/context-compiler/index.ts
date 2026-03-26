@@ -8,7 +8,7 @@
  *   1. Assigns items to declared slots by kind
  *   2. Applies per-slot strategies (priority, recency, relevance)
  *   3. Enforces constraints (coverage, freshness, budget utilisation)
- *   4. Runs model-specific optimisation passes (Claude, GPT-4, Gemini)
+ *   4. Runs model-specific optimisation passes (Claude, GPT-5.4, Gemini 2.5)
  *   5. Reports diagnostics, slot breakdowns, and quality metrics
  *
  * Think of it like a C compiler targeting different CPU architectures —
@@ -352,12 +352,12 @@ const claudeResult = compiler.compile(program, {
 
 printResult(claudeResult, "Claude compilation");
 
-// ─── 3. Compile for GPT-4 ──────────────────────────────────────────
+// ─── 3. Compile for GPT-5.4 ────────────────────────────────────────
 
-header("3. Compile for GPT-4");
+header("3. Compile for GPT-5.4");
 
 console.log(
-  "  GPT-4 attends more uniformly but benefits from logical grouping."
+  "  GPT-5.4 attends more uniformly but benefits from logical grouping."
 );
 console.log(
   "  The compiler clusters related items and uses different ordering.\n"
@@ -369,7 +369,7 @@ const gptResult = compiler.compile(program, {
   budget: { maxTokens: 1000 },
 });
 
-printResult(gptResult, "GPT-4 compilation");
+printResult(gptResult, "GPT-5.4 compilation");
 
 // ─── 4. Compare Item Order ──────────────────────────────────────────
 
@@ -383,7 +383,7 @@ claudeIds.forEach((id, i) =>
   console.log(`    ${DIM}${String(i + 1).padStart(2)}.${RESET} ${id}`)
 );
 console.log();
-console.log(`  ${YELLOW}GPT-4 order:${RESET}`);
+console.log(`  ${YELLOW}GPT-5.4 order:${RESET}`);
 gptIds.forEach((id, i) =>
   console.log(`    ${DIM}${String(i + 1).padStart(2)}.${RESET} ${id}`)
 );
