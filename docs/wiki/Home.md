@@ -58,8 +58,21 @@ This toolkit provides algorithms, strategies, and infrastructure for that decisi
 
 ### Examples
 
-| Example                                                    | What it shows                                             |
-| ---------------------------------------------------------- | --------------------------------------------------------- |
-| [RAG Chatbot](../../examples/rag-chatbot/)                 | Retrieval + information-gain filtering + pipeline packing |
-| [Code Review Council](../../examples/code-review-council/) | 3 experts debate a PR (architect, security, performance)  |
-| [Production Agent](../../examples/production-agent/)       | Drift monitoring + time travel + adversarial + immune     |
+| Example                                                              | What it shows                                             |
+| -------------------------------------------------------------------- | --------------------------------------------------------- |
+| [RAG Chatbot](../../examples/rag-chatbot/)                           | Retrieval + information-gain filtering + pipeline packing |
+| [Code Review Council](../../examples/code-review-council/)           | 3 experts debate a PR (architect, security, performance)  |
+| [Production Agent](../../examples/production-agent/)                 | Drift monitoring + time travel + adversarial + immune     |
+| [Causal Compaction](../../examples/causal-compaction/)               | BEADS task graph compaction                               |
+| [Full Pipeline](../../examples/full-pipeline/)                       | Complete pipeline with allocation + quality gates         |
+| [Node Basic](../../examples/node-basic/)                             | Minimal Node.js setup                                     |
+| [Python Basic](../../examples/python-basic/)                         | Minimal Python setup                                      |
+| [Python Full Pipeline](../../examples/python-full-pipeline/)         | Python pipeline end-to-end                                |
+| [Webhook Telemetry](../../examples/webhook-telemetry/)               | Telemetry to external endpoints                           |
+| [Demo Pack](../../examples/demo-pack.ts)                             | Basic packing demo (single file)                          |
+| [Demo Memory](../../examples/demo-memory.ts)                         | Memory store basics (single file)                         |
+| [Full Pipeline (TS)](../../examples/full-pipeline.ts)                | TypeScript pipeline (single file)                         |
+| [Trace Viewer Data](../../examples/trace-viewer-data/)               | Debugging trace output                                    |
+| [Context Compiler](../../examples/context-compiler/)                 | Declarative slots, constraints, per-model compilation     |
+| [Adaptive Weights](../../examples/adaptive-weights/)                 | Learn scoring weights from quality feedback               |
+| [Multi-Agent Entanglement](../../examples/multi-agent-entanglement/) | Pub/sub context sharing between agents                    |

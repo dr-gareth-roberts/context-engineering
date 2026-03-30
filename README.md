@@ -29,7 +29,7 @@ These are not wrappers around existing APIs — they are new capabilities for ma
 
 **Context Immune System** — Records failure patterns as fingerprints and develops [antibodies](./docs/wiki/Context-Immune-System.md) that screen future packs. Individual items can be fine but certain _combinations_ are toxic — the immune system learns these.
 
-**Context Compiler** — [Declare what you want](./docs/wiki/Context-Compilation.md), not how to arrange it. Slots, constraints, and per-model optimisation passes for Claude, GPT-4, and Gemini. Like a C compiler targeting different architectures.
+**Context Compiler** — [Declare what you want](./docs/wiki/Context-Compilation.md), not how to arrange it. Slots, constraints, and per-model optimisation passes for Claude, GPT-5.4, and Gemini 2.5. Like a C compiler targeting different architectures.
 
 **Context Entanglement** — A [pub/sub mesh](./docs/wiki/Multi-Agent-Entanglement.md) for multi-agent systems. When Agent A discovers something, Agent B's next `pack()` automatically includes it — with scoped propagation, TTL expiry, and budget-aware injection.
 
@@ -120,11 +120,19 @@ const result = await council.deliberate({
 
 Runnable demos — no API keys needed:
 
-| Example                                                | What it shows                                          |
-| ------------------------------------------------------ | ------------------------------------------------------ |
-| [RAG Chatbot](./examples/rag-chatbot/)                 | Retrieval + info-gain filtering + pipeline packing     |
-| [Code Review Council](./examples/code-review-council/) | 3 experts debate a PR with convergence scoring         |
-| [Production Agent](./examples/production-agent/)       | Drift detection + time-travel recovery + immune system |
+| Example                                                          | What it shows                                          |
+| ---------------------------------------------------------------- | ------------------------------------------------------ |
+| [RAG Chatbot](./examples/rag-chatbot/)                           | Retrieval + info-gain filtering + pipeline packing     |
+| [Code Review Council](./examples/code-review-council/)           | 3 experts debate a PR with convergence scoring         |
+| [Production Agent](./examples/production-agent/)                 | Drift detection + time-travel recovery + immune system |
+| [Causal Compaction](./examples/causal-compaction/)               | BEADS task graph compaction                            |
+| [Full Pipeline](./examples/full-pipeline/)                       | Complete pipeline with allocation + quality gates      |
+| [Node Basic](./examples/node-basic/)                             | Minimal Node.js setup                                  |
+| [Python Basic](./examples/python-basic/)                         | Minimal Python setup                                   |
+| [Webhook Telemetry](./examples/webhook-telemetry/)               | Telemetry to external endpoints                        |
+| [Context Compiler](./examples/context-compiler/)                 | Declarative slots, constraints, per-model compilation  |
+| [Adaptive Weights](./examples/adaptive-weights/)                 | Learn scoring weights from quality feedback            |
+| [Multi-Agent Entanglement](./examples/multi-agent-entanglement/) | Pub/sub context sharing between agents                 |
 
 ```bash
 npx tsx examples/rag-chatbot/index.ts
