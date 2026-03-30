@@ -1,0 +1,9 @@
+{
+  "name": "ce-multi-agent-entanglement-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/entangle": "workspace:*"
+  }
+}

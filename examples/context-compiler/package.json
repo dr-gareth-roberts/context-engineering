@@ -1,0 +1,9 @@
+{
+  "name": "ce-context-compiler-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/compiler": "workspace:*"
+  }
+}
