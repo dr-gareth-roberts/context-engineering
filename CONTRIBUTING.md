@@ -6,7 +6,7 @@ Thanks for your interest in contributing to the Context Engineering Toolkit.
 
 ### Prerequisites
 
-- Node.js 18+ (CI tests 18, 20, 22; `.nvmrc` pins to 22 for local dev)
+- Node.js 20+ (CI tests 20, 22; `.nvmrc` pins to 22 for local dev)
 - pnpm 10.30.3+ (`corepack enable && corepack prepare pnpm@10.30.3 --activate`)
 - Python 3.11+
 - Git

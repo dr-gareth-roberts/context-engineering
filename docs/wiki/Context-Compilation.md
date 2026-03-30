@@ -8,7 +8,7 @@ The imperative `pipeline()` API requires you to specify _how_ to arrange context
 
 This matters when:
 
-- You target multiple models (compile once, deploy to Claude/GPT/Gemini with different optimisations)
+- You target multiple models (compile once, deploy to Claude/GPT-5.4/Gemini 2.5 with different optimisations)
 - You want constraint enforcement (contradictions, freshness, coverage requirements)
 - You want the system to choose strategies rather than specifying them
 
@@ -86,7 +86,7 @@ console.log(result.quality); // quality metrics
 
 The compiler applies different optimisation passes per target:
 
-| Pass                      | Claude                                | GPT-4               | Gemini          | Generic         |
+| Pass                      | Claude                                | GPT-5.4             | Gemini 2.5      | Generic         |
 | ------------------------- | ------------------------------------- | ------------------- | --------------- | --------------- |
 | **Position placement**    | U-shaped (high priority at start+end) | Descending priority | Grouped by kind | Preserved order |
 | **Cache prefix ordering** | By ID (deterministic prefix)          | By ID               | By ID           | By ID           |
