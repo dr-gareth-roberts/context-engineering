@@ -229,7 +229,11 @@ export function createDriftMonitor(config?: DriftMonitorConfig): DriftMonitor {
       if (observations.length > windowSize) {
         observations = observations.slice(observations.length - windowSize);
       }
-      driftSince = null;
+
+      const importedReport = buildReport();
+      driftSince = importedReport.drifting
+        ? (importedReport.since ?? observations[observations.length - 1]?.timestamp ?? null)
+        : null;
     },
   };
 }

@@ -16,6 +16,10 @@ import type {
  * the cheapest qualifying option.
  */
 export function createContextRouter(config: RouterConfig): ContextRouter {
+  if (config.models.length === 0) {
+    throw new Error("createContextRouter requires at least one model in config.models");
+  }
+
   const sortedModels = [...config.models].sort(
     (a, b) => a.costPer1kInput - b.costPer1kInput
   );

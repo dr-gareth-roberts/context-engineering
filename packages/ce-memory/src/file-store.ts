@@ -118,8 +118,18 @@ export class FileStore implements MemoryStore {
           throw lockErr;
         }
 
-        await new Promise<void>(resolve => setTimeout(resolve, delay));
-        delay = Math.min(delay * 2, deadline - Date.now());
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+          const lockErr = new Error(
+            `Failed to acquire file lock on ${this.lockPath} within ${lockTimeout}ms`
+          );
+          (lockErr as unknown as { cause: unknown }).cause = err;
+          throw lockErr;
+        }
+
+        const sleepMs = Math.min(delay, remaining);
+        await new Promise<void>(resolve => setTimeout(resolve, sleepMs));
+        delay = Math.min(delay * 2, Math.max(remaining, 1));
       }
     }
 
