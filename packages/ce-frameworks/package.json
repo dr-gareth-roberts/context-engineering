@@ -48,9 +48,9 @@
     "@context-engineering/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "@vitest/coverage-v8": "^4.1.2",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.2"
+    "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "^4.1.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
   }
 }
