@@ -52,6 +52,25 @@ function createRateLimiter(windowMs: number, maxRequests: number) {
   return { check, dispose };
 }
 
+/**
+ * Reads a positive integer from an environment variable, falling back to a
+ * default when the variable is unset, empty, or not a valid positive number.
+ * Surfaces misconfiguration via console.warn instead of silently producing NaN.
+ */
+function intEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const n = raw === undefined || raw === "" ? fallback : Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    if (raw !== undefined && raw !== "") {
+      console.warn(
+        `Invalid ${name}=${JSON.stringify(raw)}; using default ${fallback}`
+      );
+    }
+    return fallback;
+  }
+  return n;
+}
+
 async function startServer() {
   const app = express();
 
@@ -85,7 +104,7 @@ async function startServer() {
   });
 
   // ── Proxy configuration ──────────────────────────────────────────────
-  const backendPort = Number(process.env.BACKEND_PORT || 8000);
+  const backendPort = intEnv("BACKEND_PORT", 8000);
   const backendUrl =
     process.env.BACKEND_URL || `http://127.0.0.1:${backendPort}`;
 
@@ -97,8 +116,8 @@ async function startServer() {
       ? undefined
       : "http://localhost:3000");
 
-  const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
-  const rateLimitMax = Number(process.env.RATE_LIMIT_MAX || 120);
+  const rateLimitWindowMs = intEnv("RATE_LIMIT_WINDOW_MS", 60_000);
+  const rateLimitMax = intEnv("RATE_LIMIT_MAX", 120);
   const rateLimiter = createRateLimiter(rateLimitWindowMs, rateLimitMax);
 
   // ── API middleware: CORS + rate limiting ──────────────────────────────
