@@ -39,13 +39,11 @@ class RedisMemoryStore(MemoryStore):
         item = MemoryItem.model_validate_json(data)
         item.last_accessed_at = _now_iso()
 
-        # update last_accessed_at in redis
+        # update last_accessed_at in redis; keepttl preserves the key's existing
+        # native expiry so reads do not slide the absolute TTL (created_at + ttl).
         key = f"ce_memory:{item_id}"
         dumped = item.model_dump_json(by_alias=True)
-        if item.ttl_seconds and item.ttl_seconds > 0:
-            await self.client.set(key, dumped, ex=item.ttl_seconds)
-        else:
-            await self.client.set(key, dumped)
+        await self.client.set(key, dumped, keepttl=True)
 
         return item
 

@@ -248,6 +248,73 @@ describe("AgentHandle", () => {
       // next-pack items are not filtered by acknowledgment
       expect(handleB.getPending()).toHaveLength(1);
     });
+
+    it("garbage-collects acknowledged IDs once their items are pruned from the store", () => {
+      // Small mesh: store keeps at most 2 items, so older entangled items are
+      // pruned away (agent-handle.ts entangle() splice). A persistent agent that
+      // acknowledges each immediate item would otherwise retain a stale ID forever.
+      const leakyMesh = createEntanglementMesh({ maxItems: 2 });
+      const producer = leakyMesh.register("producer", {
+        budget: { maxTokens: 1000 },
+      });
+      const consumer = leakyMesh.register("consumer", {
+        budget: { maxTokens: 1000 },
+      });
+
+      // Observe internal Set GC: without the fix, acknowledge() only ever calls
+      // Set.prototype.add and never .delete; the fix deletes stale IDs.
+      const deletedIds: unknown[] = [];
+      const originalDelete = Set.prototype.delete;
+      const deleteSpy = vi
+        .spyOn(Set.prototype, "delete")
+        .mockImplementation(function (this: Set<unknown>, value: unknown) {
+          deletedIds.push(value);
+          return originalDelete.call(this, value);
+        });
+
+      try {
+        // Entangle and acknowledge many immediate items. maxItems=2 keeps only
+        // the two most recent in store.items, so earlier IDs become stale.
+        for (let i = 0; i < 10; i++) {
+          producer.entangle(item(`leak-${i}`), { propagation: "immediate" });
+          consumer.acknowledge(`leak-${i}`);
+        }
+      } finally {
+        deleteSpy.mockRestore();
+      }
+
+      // The fix must have pruned at least one stale acknowledged ID. The most
+      // recently acknowledged IDs (still in store) must NOT be deleted.
+      expect(deletedIds).toContain("leak-0");
+      expect(deletedIds).not.toContain("leak-9");
+    });
+
+    it("keeps live acknowledged immediate items filtered when the GC sweep fires", () => {
+      // Behaviour preservation: when the GC branch actually runs, it must drop
+      // only stale (pruned) IDs and must NOT resurface a still-live, still-acked
+      // immediate item back into pending (the regression the prescription warns
+      // against). maxItems=2 forces the sweep to fire on the third acknowledge.
+      const leakyMesh = createEntanglementMesh({ maxItems: 2 });
+      const producer = leakyMesh.register("producer", {
+        budget: { maxTokens: 1000 },
+      });
+      const consumer = leakyMesh.register("consumer", {
+        budget: { maxTokens: 1000 },
+      });
+
+      producer.entangle(item("stale"), { propagation: "immediate" });
+      consumer.acknowledge("stale"); // acked={stale}, store=[stale]
+      producer.entangle(item("mid"), { propagation: "immediate" });
+      consumer.acknowledge("mid"); // acked={stale,mid}, store=[stale,mid] (2>2 false)
+      producer.entangle(item("keep-me"), { propagation: "immediate" });
+      // store=[mid,keep-me] (stale pruned); acked.size 3 > store 2 -> GC fires.
+      consumer.acknowledge("keep-me");
+
+      // keep-me is live AND acknowledged -> must stay filtered (not resurfaced).
+      const pendingIds = consumer.getPending().map(ei => ei.item.id);
+      expect(pendingIds).not.toContain("keep-me");
+      expect(pendingIds).not.toContain("mid");
+    });
   });
 
   describe("scope filtering", () => {

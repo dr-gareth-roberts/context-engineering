@@ -206,6 +206,20 @@ describe("packWithCacheTopology", () => {
     expect(result.partitionBoundaries[0]).toBe(2); // 2 static items
     expect(result.partitionBoundaries[1]).toBe(3); // 2 static + 1 session
   });
+
+  it("scores static items on the same scale as pack (priority-based)", () => {
+    // Regression: static items used to be selected without a `score`, so a
+    // downstream quality gate (which evicts the lowest `score ?? 0`) would
+    // drop high-value cacheable static content first. They must carry their
+    // priority-derived score, matching pack()'s default scorer.
+    const items = [makeItem("sys", "system", 10, 50)];
+    const result = packWithCacheTopology(items, { maxTokens: 500 });
+
+    const staticItem = result.selected.find(i => i.id === "sys");
+    expect(staticItem).toBeDefined();
+    // Default weights: priority * 1.0 => 10.
+    expect(staticItem?.score).toBe(10);
+  });
 });
 
 describe("packWithCacheTopologyAsync", () => {

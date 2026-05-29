@@ -19,7 +19,11 @@ export interface Slot {
   strategy?: "priority" | "recency" | "relevance";
   /** Deduplicate items within this slot */
   deduplicate?: boolean;
-  /** Max age for items in this slot (in seconds since epoch, compared to recency) */
+  /**
+   * Minimum recency score (0-10 scale) an item must have to be kept in this slot.
+   * Items whose `recency` is below this value are pruned by the staleness-pruning pass.
+   * Matched by slot `kind`. Note: this is a recency floor, NOT a max age in seconds.
+   */
   maxStaleness?: number;
 }
 

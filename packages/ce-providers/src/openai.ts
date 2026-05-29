@@ -120,8 +120,13 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       input: inputArray,
     });
 
+    // Order by the returned `index` before extracting vectors. OpenAI-compatible
+    // gateways (Azure, LiteLLM, vLLM, etc.) may batch internally and return `data`
+    // out of input order; consumers rely on strict positional correspondence
+    // between vectors[i] and inputs[i]. No-op on the standard OpenAI endpoint.
+    const ordered = [...response.data].sort((a, b) => a.index - b.index);
     return {
-      vectors: response.data.map(item => item.embedding),
+      vectors: ordered.map(item => item.embedding),
       model: response.model,
     };
   }

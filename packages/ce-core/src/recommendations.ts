@@ -190,7 +190,11 @@ export async function fetchBudgetRecommendation(
       ? obj.maxTokens
       : fallbackBudget;
   const reserveTokens =
-    typeof obj.reserveTokens === "number" ? obj.reserveTokens : undefined;
+    typeof obj.reserveTokens === "number" &&
+    Number.isFinite(obj.reserveTokens) &&
+    obj.reserveTokens >= 0
+      ? obj.reserveTokens
+      : undefined;
   const confidence =
     typeof obj.confidence === "number"
       ? Math.max(0, Math.min(1, obj.confidence))

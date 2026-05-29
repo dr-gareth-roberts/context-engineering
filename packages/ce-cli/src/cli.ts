@@ -69,8 +69,8 @@ async function loadItems(input: string): Promise<ContextItem[]> {
       const raw = await readStdin();
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
-      if (Array.isArray(parsed.items)) return parsed.items;
-      if (Array.isArray(parsed.selected)) {
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      if (parsed && Array.isArray(parsed.selected)) {
         return [...parsed.selected, ...(parsed.dropped ?? [])];
       }
       return outputError(

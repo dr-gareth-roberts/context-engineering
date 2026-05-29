@@ -14,6 +14,7 @@
 
 import type { Budget, ContextItem, ContextPack, PackOptions } from "./types.js";
 import { pack, packAsync } from "./pack.js";
+import { createScorer } from "./score.js";
 import { estimateTokens } from "./estimate.js";
 import { hash64 } from "./hash.js";
 import { CacheConfigSchema, validateWithSchema } from "./schemas.js";
@@ -169,11 +170,16 @@ function packWithCacheTopologyImpl(
   let remaining = maxTokens;
 
   // Static items: include all that fit (they're high-value and cacheable)
+  // Score them on the same scale as pack() so a downstream quality gate
+  // ranks static (system prompt, tool defs) and session/request items
+  // consistently — preventing high-value cacheable content being evicted first.
+  const scorer = options.scorer ?? createScorer(options.weights);
   const selectedStatic: ContextItem[] = [];
   for (const item of staticItems) {
     const tokens = item.tokens ?? estimateTokens(item.content, { estimator });
     if (tokens <= remaining) {
-      selectedStatic.push({ ...item, tokens });
+      const withTokens = { ...item, tokens };
+      selectedStatic.push({ ...withTokens, score: scorer(withTokens) });
       remaining -= tokens;
     }
   }

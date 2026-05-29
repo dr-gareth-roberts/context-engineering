@@ -45,8 +45,16 @@ export class SqliteStore implements MemoryStore {
     }
     this.tableName = tableName;
     this.db = new Database(databasePath);
-    this.db.pragma("journal_mode = WAL");
-    this.init();
+    try {
+      this.db.pragma("journal_mode = WAL");
+      this.init();
+    } catch (err) {
+      // Release the open file handle (and WAL/SHM resources) deterministically
+      // if initialization throws, since the caller never receives an instance
+      // and so can never call close(). The error still propagates unchanged.
+      this.db.close();
+      throw err;
+    }
   }
 
   private init() {

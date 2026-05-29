@@ -602,6 +602,17 @@ describe("loadItems validation for unrecognized JSON (H5)", () => {
     const errorData = JSON.parse(stderr);
     expect(errorData.error).toContain("Invalid input");
   });
+
+  it("rejects JSON null from stdin with the clean validation error", async () => {
+    // JSON null must fall through to the guarded validation error rather than
+    // leaking an internal TypeError from dereferencing null.items
+    const { code, stderr } = await run(["pack", "-i", "-", "-b", "100"], {
+      input: JSON.stringify(null),
+    });
+    expect(code).not.toBe(0);
+    const errorData = JSON.parse(stderr);
+    expect(errorData.error).toContain("Invalid input");
+  });
 });
 
 describe("--json flag on budget command (H1)", () => {

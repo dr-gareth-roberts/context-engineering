@@ -249,7 +249,7 @@ def _extract_role_langchain(msg: Any) -> str:
             return "user"
         if t == "ai":
             return "assistant"
-        return t
+        return str(t)
     if hasattr(msg, "type"):
         t = msg.type
         if t == "human":

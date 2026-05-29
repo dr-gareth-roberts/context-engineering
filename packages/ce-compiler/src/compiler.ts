@@ -140,12 +140,16 @@ export function createContextCompiler(): ContextCompiler {
       }
 
       // Second pass: fillRemaining slots get leftover budget + uncategorized items
+      // Each uncategorized item may only be consumed by a single fillRemaining
+      // slot; track which ones have already been placed so later slots exclude them.
+      const uncategorizedIds = new Set(uncategorized.map(i => i.id));
+      const placedUncategorized = new Set<string>();
       for (const slot of slots) {
         if (!slot.fillRemaining) continue;
 
         const candidates = [
           ...(slotItems.get(slot.name) ?? []),
-          ...uncategorized,
+          ...uncategorized.filter(u => !placedUncategorized.has(u.id)),
         ];
         const strategy = slot.strategy ?? "priority";
         const sorted = selectByStrategy(candidates, strategy);
@@ -165,6 +169,11 @@ export function createContextCompiler(): ContextCompiler {
           ) {
             slotSelected.push(item);
             slotTokens += itemTokens;
+            // An uncategorized item consumed here must not be re-offered to a
+            // later fillRemaining slot, which would duplicate it in `selected`.
+            if (uncategorizedIds.has(item.id)) {
+              placedUncategorized.add(item.id);
+            }
           } else {
             dropped.push(item);
           }

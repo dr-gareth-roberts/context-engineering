@@ -125,4 +125,38 @@ describe("withContextAnthropic", () => {
 
     expect(mock._createFn).toHaveBeenCalledOnce();
   });
+
+  it("folds an injected summary into the system param when no system prompt is set", async () => {
+    const mock = createMockAnthropicClient();
+    const client = withContextAnthropic(mock, {
+      budget: 100,
+      reserveTokens: 10,
+      strategy: "summarize",
+      log: false,
+    });
+
+    // Enough messages to overflow the budget so the summarize strategy runs
+    // and injects a synthetic system message. No top-level `system` is passed.
+    const longMessages = Array.from({ length: 20 }, (_, i) => ({
+      role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+      content: `This is message number ${i} with enough words to consume several tokens`,
+    }));
+
+    await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      messages: longMessages,
+    });
+
+    const passedParams = mock._createFn.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    const messages = passedParams.messages as Array<{ role: string }>;
+    // Anthropic forbids role:"system" inside the messages array.
+    expect(messages.every(m => m.role !== "system")).toBe(true);
+    // The injected summary must be promoted to the top-level system param.
+    expect(typeof passedParams.system).toBe("string");
+    expect(passedParams.system as string).toContain("[Context summary");
+  });
 });

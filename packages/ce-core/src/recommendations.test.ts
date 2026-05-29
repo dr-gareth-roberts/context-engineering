@@ -126,6 +126,22 @@ describe("fetchBudgetRecommendation", () => {
     expect(rec.confidence).toBe(1);
   });
 
+  it("rejects negative reserveTokens (returns undefined)", async () => {
+    // Regression: a misbehaving endpoint returning a negative reserveTokens
+    // used to be passed through, producing a recommendation that throws a
+    // ValidationError downstream in pack() — defeating the fail-safe contract.
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse({ maxTokens: 50_000, reserveTokens: -5_000 })
+    );
+
+    const rec = await fetchBudgetRecommendation("sess-1", {
+      budgetUrl: "https://example.com/budget",
+    });
+
+    expect(rec.maxTokens).toBe(50_000);
+    expect(rec.reserveTokens).toBeUndefined();
+  });
+
   it("reads budget URL from env var", async () => {
     process.env.CE_BUDGET_URL = "https://env.example.com/budget";
     vi.mocked(fetch).mockResolvedValueOnce(

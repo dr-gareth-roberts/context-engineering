@@ -90,7 +90,7 @@ def pack_with_allocation(
     """
     details = []
     for i, alloc in enumerate(allocations):
-        kind = alloc.kind if hasattr(alloc, "kind") else alloc.get("kind", "")
+        kind = alloc.kind
         if not kind:
             details.append(
                 {
@@ -98,11 +98,7 @@ def pack_with_allocation(
                     "message": "kind must be a non-empty string",
                 }
             )
-        ratio = (
-            alloc.target_ratio
-            if hasattr(alloc, "target_ratio")
-            else alloc.get("target_ratio", None)
-        )
+        ratio = alloc.target_ratio
         if ratio is not None and not (0 <= ratio <= 1):
             details.append(
                 {
@@ -313,7 +309,7 @@ async def pack_with_allocation_async(
     """
     details = []
     for i, alloc in enumerate(allocations):
-        kind = alloc.kind if hasattr(alloc, "kind") else alloc.get("kind", "")
+        kind = alloc.kind
         if not kind:
             details.append(
                 {
@@ -321,11 +317,7 @@ async def pack_with_allocation_async(
                     "message": "kind must be a non-empty string",
                 }
             )
-        ratio = (
-            alloc.target_ratio
-            if hasattr(alloc, "target_ratio")
-            else alloc.get("target_ratio", None)
-        )
+        ratio = alloc.target_ratio
         if ratio is not None and not (0 <= ratio <= 1):
             details.append(
                 {

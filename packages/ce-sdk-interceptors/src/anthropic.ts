@@ -120,6 +120,18 @@ function createAnthropicInterceptor(
             typeof sysMsg.content === "string" ? sysMsg.content : systemPrompt;
           newMessages = packedMessages.slice(1);
         }
+      } else if (
+        !systemPrompt &&
+        packedMessages.length > 0 &&
+        packedMessages[0].role === "system" &&
+        typeof packedMessages[0].content === "string" &&
+        packedMessages[0].content.startsWith("[Context summary")
+      ) {
+        // No top-level system prompt: the summarize strategy injected a
+        // synthetic system message at index 0. Anthropic forbids role:"system"
+        // inside the messages array, so fold it into the top-level system param.
+        newSystem = packedMessages[0].content;
+        newMessages = packedMessages.slice(1);
       }
 
       return originalCreate(

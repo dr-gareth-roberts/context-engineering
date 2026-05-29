@@ -41,7 +41,7 @@ The Python SDK includes all features in a single package. No separate installs n
 
 ## Prerequisites
 
-- **Node.js** 18+ (CI tests against 18, 20, 22)
+- **Node.js** 18+ (CI tests against Node 20 and 22)
 - **Python** 3.11+
 - **pnpm** 10+ (for monorepo development)
 
