@@ -662,7 +662,12 @@ class ContextCompiler:
             selected.extend(slot_selected)
             used_tokens += slot_tokens
 
-        # Second pass: fillRemaining slots
+        # Second pass: fillRemaining slots.
+        # Track ids already chosen so a shared uncategorized item cannot be
+        # selected by more than one fill_remaining slot (which would duplicate
+        # it in result.items and double-count its tokens). Seed with the ids
+        # selected by the first pass.
+        claimed: set[str] = {i.id for i in selected}
         for slot in program.slots:
             if not slot.fill_remaining:
                 continue
@@ -680,6 +685,8 @@ class ContextCompiler:
             slot_selected: List[ContextItem] = []
 
             for item in sorted_candidates:
+                if item.id in claimed:
+                    continue
                 item_tokens = _get_item_tokens(item)
                 if (
                     slot_tokens + item_tokens <= slot_max
@@ -687,6 +694,7 @@ class ContextCompiler:
                 ):
                     slot_selected.append(item)
                     slot_tokens += item_tokens
+                    claimed.add(item.id)
                 else:
                     dropped.append(item)
 

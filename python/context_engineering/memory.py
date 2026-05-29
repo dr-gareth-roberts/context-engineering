@@ -11,12 +11,18 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional
 
-import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
 from ._similarity import cosine_similarity as _cosine_similarity
 
-logger = structlog.get_logger(__name__)
+try:
+    import structlog
+
+    logger = structlog.get_logger(__name__)
+except ImportError:  # structlog is an optional extra; fall back to stdlib logging.
+    import logging
+
+    logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 
 def _now_iso() -> str:

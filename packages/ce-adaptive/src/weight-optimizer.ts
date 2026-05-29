@@ -54,6 +54,15 @@ export class WeightOptimizer {
       // L2 regularization: pull toward base weights
       updated -= reg * (updated - baseWeight);
 
+      // Defense-in-depth: a poisoned record (NaN/Infinity quality) already on
+      // disk can make the correlation signal non-finite. clamp() would propagate
+      // NaN (Math.min/Math.max do not coerce it), so fall back to the base
+      // weight for this dimension rather than emit a non-finite weight that
+      // would corrupt every subsequent pack() score.
+      if (!Number.isFinite(updated)) {
+        updated = baseWeight;
+      }
+
       // Clamp to prevent collapse or explosion
       currentWeights[dim] = clamp(updated, WEIGHT_MIN, WEIGHT_MAX);
     }
@@ -81,9 +90,14 @@ export class WeightOptimizer {
         const selectedFeatures = record.itemFeatures.filter(f => f.selected);
         if (selectedFeatures.length === 0) continue;
 
+        // Skip poisoned samples: a non-finite quality would make the Pearson
+        // correlation NaN for the whole dimension, corrupting the learned weight.
+        const quality = record.outcome?.quality ?? 0;
+        if (!Number.isFinite(quality)) continue;
+
         // Average dimension value across selected items
         const avgDim = mean(selectedFeatures.map(f => f[dim]));
-        pairs.push({ dimValue: avgDim, quality: record.outcome?.quality ?? 0 });
+        pairs.push({ dimValue: avgDim, quality });
       }
 
       result[dim] =
@@ -126,6 +140,10 @@ export class WeightOptimizer {
 
       for (const record of withOutcomes) {
         const quality = record.outcome?.quality ?? 0;
+        // Skip poisoned samples: a non-finite quality would make the per-kind
+        // averages (and therefore inclusionLift) NaN.
+        if (!Number.isFinite(quality)) continue;
+
         const hasKindSelected = record.itemFeatures.some(
           f => f.kind === kind && f.selected
         );

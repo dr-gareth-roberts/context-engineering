@@ -95,6 +95,23 @@ describe("estimateCost", () => {
     expect(() => estimateCost(pack, "unknown-model")).toThrow("Unknown model");
   });
 
+  it("throws for prototype-member model names instead of producing NaN", () => {
+    // Regression: MODEL_PRICING is a plain object, so an own-property check is
+    // required. Names like "toString"/"constructor"/"hasOwnProperty"/"valueOf"
+    // resolve to inherited Object.prototype members, which previously bypassed
+    // the "Unknown model" guard and yielded NaN cost fields.
+    const pack = makeCacheAwarePack(1000, 500);
+    for (const name of [
+      "toString",
+      "constructor",
+      "valueOf",
+      "hasOwnProperty",
+      "__proto__",
+    ]) {
+      expect(() => estimateCost(pack, name)).toThrow("Unknown model");
+    }
+  });
+
   it("has pricing for common models", () => {
     expect(MODEL_PRICING["claude-opus-4-6"]).toBeDefined();
     expect(MODEL_PRICING["claude-sonnet-4-6"]).toBeDefined();

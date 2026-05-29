@@ -201,20 +201,26 @@ class PostgresMemoryStore(MemoryStore):
             # if we wanted to be perfectly compatible. For now, we fetch a larger set and filter in Python.
             pass
 
-        # Order by vector similarity if provided
+        # Order by vector similarity if provided.
+        #
+        # For vector-less queries we deliberately do NOT push a SQL LIMIT here.
+        # _apply_query re-ranks the fetched set by the hybrid score, which is
+        # salience-dominated when no query.vector is present. Truncating to the
+        # newest rows by created_at before that ranking would permanently hide
+        # high-salience old memories that fall outside the recency window,
+        # producing recency-biased results that differ from the in-memory /
+        # Redis / SQLite / file backends (which rank over the full set). So we
+        # fetch the full candidate set and let _apply_query apply query.limit
+        # after ranking, matching the other backends.
         if query.vector:
             vec_str = f"[{','.join(map(str, query.vector))}]"
             base_sql += f" ORDER BY embedding <=> ${idx}::vector"
             args.append(vec_str)
             idx += 1
-        elif query.limit:
-            # Sort by created_at desc as a fallback
-            base_sql += " ORDER BY created_at DESC"
-
-        if query.limit:
-            base_sql += f" LIMIT ${idx}"
-            args.append(query.limit * 2)  # Fetch extra in case of TTL/salience dropping
-            idx += 1
+            if query.limit:
+                base_sql += f" LIMIT ${idx}"
+                args.append(query.limit * 2)  # overfetch for TTL/min_score dropping
+                idx += 1
 
         pool = await self._get_pool()
         async with pool.acquire() as conn:

@@ -237,4 +237,41 @@ describe("packWithAllocationAsync", () => {
     expect(result.selected).toHaveLength(0);
     expect(result.totalTokens).toBe(0);
   });
+
+  it("returns a finite allocationEfficiency for a targetRatio:0 kind with no items", () => {
+    // Regression: a kind with targetRatio:0 that receives no tokens previously
+    // computed 0/0 = NaN, poisoning allocationEfficiency. It must now count as a
+    // perfect match (wanted 0%, got 0%).
+    const result = packWithAllocation(
+      [makeItem("r1", "retrieval", 7, 100)],
+      { maxTokens: 300 },
+      [
+        { kind: "system", targetRatio: 0 },
+        { kind: "retrieval", targetRatio: 0.5 },
+      ]
+    );
+
+    expect(Number.isNaN(result.allocationEfficiency)).toBe(false);
+    expect(Number.isFinite(result.allocationEfficiency)).toBe(true);
+    expect(result.allocationEfficiency).toBeGreaterThan(0);
+    expect(result.allocationEfficiency).toBeLessThanOrEqual(1);
+  });
+
+  it("scores a targetRatio:0 kind as a total miss when it receives tokens", () => {
+    // A kind that targeted 0% but ended up with tokens is a miss (contributes 0),
+    // preserving the overshoot penalty rather than silently excluding the kind.
+    const result = packWithAllocation(
+      [makeItem("s1", "system", 10, 100)],
+      { maxTokens: 300 },
+      [
+        { kind: "system", targetRatio: 0 },
+        { kind: "retrieval", targetRatio: 1 },
+      ]
+    );
+
+    // system got 100% (a total miss => 0), retrieval got 0% vs target 100%
+    // (diff 1 => contributes 0). Mean of {0, 0} = 0, and crucially finite.
+    expect(Number.isFinite(result.allocationEfficiency)).toBe(true);
+    expect(result.allocationEfficiency).toBe(0);
+  });
 });

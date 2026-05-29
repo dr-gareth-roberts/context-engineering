@@ -146,7 +146,11 @@ export function estimateCost(
   outputTokens: number = 500,
   pricing?: ModelPricing
 ): CostEstimate {
-  const price = pricing ?? MODEL_PRICING[model];
+  const price =
+    pricing ??
+    (Object.prototype.hasOwnProperty.call(MODEL_PRICING, model)
+      ? MODEL_PRICING[model]
+      : undefined);
   if (!price) {
     const known = Object.keys(MODEL_PRICING).join(", ");
     throw new ValidationError(

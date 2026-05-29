@@ -1,6 +1,9 @@
 {
   "name": "@context-engineering/core",
   "version": "0.1.0",
+  "publishConfig": {
+    "provenance": true
+  },
   "type": "module",
   "description": "Core context engineering algorithms — pack, diff, trace, placement, quality, cache-topology, allocation, sessions, pipelines, cost estimation, and BEADS agent handoff",
   "license": "MIT",

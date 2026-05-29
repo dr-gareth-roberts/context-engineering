@@ -133,3 +133,86 @@ async def test_postgres_store_edge_cases(mock_asyncpg):
     assert "%test%" in call_args
     assert "[1.0,2.0]" in call_args
     assert 10 in call_args  # Limit is multiplied by 2 internally
+
+
+def _pg_row(
+    *,
+    id: str,
+    content: str,
+    created_at: str,
+    salience: float,
+):
+    """Build a fake asyncpg row dict matching the aquery SELECT columns."""
+    return {
+        "id": id,
+        "content": content,
+        "created_at": created_at,
+        "updated_at": None,
+        "last_accessed_at": None,
+        "salience": salience,
+        "ttl_seconds": None,
+        "is_summary": False,
+        "metadata": "{}",
+        "embedding": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_postgres_vectorless_limit_not_pushed_to_sql(mock_asyncpg):
+    """Regression: a vector-less limited query must NOT push a SQL LIMIT.
+
+    Previously the SQL fetched only the newest ``limit*2`` rows by created_at
+    before Python re-ranked by hybrid (salience-dominated) score, so a
+    high-salience but old memory outside that window could never appear. The
+    fix fetches the full candidate set and lets _apply_query apply the limit
+    after ranking, matching the in-memory / Redis / SQLite / file backends.
+    """
+    store = PostgresMemoryStore("postgresql://fake")
+
+    mock_asyncpg.fetch.return_value = []
+    await store.aquery(MemoryQuery(limit=5))
+
+    sql = mock_asyncpg.fetch.call_args[0][0]
+    # No SQL LIMIT and no recency pre-filter for vector-less queries.
+    assert "LIMIT" not in sql
+    assert "ORDER BY created_at DESC" not in sql
+
+
+@pytest.mark.asyncio
+async def test_postgres_vectorless_returns_high_salience_old_item(mock_asyncpg):
+    """Parity: with the full set fetched, a high-salience OLD memory must be
+    returned for a vector-less limited query, mirroring the in-memory backend.
+
+    With alpha=0.0 and no vector, the hybrid score reduces to salience, so the
+    old high-salience item must outrank the newer low-salience ones.
+    """
+    limit = 2
+    rows = [
+        _pg_row(
+            id="old-high",
+            content="old but important",
+            created_at="2000-01-01T00:00:00+00:00",
+            salience=0.99,
+        ),
+    ]
+    # 2*limit + 1 newer, low-salience rows that would have crowded out the old
+    # high-salience item under the previous recency-based prefilter.
+    for n in range(2 * limit + 1):
+        rows.append(
+            _pg_row(
+                id=f"new-low-{n}",
+                content=f"recent filler {n}",
+                created_at=f"2024-01-0{n + 1}T00:00:00+00:00",
+                salience=0.10,
+            )
+        )
+    mock_asyncpg.fetch.return_value = rows
+
+    store = PostgresMemoryStore("postgresql://fake")
+    result = await store.aquery(MemoryQuery(limit=limit, alpha=0.0))
+
+    returned_ids = [item.id for item in result]
+    assert "old-high" in returned_ids
+    assert len(result) == limit
+    # The old high-salience item should rank first.
+    assert returned_ids[0] == "old-high"

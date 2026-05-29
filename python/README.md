@@ -36,6 +36,16 @@ pip install context-engineering[dev]
 | `all`       | everything above            | Full feature set                                           |
 | `dev`       | all + pytest, ruff, pyright | Contributing to the project                                |
 
+The base install carries no heavy dependencies (just `pydantic`). The core modules
+defer their optional imports: `tiktoken` (token counting), `structlog` (memory-store
+logging), and `httpx` (providers, webhooks, recommendations) are imported lazily, and a
+clear `ImportError` (or a logged warning, for fire-and-forget telemetry) is raised only
+when you call a feature that actually needs the missing extra — rather than at import time.
+
+> **Note:** the `ce` CLI's `report` command sends webhook telemetry via `httpx`. If you
+> install `[cli]` alone and use that command, also install `[webhooks]` (or `[providers]`)
+> for `httpx`.
+
 ### Domain Runtimes (`context_framework`)
 
 The domain-specific runtimes (SOC, claims, supply chain, etc.) live in the `context_framework`

@@ -159,7 +159,7 @@ export function createCouncil(config: CouncilConfig): Council {
         config.strategy === "delphi" &&
         lastRound.convergenceScore !== undefined &&
         lastRound.convergenceScore >= (config.convergenceThreshold ?? 0.8) &&
-        rounds.length < (config.rounds ?? 3);
+        rounds.length < (effectiveConfig.rounds ?? 3);
 
       return {
         synthesis: synthesisResult.text,

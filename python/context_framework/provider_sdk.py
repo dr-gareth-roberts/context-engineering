@@ -202,6 +202,13 @@ class AnthropicSDKBridge:
         system_blocks: list[dict[str, Any]] = []
         messages: list[dict[str, Any]] = []
 
+        # Anthropic's Messages API allows at most 4 cache_control breakpoints.
+        # We place a single breakpoint on the last *stable* system block (system
+        # prompt, pinned memory, default docs) and never on per-request evidence
+        # docs, so the cached prefix stays constant across calls and actually
+        # hits the cache instead of being invalidated every request.
+        stable_breakpoint_index: int | None = None
+
         for item in packet.items:
             if item.kind == ContextKind.MESSAGE:
                 messages.append(
@@ -213,9 +220,17 @@ class AnthropicSDKBridge:
                 continue
 
             block = _to_anthropic_system_block(item)
-            if self.enable_prompt_cache:
-                block["cache_control"] = {"type": "ephemeral"}
             system_blocks.append(block)
+            if item.source is None or not str(item.source).startswith("evidence-doc-"):
+                stable_breakpoint_index = len(system_blocks) - 1
+
+        if self.enable_prompt_cache and system_blocks:
+            target = (
+                stable_breakpoint_index
+                if stable_breakpoint_index is not None
+                else len(system_blocks) - 1
+            )
+            system_blocks[target]["cache_control"] = {"type": "ephemeral"}
 
         request: dict[str, Any] = {
             "model": model or self.model,
@@ -546,16 +561,19 @@ class CerebrasSDKBridge:
         token_logprobs_raw = _get_attr_or_key(logprobs_obj, "token_logprobs", None) or []
         tokens_raw = _get_attr_or_key(logprobs_obj, "tokens", None) or []
 
-        values = [float(value) for value in token_logprobs_raw if value is not None]
-        if not values:
+        kept = [
+            (i, float(value)) for i, value in enumerate(token_logprobs_raw) if value is not None
+        ]
+        if not kept:
             raise ValueError(
                 "No token logprobs found in response. "
                 "Ensure the model returns `logprobs` for the prompt."
             )
+        values = [value for _, value in kept]
 
         average_negative_logprob = -sum(values) / len(values)
         perplexity = math.exp(average_negative_logprob)
-        tokens = tuple(str(token) for token in tokens_raw[: len(values)])
+        tokens = tuple(str(tokens_raw[i]) for i, _ in kept if i < len(tokens_raw))
         return PerplexityResult(
             perplexity=perplexity,
             average_negative_logprob=average_negative_logprob,

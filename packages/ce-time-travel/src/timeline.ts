@@ -315,7 +315,12 @@ export function createTimeline(options?: TimelineOptions): Timeline {
   function history(): Snapshot[] {
     return snapshots
       .filter(s => s.branchName === activeBranch)
-      .sort((a, b) => a.createdAt - b.createdAt);
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map(s => ({
+        ...s,
+        items: deepCopyItems(s.items),
+        metadata: s.metadata ? { ...s.metadata } : undefined,
+      }));
   }
 
   function findSnapshot(nameOrId: string, branchName: string): Snapshot | null {
@@ -335,7 +340,13 @@ export function createTimeline(options?: TimelineOptions): Timeline {
   }
 
   function getSnapshotFn(nameOrId: string): Snapshot | null {
-    return findSnapshotGlobal(nameOrId);
+    const snap = findSnapshotGlobal(nameOrId);
+    if (!snap) return null;
+    return {
+      ...snap,
+      items: deepCopyItems(snap.items),
+      metadata: snap.metadata ? { ...snap.metadata } : undefined,
+    };
   }
 
   function exportState(): TimelineState {

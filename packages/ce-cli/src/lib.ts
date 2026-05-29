@@ -141,19 +141,36 @@ export function runBudget(
 
 /**
  * Walk up from startDir looking for a "schemas" directory.
+ *
+ * An optional `accept` predicate lets the caller reject candidates that exist
+ * but are unsuitable (e.g. an unrelated `schemas/` folder that does not contain
+ * the ce schema set). When a candidate is rejected the walk continues upward,
+ * so a genuine complete override deeper up the tree can still win.
  * Stops at the filesystem root.
  */
-function findSchemasDir(startDir: string): string | null {
+function findSchemasDir(
+  startDir: string,
+  accept: (dir: string) => boolean = () => true
+): string | null {
   let current = startDir;
   // Walk to the root -- path.dirname(root) === root stops the loop
   while (true) {
     const candidate = path.join(current, "schemas");
-    if (existsSync(candidate)) return candidate;
+    if (existsSync(candidate) && accept(candidate)) return candidate;
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
   }
   return null;
+}
+
+/**
+ * True only when `dir` contains every schema file ce needs. Used to avoid
+ * accepting an unrelated `schemas/` directory (JSON Schema, GraphQL, Avro,
+ * DB migrations, etc.) that happens to sit above the user's cwd.
+ */
+function hasAllSchemas(dir: string): boolean {
+  return Object.values(schemaFileMap).every(f => existsSync(path.join(dir, f)));
 }
 
 // Schema cache: loaded once per process, reused across lintFile calls.
@@ -164,9 +181,18 @@ export async function loadSchemas(): Promise<Record<string, unknown>> {
   if (cachedSchemas) return cachedSchemas;
 
   const cwd = process.cwd();
-  const baseDir =
-    findSchemasDir(cwd) ??
-    findSchemasDir(path.dirname(fileURLToPath(import.meta.url)));
+  // Prefer a cwd-derived schemas/ directory only when it is a genuine, COMPLETE
+  // bring-your-own-schemas override. A bare existence check would wrongly accept
+  // any unrelated schemas/ folder (JSON Schema, GraphQL, Avro, DB migrations,
+  // ...) sitting above the cwd, which then ENOENTs on the ce schema files and
+  // surfaces a misleading "File not found" error. Fall back to the canonical
+  // package-bundled location otherwise.
+  const cwdDir = findSchemasDir(cwd, hasAllSchemas);
+  const pkgDir = findSchemasDir(
+    path.dirname(fileURLToPath(import.meta.url)),
+    hasAllSchemas
+  );
+  const baseDir = cwdDir ?? pkgDir;
   if (!baseDir) {
     throw new Error("Could not locate schemas directory");
   }
