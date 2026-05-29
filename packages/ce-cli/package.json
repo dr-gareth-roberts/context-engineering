@@ -55,7 +55,7 @@
   "dependencies": {
     "@context-engineering/core": "workspace:*",
     "@context-engineering/providers": "workspace:*",
-    "ajv": "^8.17.1",
+    "ajv": "^8.20.0",
     "commander": "^14.0.3"
   },
   "devDependencies": {
