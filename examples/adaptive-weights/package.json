@@ -1,0 +1,9 @@
+{
+  "name": "ce-adaptive-weights-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@context-engineering/core": "workspace:*",
+    "@context-engineering/adaptive": "workspace:*"
+  }
+}

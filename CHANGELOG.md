@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Context Time Travel** (`@context-engineering/time-travel`): Git-like checkpoint/rewind/fork/merge for context states with 5 merge strategies (union, intersection, best-quality, highest-priority, manual)
 - **Drift Detector** (`@context-engineering/drift`): Continuous monitoring across 6 dimensions (relevance, redundancy, diversity, density, freshness, utilisation) with trend detection and alerting
 - **Context Immune System** (`@context-engineering/immune`): Learns from context failures via fingerprint-based similarity matching, generates antibodies to screen future packs
-- **Context Compiler** (`@context-engineering/compiler`): Declarative context programs with slot-based allocation, constraint validation, and per-model optimisation (Claude, GPT-4, Gemini)
+- **Context Compiler** (`@context-engineering/compiler`): Declarative context programs with slot-based allocation, constraint validation, and per-model optimisation (Claude, GPT-5.4, Gemini 2.5)
 - **Context Entanglement** (`@context-engineering/entangle`): Multi-agent context sharing via scoped pub/sub mesh with propagation policies (immediate, next-pack, on-demand)
 - **Python parity**: All packages ported to Python with full API surface
 
