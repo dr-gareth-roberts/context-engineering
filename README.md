@@ -179,7 +179,7 @@ npx tsx examples/production-agent/index.ts
 
 ## Installation
 
-The toolkit currently runs **from source**. Registry packages (`@context-engineering/*` on npm, `context-engineering` on PyPI) are the intended distribution and will be published on the first tagged release — until then, clone and build.
+The toolkit currently runs **from source**. Registry packages (`@context-engineering/*` on npm, `context-engineering-toolkit` on PyPI) are the intended distribution and will be published on the first tagged release — until then, clone and build.
 
 **Requirements:** Node ≥ 20 (`.nvmrc` pins 22) · pnpm ≥ 10 · Python ≥ 3.11
 

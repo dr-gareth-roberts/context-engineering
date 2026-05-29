@@ -1,5 +1,5 @@
 [project]
-name = "context-engineering"
+name = "context-engineering-toolkit"
 version = "0.1.0"
 description = "Context engineering toolkit — pack, place, cache-topology, allocation, sessions, pipelines, cost estimation, BEADS handoff, and quality analysis for LLM context"
 readme = "README.md"
