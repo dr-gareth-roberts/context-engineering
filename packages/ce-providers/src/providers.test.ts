@@ -580,6 +580,32 @@ describe("OpenAIEmbeddingProvider", () => {
 
     await expect(provider.embed("hello")).rejects.toThrow("Quota exceeded");
   });
+
+  it("embed re-orders vectors by `index` when data is out of input order", async () => {
+    const provider = new OpenAIEmbeddingProvider({ apiKey: "test-key" });
+
+    // OpenAI-compatible gateways may return `data` out of input order while
+    // carrying the real input position in `index` (real API shape includes it).
+    injectClient(provider, {
+      embeddings: {
+        create: vi.fn().mockResolvedValue({
+          data: [
+            { index: 1, embedding: [0.4, 0.5, 0.6] },
+            { index: 0, embedding: [0.1, 0.2, 0.3] },
+          ],
+          model: "text-embedding-3-small",
+        }),
+      },
+    });
+
+    const result = await provider.embed(["hello", "world"]);
+
+    // vectors[i] must correspond to inputs[i] regardless of `data` ordering.
+    expect(result.vectors).toEqual([
+      [0.1, 0.2, 0.3],
+      [0.4, 0.5, 0.6],
+    ]);
+  });
 });
 
 // ─── adaptEmbeddingProvider ───────────────────────────────────────────

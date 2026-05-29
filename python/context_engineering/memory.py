@@ -11,12 +11,18 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional
 
-import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
 from ._similarity import cosine_similarity as _cosine_similarity
 
-logger = structlog.get_logger(__name__)
+try:
+    import structlog
+
+    logger = structlog.get_logger(__name__)
+except ImportError:  # structlog is an optional extra; fall back to stdlib logging.
+    import logging
+
+    logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 
 def _now_iso() -> str:
@@ -227,6 +233,7 @@ class FileStore(MemoryStore):
         self.file_path = file_path
         self._items: Dict[str, MemoryItem] = {}
         self._loaded = False
+        self._last_mtime: Optional[float] = None
         self._lock = threading.Lock()
         self._lock_timeout = lock_timeout
         self._stale_lock_age = stale_lock_age
@@ -234,11 +241,19 @@ class FileStore(MemoryStore):
         self._lock_path = self.file_path + ".lock"
 
     def _load(self):
-        if self._loaded:
+        # Reload if disk changed since last load (cross-process safety): another
+        # process holding the file lock may have committed writes we must not clobber.
+        try:
+            current_mtime: Optional[float] = os.path.getmtime(self.file_path)
+        except FileNotFoundError:
+            current_mtime = None
+        if self._loaded and current_mtime == self._last_mtime:
             return
         dirname = os.path.dirname(self.file_path)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
+        # Reset before re-reading so entries deleted by other processes are not resurrected.
+        self._items = {}
         if os.path.exists(self.file_path):
             with open(self.file_path, "r") as f:
                 for lineno, line in enumerate(f, 1):
@@ -253,6 +268,7 @@ class FileStore(MemoryStore):
                             "Skipping corrupted line %d in %s: %s", lineno, self.file_path, exc
                         )
         self._loaded = True
+        self._last_mtime = current_mtime
 
     def _persist(self):
         # Atomic write: write to temp file, then rename (atomic on POSIX).
@@ -261,6 +277,11 @@ class FileStore(MemoryStore):
             for i in self._items.values():
                 f.write(i.model_dump_json(by_alias=True) + "\n")
         os.replace(tmp_path, self.file_path)
+        # Record our own write's mtime so it does not trigger a needless reload.
+        try:
+            self._last_mtime = os.path.getmtime(self.file_path)
+        except FileNotFoundError:
+            self._last_mtime = None
 
     @contextmanager
     def _with_file_lock(self) -> Generator[None, None, None]:

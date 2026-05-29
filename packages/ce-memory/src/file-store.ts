@@ -44,6 +44,17 @@ export class FileStore implements MemoryStore {
 
   private async doLoad(): Promise<void> {
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
+    await this.reloadFromDisk();
+  }
+
+  /**
+   * Re-read the current on-disk file and replace this.items with fresh state,
+   * bypassing the loadPromise memoization. Builds a new Map and only assigns it
+   * on success, so a corrupt line (when skipCorruptedLines is false) throws
+   * without clobbering the existing in-memory state.
+   */
+  private async reloadFromDisk(): Promise<void> {
+    const items = new Map<string, MemoryItem>();
 
     try {
       const content = await fs.readFile(this.filePath, "utf-8");
@@ -51,7 +62,7 @@ export class FileStore implements MemoryStore {
       for (const line of lines) {
         try {
           const item = JSON.parse(line) as MemoryItem;
-          this.items.set(item.id, item);
+          items.set(item.id, item);
         } catch (parseError) {
           if (!this.options.skipCorruptedLines) {
             throw parseError;
@@ -64,6 +75,8 @@ export class FileStore implements MemoryStore {
         throw error;
       }
     }
+
+    this.items = items;
   }
 
   private get lockPath(): string {
@@ -88,8 +101,16 @@ export class FileStore implements MemoryStore {
     while (true) {
       try {
         const handle = await fs.open(this.lockPath, "wx");
-        await handle.writeFile(lockContent);
-        await handle.close();
+        try {
+          await handle.writeFile(lockContent);
+        } catch (writeErr) {
+          // We created this lock with "wx"; remove the orphan so it does not
+          // linger as a non-stale lock blocking the next writer for staleLockAge.
+          await fs.unlink(this.lockPath).catch(() => {});
+          throw writeErr;
+        } finally {
+          await handle.close().catch(() => {});
+        }
         break;
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
@@ -140,9 +161,15 @@ export class FileStore implements MemoryStore {
     // after a successful write. On failure, we roll back.
     const write = this.writeQueue.then(async () => {
       const snapshot = new Map(this.items);
-      mutation();
       try {
         await this.withFileLock(async () => {
+          // Re-read the current on-disk state inside the lock so writes
+          // committed by other processes/instances since we loaded are not
+          // clobbered (atomic read-modify-write). The mutation closures are
+          // pure deltas (put = set, forget = delete), so re-applying them on
+          // freshly-read state is correct.
+          await this.reloadFromDisk();
+          mutation();
           const lines = Array.from(this.items.values()).map(item =>
             JSON.stringify(item)
           );

@@ -23,25 +23,42 @@ pip install context-engineering[dev]
 
 ### Optional Extras
 
-| Extra       | What it adds                | When you need it                                         |
-| ----------- | --------------------------- | -------------------------------------------------------- |
-| `providers` | httpx, tiktoken             | Using OpenAI/Anthropic token estimators or LLM providers |
-| `server`    | fastapi, uvicorn, httpx     | Running the REST API server                              |
-| `cli`       | jsonschema, tiktoken        | Using the `ce` command-line tool                         |
-| `logging`   | structlog                   | Structured logging in memory stores and framework        |
-| `webhooks`  | httpx                       | Sending pack telemetry to external endpoints             |
-| `redis`     | redis                       | Redis memory store backend                               |
-| `postgres`  | asyncpg                     | Postgres memory store backend                            |
-| `all`       | everything above            | Full feature set                                         |
-| `dev`       | all + pytest, ruff, pyright | Contributing to the project                              |
+| Extra       | What it adds                | When you need it                                           |
+| ----------- | --------------------------- | ---------------------------------------------------------- |
+| `providers` | httpx, tiktoken             | Using OpenAI/Anthropic token estimators or LLM providers   |
+| `server`    | fastapi, uvicorn, httpx     | Running the REST API server                                |
+| `cli`       | jsonschema, tiktoken        | Using the `ce` command-line tool                           |
+| `logging`   | structlog                   | Structured logging in memory stores and framework          |
+| `webhooks`  | httpx                       | Sending pack telemetry to external endpoints               |
+| `redis`     | redis                       | Redis memory store backend                                 |
+| `postgres`  | asyncpg                     | Postgres memory store backend                              |
+| `runtimes`  | httpx, structlog            | Runtime _deps_ for `context_framework` (code not packaged) |
+| `all`       | everything above            | Full feature set                                           |
+| `dev`       | all + pytest, ruff, pyright | Contributing to the project                                |
+
+The base install carries no heavy dependencies (just `pydantic`). The core modules
+defer their optional imports: `tiktoken` (token counting), `structlog` (memory-store
+logging), and `httpx` (providers, webhooks, recommendations) are imported lazily, and a
+clear `ImportError` (or a logged warning, for fire-and-forget telemetry) is raised only
+when you call a feature that actually needs the missing extra — rather than at import time.
+
+> **Note:** the `ce` CLI's `report` command sends webhook telemetry via `httpx`. If you
+> install `[cli]` alone and use that command, also install `[webhooks]` (or `[providers]`)
+> for `httpx`.
 
 ### Domain Runtimes (`context_framework`)
 
-The domain-specific runtimes (SOC, claims, supply chain, etc.) are in a separate package:
+The domain-specific runtimes (SOC, claims, supply chain, etc.) live in the `context_framework`
+directory of this repository's source tree. They are NOT published to PyPI and are NOT included in
+the published `context-engineering` wheel — only `context_engineering` is packaged. The `runtimes`
+extra installs only their runtime _dependencies_ (httpx, structlog), not the runtime code itself:
 
 ```bash
-pip install context-engineering[runtimes]
+pip install context-engineering[runtimes]  # installs httpx + structlog only
 ```
+
+To use `context_framework`, clone the repo and run the runtime scripts from `python/` (they add the
+project root to `sys.path`), or add `context_framework*` to `packages.find` when building locally.
 
 ## Core SDK (`context_engineering`)
 

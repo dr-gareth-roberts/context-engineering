@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import unittest
 from unittest.mock import patch
@@ -8,7 +9,10 @@ from unittest.mock import patch
 from context_framework import (
     AnthropicSDKBridge,
     CerebrasSDKBridge,
+    ContextItem,
+    ContextKind,
     ContextManager,
+    ContextPacket,
     OllamaSDKBridge,
     OpenAIResponsesSDKBridge,
 )
@@ -104,14 +108,58 @@ class ProviderSDKBridgeTests(unittest.TestCase):
         self.assertEqual(request["thinking"]["type"], "enabled")
         self.assertEqual(request["thinking"]["budget_tokens"], 500)
         self.assertIn("system", request)
-        self.assertTrue(
-            all(
-                block.get("cache_control", {}).get("type") == "ephemeral"
-                for block in request["system"]
-            )
-        )
+        # Anthropic allows at most 4 cache_control breakpoints; the bridge must
+        # not tag every block (that would exceed the limit and 400). With prompt
+        # caching enabled and no evidence docs in this packet, exactly one
+        # breakpoint should land on the last (stable) system block.
+        cache_breakpoints = sum(1 for block in request["system"] if block.get("cache_control"))
+        self.assertLessEqual(cache_breakpoints, 4)
+        self.assertEqual(cache_breakpoints, 1)
+        self.assertEqual(request["system"][-1].get("cache_control", {}).get("type"), "ephemeral")
         self.assertEqual(request["tool_choice"]["type"], "auto")
         self.assertTrue(len(request["messages"]) >= 1)
+
+    def test_anthropic_caps_cache_control_to_one_stable_breakpoint(self) -> None:
+        # Realistic packet: 1 system + 1 pinned memory + 3 default docs + 2
+        # per-request evidence docs => 7 system blocks. Tagging all of them
+        # exceeds Anthropic's hard limit of 4 cache_control breakpoints and
+        # triggers a 400. Exactly one breakpoint must be emitted, and it must
+        # land on the last STABLE block (the last default doc), never on a
+        # volatile evidence doc, so the cached prefix stays constant.
+        items = [
+            ContextItem(text="System prompt", kind=ContextKind.SYSTEM, source="use-case:x"),
+            ContextItem(text="Objective", kind=ContextKind.MEMORY, source="objective", pinned=True),
+            ContextItem(text="Default 0", kind=ContextKind.DOCUMENT, source="default-doc-0"),
+            ContextItem(text="Default 1", kind=ContextKind.DOCUMENT, source="default-doc-1"),
+            ContextItem(text="Default 2", kind=ContextKind.DOCUMENT, source="default-doc-2"),
+            ContextItem(text="Evidence 0", kind=ContextKind.DOCUMENT, source="evidence-doc-0"),
+            ContextItem(text="Evidence 1", kind=ContextKind.DOCUMENT, source="evidence-doc-1"),
+            ContextItem(text="Question?", kind=ContextKind.MESSAGE, role="user"),
+        ]
+        packet = ContextPacket(items=items, used_tokens=0, token_budget=10_000)
+        bridge = AnthropicSDKBridge(enable_prompt_cache=True)
+        request = bridge.build_message_request(packet)
+
+        system_blocks = request["system"]
+        self.assertEqual(len(system_blocks), 7)
+        tagged = [b for b in system_blocks if b.get("cache_control")]
+        self.assertEqual(len(tagged), 1)
+        self.assertLessEqual(len(tagged), 4)
+        # The single breakpoint sits on the last default doc (the last stable
+        # block before the evidence docs), not on an evidence doc.
+        breakpoint_index = next(i for i, b in enumerate(system_blocks) if b.get("cache_control"))
+        self.assertEqual(breakpoint_index, 4)
+        self.assertNotIn("Evidence", system_blocks[breakpoint_index]["text"])
+
+    def test_anthropic_no_cache_control_when_disabled(self) -> None:
+        items = [
+            ContextItem(text="System prompt", kind=ContextKind.SYSTEM, source="use-case:x"),
+            ContextItem(text="Evidence 0", kind=ContextKind.DOCUMENT, source="evidence-doc-0"),
+        ]
+        packet = ContextPacket(items=items, used_tokens=0, token_budget=10_000)
+        bridge = AnthropicSDKBridge(enable_prompt_cache=False)
+        request = bridge.build_message_request(packet)
+        self.assertFalse(any(b.get("cache_control") for b in request["system"]))
 
     def test_anthropic_extract_tool_uses(self) -> None:
         response = {
@@ -228,6 +276,28 @@ class ProviderSDKBridgeTests(unittest.TestCase):
         self.assertAlmostEqual(result.perplexity, expected, places=8)
         self.assertEqual(result.token_count, 3)
         self.assertEqual(result.tokens, ("A", "B", "C"))
+
+    def test_cerebras_perplexity_leading_none_alignment(self) -> None:
+        # echo=True completions always return token_logprobs[0] == None because
+        # the first token has no preceding context. The dropped logprob must drop
+        # the FIRST token too, so the returned tokens still label the logprobs
+        # they accompany: logprobs (-0.2, -0.3) belong to (' cat', ' sat').
+        response = {
+            "choices": [
+                {
+                    "logprobs": {
+                        "token_logprobs": [None, -0.2, -0.3],
+                        "tokens": ["The", " cat", " sat"],
+                    }
+                }
+            ]
+        }
+        result = CerebrasSDKBridge.parse_perplexity_response(response)
+        self.assertEqual(result.tokens, (" cat", " sat"))
+        self.assertEqual(result.token_logprobs, (-0.2, -0.3))
+        self.assertEqual(result.token_count, 2)
+        expected = math.exp(0.25)  # mean of 0.2 and 0.3
+        self.assertAlmostEqual(result.perplexity, expected, places=8)
 
     def test_cerebras_candidate_ranking_by_perplexity(self) -> None:
         class _FakeCompletions:

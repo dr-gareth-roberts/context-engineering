@@ -287,3 +287,33 @@ class TestCompiler:
         )
         assert len(result.items) == 1
         assert result.total_tokens <= 80
+
+    def test_uncategorized_item_not_duplicated_across_fill_remaining_slots(self):
+        """Regression: a shared uncategorized item must be selected at most once
+        even when the program declares multiple fill_remaining slots.
+
+        Previously each fill_remaining slot independently considered the shared
+        ``uncategorized`` list, so the same item could be appended to ``selected``
+        once per fill_remaining slot, duplicating it in ``result.items`` and
+        double-counting its tokens in ``total_tokens``.
+        """
+        compiler = create_context_compiler()
+        program = (
+            context_program()
+            .declare("extra_a", kind="extra_a", fill_remaining=True)
+            .declare("extra_b", kind="extra_b", fill_remaining=True)
+            .build()
+        )
+        # kind="orphan" matches neither slot kind, so it lands in uncategorized
+        # and is a candidate for BOTH fill_remaining slots.
+        items = [_item("orphan1", "shared orphan content", kind="orphan", tokens=10)]
+
+        result = compiler.compile(program, "generic", items, Budget(max_tokens=500))
+
+        orphan_count = sum(1 for it in result.items if it.id == "orphan1")
+        assert orphan_count == 1, f"orphan selected {orphan_count} times, expected 1"
+        # Token accounting must not double-count the single item.
+        assert result.total_tokens == 10
+        # The item should be claimed by exactly one fill_remaining slot.
+        claimed_slot_counts = sum(result.slots[name].item_count for name in ("extra_a", "extra_b"))
+        assert claimed_slot_counts == 1

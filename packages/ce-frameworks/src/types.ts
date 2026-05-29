@@ -11,7 +11,7 @@ export type ContextStrategy = "trim" | "summarize" | SummarizeFunction;
 
 /** Options for framework middleware adapters. */
 export interface FrameworkMiddlewareOptions {
-  /** Token budget (auto-detected from model if possible) */
+  /** Token budget in tokens (default: 128000). Not auto-detected from the model. */
   budget?: number;
   /** Tokens reserved for model response (default: 4096) */
   reserveTokens?: number;

@@ -4,8 +4,6 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union, cast
 
-import structlog
-
 from .core import (
     Budget,
     ContextHandoff,
@@ -21,7 +19,14 @@ from .memory import InMemoryStore, MemoryItem, MemoryStore
 from .providers import LLMMessage
 from .segmentation import BaseSegmenter, Segment, StructuralSegmenter
 
-logger = structlog.get_logger(__name__)
+try:
+    import structlog
+
+    logger = structlog.get_logger(__name__)
+except ImportError:  # structlog is an optional extra; fall back to stdlib logging.
+    import logging
+
+    logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 
 class AdaptiveBudgetStrategy:

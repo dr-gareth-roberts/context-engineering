@@ -26,7 +26,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-import httpx
+try:
+    import httpx
+except ImportError:  # httpx is an optional extra (webhooks / providers / server)
+    httpx = None  # type: ignore[assignment]
 
 from .core import ContextPack, ContextTrace
 from .cost import CostEstimate
@@ -176,6 +179,13 @@ def _fire_webhook(
     """Send webhook in a daemon thread (fire-and-forget)."""
 
     def _send() -> None:
+        if httpx is None:
+            logger.warning(
+                "webhook:send_failed url=%s error=%s",
+                url,
+                "httpx is not installed; install context-engineering[webhooks]",
+            )
+            return
         try:
             httpx.post(
                 url,

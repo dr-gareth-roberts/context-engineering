@@ -1,6 +1,9 @@
 {
   "name": "@context-engineering/core",
   "version": "0.1.0",
+  "publishConfig": {
+    "provenance": true
+  },
   "type": "module",
   "description": "Core context engineering algorithms — pack, diff, trace, placement, quality, cache-topology, allocation, sessions, pipelines, cost estimation, and BEADS agent handoff",
   "license": "MIT",
@@ -44,6 +47,7 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.1.2",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"

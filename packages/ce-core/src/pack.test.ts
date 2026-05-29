@@ -297,4 +297,34 @@ describe("pack with query", () => {
     // Should have embedded 2 items + 1 query = 3 texts
     expect(embedCalls[0]).toHaveLength(3);
   });
+
+  it("throws ValidationError (not TypeError) for non-string content on the redundancyConfig path", () => {
+    // Regression: redundancy elimination tokenizes item.content before input
+    // validation ran, so non-string content threw a raw
+    // "text.toLowerCase is not a function" TypeError instead of the documented
+    // ValidationError. Validation must now run first.
+    const badItems = [
+      { id: "x", content: 123 as unknown as string, tokens: 10 },
+    ];
+    expect(() =>
+      pack(
+        badItems,
+        { maxTokens: 100 },
+        { redundancyConfig: { threshold: 0.8 } }
+      )
+    ).toThrow(ValidationError);
+  });
+
+  it("packAsync throws ValidationError (not TypeError) for non-string content on the redundancyConfig path", async () => {
+    const badItems = [
+      { id: "x", content: 123 as unknown as string, tokens: 10 },
+    ];
+    await expect(
+      packAsync(
+        badItems,
+        { maxTokens: 100 },
+        { redundancyConfig: { threshold: 0.8 } }
+      )
+    ).rejects.toThrow(ValidationError);
+  });
 });

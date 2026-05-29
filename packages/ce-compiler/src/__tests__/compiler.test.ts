@@ -290,6 +290,40 @@ describe("createContextCompiler", () => {
     expect(result.dropped[0].id).toBe("a");
   });
 
+  it("places each uncategorized item in only one of multiple fillRemaining slots", () => {
+    // Regression: with two fillRemaining slots, the second pass previously
+    // re-included the full `uncategorized` array for every slot, selecting and
+    // pushing the same item into `selected` multiple times. That inflated
+    // result.items, totalTokens, and the consumed budget. Each uncategorized
+    // item must now be consumed by at most one fillRemaining slot.
+    const compiler = createContextCompiler();
+    const program = contextProgram()
+      .declare("fill1", { kind: "fill1", fillRemaining: true })
+      .declare("fill2", { kind: "fill2", fillRemaining: true })
+      .build();
+
+    const items = [
+      item("orphan", "uncategorized content here", {
+        kind: "unknown",
+        tokens: 25,
+      }),
+    ];
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items,
+      budget: { maxTokens: 1000 },
+    });
+
+    const occurrences = result.items.filter(i => i.id === "orphan").length;
+    expect(occurrences).toBe(1);
+    expect(result.totalTokens).toBe(25);
+
+    const fillTokens =
+      result.slots["fill1"].tokensUsed + result.slots["fill2"].tokensUsed;
+    expect(fillTokens).toBe(25);
+  });
+
   it("uncategorized items go to fillRemaining slots", () => {
     const compiler = createContextCompiler();
     const program = contextProgram()

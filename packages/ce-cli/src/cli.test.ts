@@ -602,6 +602,17 @@ describe("loadItems validation for unrecognized JSON (H5)", () => {
     const errorData = JSON.parse(stderr);
     expect(errorData.error).toContain("Invalid input");
   });
+
+  it("rejects JSON null from stdin with the clean validation error", async () => {
+    // JSON null must fall through to the guarded validation error rather than
+    // leaking an internal TypeError from dereferencing null.items
+    const { code, stderr } = await run(["pack", "-i", "-", "-b", "100"], {
+      input: JSON.stringify(null),
+    });
+    expect(code).not.toBe(0);
+    const errorData = JSON.parse(stderr);
+    expect(errorData.error).toContain("Invalid input");
+  });
 });
 
 describe("--json flag on budget command (H1)", () => {
@@ -667,6 +678,115 @@ describe("--json flag on lint command (H1)", () => {
       expect(errorData.error).toContain("Validation failed");
     } finally {
       await fs.unlink(tmp).catch(() => {});
+    }
+  });
+});
+
+// ─── Schema resolution (hardening regression) ───────────────────────────
+
+/**
+ * Run the CLI binary from an arbitrary working directory. The shared `run`
+ * helper pins cwd to the repo fixtures root, which masks cwd-dependent schema
+ * resolution bugs, so this regression needs its own cwd-aware runner.
+ */
+function runIn(
+  cwd: string,
+  args: string[]
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  return new Promise(resolve => {
+    execFile(
+      process.execPath,
+      [CLI, ...args],
+      {
+        env: { ...process.env, NO_COLOR: "1" },
+        cwd,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+      (error, stdout, stderr) => {
+        resolve({
+          stdout: stdout?.toString() ?? "",
+          stderr: stderr?.toString() ?? "",
+          code: error ? ((error as any).code ?? 1) : 0,
+        });
+      }
+    );
+  });
+}
+
+describe("ce lint schema resolution", () => {
+  it("ignores an unrelated cwd schemas/ directory and uses bundled schemas", async () => {
+    // Reproduces the bug: a project that contains its own unrelated `schemas/`
+    // folder (JSON Schema, GraphQL, Avro, DB migrations, ...) must not break
+    // `ce lint`. Previously findSchemasDir(cwd) returned this folder, the ce
+    // schema files ENOENT'd, and the lint catch block misreported it as
+    // "File not found: <input>" even though the input clearly exists.
+    const dir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "ce-unrelated-schemas-")
+    );
+    try {
+      const unrelated = path.join(dir, "schemas");
+      await fs.mkdir(unrelated, { recursive: true });
+      // An unrelated schema file -- NOT part of the ce schema set.
+      await fs.writeFile(
+        path.join(unrelated, "unrelated.json"),
+        JSON.stringify({ type: "object" })
+      );
+      const itemsFile = path.join(dir, "items.json");
+      await fs.writeFile(
+        itemsFile,
+        JSON.stringify([{ id: "a", content: "hello" }])
+      );
+
+      const { stdout, stderr, code } = await runIn(dir, [
+        "lint",
+        "-s",
+        "context-item",
+        "-i",
+        "items.json",
+        "--json",
+      ]);
+
+      expect(stderr).not.toContain("File not found");
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout).valid).toBe(true);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("honours a complete bring-your-own schemas/ override in cwd", async () => {
+    // The legitimate override path: when cwd's schemas/ contains the FULL ce
+    // schema set it should still be used (not silently bypassed).
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ce-full-schemas-"));
+    try {
+      const override = path.join(dir, "schemas");
+      await fs.mkdir(override, { recursive: true });
+      // Copy the complete bundled schema set into the override directory.
+      const bundled = path.resolve(import.meta.dirname, "..", "schemas");
+      for (const f of await fs.readdir(bundled)) {
+        if (f.endsWith(".json")) {
+          await fs.copyFile(path.join(bundled, f), path.join(override, f));
+        }
+      }
+      const itemsFile = path.join(dir, "items.json");
+      await fs.writeFile(
+        itemsFile,
+        JSON.stringify([{ id: "a", content: "hello" }])
+      );
+
+      const { stdout, code } = await runIn(dir, [
+        "lint",
+        "-s",
+        "context-item",
+        "-i",
+        "items.json",
+        "--json",
+      ]);
+
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout).valid).toBe(true);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
     }
   });
 });

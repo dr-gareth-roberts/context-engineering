@@ -39,6 +39,10 @@ class RedundancyConfig:
         # (embedding_provider/threshold) parameter names.
         self.provider = embedding_provider or provider
         self.embedding_provider = self.provider
+        # Record whether the caller explicitly set a threshold so the
+        # no-provider Jaccard fallback can use its own default (0.8) rather
+        # than the embedding default (0.92) when no threshold was given.
+        self.threshold_explicit = threshold is not None or similarity_threshold != 0.92
         self.similarity_threshold = threshold if threshold is not None else similarity_threshold
         self.threshold = self.similarity_threshold
         self.strategy = strategy
@@ -145,6 +149,19 @@ class RedundancyEliminator:
     async def process(self, items: List[ContextItem]) -> List[ContextItem]:
         if not items:
             return []
+
+        if self.config.provider is None:
+            # No embedding provider: fall back to keyword-based (Jaccard) dedup,
+            # matching the sync pack() path and the TS reference implementation.
+            # Honor an explicitly-set threshold; otherwise use the Jaccard
+            # default (0.8) rather than the embedding default (0.92).
+            threshold = self.config.threshold if self.config.threshold_explicit else 0.8
+            return eliminate_redundancy_sync(
+                items,
+                threshold=threshold,
+                strategy=self.config.strategy,
+                tokenizer=self.config.tokenizer,
+            )
 
         # Get embeddings
         texts = [item.content for item in items]

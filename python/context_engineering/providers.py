@@ -3,9 +3,15 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Protocol
+from typing import TYPE_CHECKING, Callable, List, Optional, Protocol
 
-import httpx
+if TYPE_CHECKING:
+    import httpx
+else:
+    try:
+        import httpx
+    except ImportError:  # httpx is an optional extra (providers / server / webhooks)
+        httpx = None
 
 from .core import ContextItem, estimate_tokens
 
@@ -42,6 +48,10 @@ class OpenAIProvider:
         self._client: Optional[httpx.Client] = None
 
     def _get_client(self) -> httpx.Client:
+        if httpx is None:
+            raise ImportError(
+                "httpx is required for provider HTTP calls; install context-engineering[providers]"
+            )
         if self._client is None or self._client.is_closed:
             headers = {"Authorization": f"Bearer {self.api_key}"}
             self._client = httpx.Client(base_url=self.base_url, headers=headers, timeout=30)
@@ -110,6 +120,10 @@ class CerebrasProvider:
         self._client: Optional[httpx.Client] = None
 
     def _get_client(self) -> httpx.Client:
+        if httpx is None:
+            raise ImportError(
+                "httpx is required for provider HTTP calls; install context-engineering[providers]"
+            )
         if self._client is None or self._client.is_closed:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
@@ -160,6 +174,10 @@ class AnthropicProvider:
         self._client: Optional[httpx.Client] = None
 
     def _get_client(self) -> httpx.Client:
+        if httpx is None:
+            raise ImportError(
+                "httpx is required for provider HTTP calls; install context-engineering[providers]"
+            )
         if self._client is None or self._client.is_closed:
             headers = {
                 "x-api-key": self.api_key,

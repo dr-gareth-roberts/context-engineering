@@ -3,13 +3,13 @@ import type { ContextQuality } from "@context-engineering/core";
 export interface DriftThresholds {
   /** Alert when relevance drops this much from baseline (0-1). Default: 0.2 */
   relevanceDrift?: number;
-  /** Alert when redundancy exceeds this ratio (0-1). Default: 0.4 */
+  /** Alert when redundancy increases by this much above the windowed baseline (0-1). Default: 0.4 */
   redundancyCreep?: number;
   /** Alert when topic diversity falls below baseline by this much. Default: 0.3 */
   topicDrift?: number;
-  /** Alert when this fraction of items are stale (low recency). Default: 0.5 */
+  /** Alert when the stale-item ratio increases by this much above the windowed baseline. Default: 0.5 */
   staleRatio?: number;
-  /** Alert when budget utilization drops below this ratio. Default: 0.5 */
+  /** Alert when budget utilization drops by this much below the windowed baseline. Default: 0.5 */
   underutilization?: number;
   /** Alert when information density drops by this much. Default: 0.25 */
   densityDrop?: number;

@@ -79,10 +79,12 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["context_engineering*"]
 
-# context_framework is available via: pip install context-engineering[runtimes]
-# and must be explicitly included if needed:
-# [tool.setuptools.packages.find]
-# include = ["context_engineering*", "context_framework*"]
+# context_framework is NOT published to PyPI and is not shipped in this wheel
+# (only context_engineering* is packaged, per packages.find above).
+# The [runtimes] extra installs context_framework's runtime DEPENDENCIES
+# (httpx, structlog) only. To use context_framework, obtain it from the source
+# repo and add it to packages.find, e.g.:
+#   include = ["context_engineering*", "context_framework*"]
 
 [tool.setuptools.package-data]
 context_engineering = ["schemas/*.json"]

@@ -37,7 +37,20 @@ class BM25Index:
     def document_count(self) -> int:
         return len(self._docs)
 
+    def _remove(self, id: str) -> None:
+        freq = self._docs.get(id)
+        if freq is None:
+            return
+        for term in freq:
+            self._df[term] -= 1
+            if self._df[term] <= 0:
+                del self._df[term]
+        self._total_length -= self._doc_lengths.get(id, 0)
+        del self._docs[id]
+        del self._doc_lengths[id]
+
     def add(self, id: str, text: str) -> None:
+        self._remove(id)
         tokens = self._tokenize(text)
         freq: dict[str, int] = defaultdict(int)
         for t in tokens:

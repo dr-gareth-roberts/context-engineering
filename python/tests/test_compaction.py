@@ -344,3 +344,71 @@ class TestCreateLLMSummarizer:
         summarizer = create_llm_summarizer(provider=ErrorProvider())
         result = summarizer(ContextItem(id="x", content="text"), 50)
         assert result is None
+
+
+class TestCompactionBudgetPressure:
+    def test_summary_is_header_only_when_recent_exceeds_budget(self):
+        """When preserved recent turns exceed the budget, available goes
+        negative. The truncation target must clamp to >= 0 so the summary
+        contains only its header, not the full untruncated older text.
+
+        Regression: a negative target_tokens previously left `truncated`
+        equal to the full combined older-turn text, inverting compaction
+        exactly under maximum budget pressure.
+        """
+        mgr = create_context_manager(
+            budget=Budget(maxTokens=20),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            token_estimator=_word_estimator,
+        )
+        # Older turns -- enough to trigger summarization.
+        mgr.add_turn("user", "older one with several words here to summarize")
+        mgr.add_turn("assistant", "older two also carrying a fair number of words")
+        mgr.add_turn("user", "older three padding the earlier conversation further")
+        # Recent turn alone (40 words) exceeds the 20-token budget.
+        recent = " ".join(f"word{i}" for i in range(40))
+        mgr.add_turn("assistant", recent)
+
+        result = mgr.compile()
+
+        summary_turns = [t for t in result.turns if t.is_summary]
+        assert len(summary_turns) == 1
+        summary = summary_turns[0]
+        # Header only -- no older-turn body leaked in.
+        assert summary.content == "[Summary of 3 earlier turns]\n"
+        assert "older one" not in summary.content
+        # Summary token count is small (truncated body is empty), not the
+        # full untruncated older text.
+        assert summary.tokens <= 5
+
+    @pytest.mark.asyncio
+    async def test_async_truncation_fallback_clamps_negative_budget(self):
+        """The shared _truncate_older_turns helper (used by both async
+        branches) must clamp a negative available budget to 0 so the
+        fallback summary is the header only, not the full older text."""
+
+        async def null_summarizer(item, target_tokens):
+            return None
+
+        mgr = create_context_manager(
+            budget=Budget(maxTokens=20),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            async_summarizer=null_summarizer,
+            token_estimator=_word_estimator,
+        )
+        mgr.add_turn("user", "older one with several words here to summarize")
+        mgr.add_turn("assistant", "older two also carrying a fair number of words")
+        mgr.add_turn("user", "older three padding the earlier conversation further")
+        recent = " ".join(f"word{i}" for i in range(40))
+        mgr.add_turn("assistant", recent)
+
+        result = await mgr.compile_async()
+
+        summary_turns = [t for t in result.turns if t.is_summary]
+        assert len(summary_turns) >= 1
+        for summary in summary_turns:
+            assert "older one" not in summary.content
+            assert summary.content.startswith("[Summary of ")
+            assert summary.content.endswith("]\n")

@@ -160,3 +160,73 @@ class TestEliminateRedundancySync:
         # Jaccard = 5/7 ~= 0.71, below 0.8 default
         result = eliminate_redundancy_sync(items)
         assert len(result) == 2
+
+
+@pytest.mark.asyncio
+async def test_process_falls_back_to_jaccard_when_no_provider():
+    """Regression: RedundancyEliminator.process() with a provider-less config
+    must not raise AttributeError and must dedup via Jaccard.
+
+    Previously process() called self.config.provider.embed() unconditionally,
+    crashing with 'NoneType' object has no attribute 'embed' on any non-empty
+    input when the config had no embedding provider.
+    """
+    items = [
+        ContextItem(id="1", content="the quick brown fox jumps over the lazy dog", recency=1.0),
+        ContextItem(id="2", content="the quick brown fox jumps over the lazy dog", recency=2.0),
+        ContextItem(
+            id="3", content="completely unrelated content about space rockets", recency=3.0
+        ),
+    ]
+    eliminator = RedundancyEliminator(RedundancyConfig())
+    result = await eliminator.process(items)
+
+    # Duplicate 1 and 2 (Jaccard 1.0 >= 0.8 default) collapse; 3 stays.
+    assert len(result) == 2
+    ids = {item.id for item in result}
+    assert "3" in ids
+    # Survivor of the duplicate cluster is the more recent one.
+    assert "2" in ids
+
+
+@pytest.mark.asyncio
+async def test_process_no_provider_uses_jaccard_default_threshold():
+    """When no threshold is explicitly set, the no-provider fallback must use
+    the Jaccard default (0.8), NOT the embedding default (0.92).
+
+    Discriminating content: 9 shared tokens + 1 unique each -> Jaccard 9/11
+    ~= 0.818, which is >= 0.8 (merges) but < 0.92 (would NOT merge). If a
+    regression fed the embedding default (0.92) into the Jaccard path, these
+    would not collapse and this test would fail.
+    """
+    items = [
+        ContextItem(
+            id="a",
+            content="alpha beta gamma delta epsilon zeta eta theta iota cat",
+            recency=1.0,
+        ),
+        ContextItem(
+            id="b",
+            content="alpha beta gamma delta epsilon zeta eta theta iota dog",
+            recency=2.0,
+        ),
+    ]
+    eliminator = RedundancyEliminator(RedundancyConfig())
+    result = await eliminator.process(items)
+    # Jaccard ~= 0.818 >= 0.8 default -> collapse to one (the more recent).
+    assert len(result) == 1
+    assert result[0].id == "b"
+
+
+@pytest.mark.asyncio
+async def test_process_no_provider_honors_explicit_threshold():
+    """An explicitly-set threshold must be honored by the no-provider fallback."""
+    items = [
+        ContextItem(id="a", content="alpha beta gamma delta epsilon zeta"),
+        ContextItem(id="b", content="alpha beta gamma delta epsilon omega"),
+    ]
+    # Jaccard = 5/7 ~= 0.71. With explicit threshold 0.5 they should merge;
+    # this proves the explicit value (not the 0.8 default) is used.
+    eliminator = RedundancyEliminator(RedundancyConfig(threshold=0.5))
+    result = await eliminator.process(items)
+    assert len(result) == 1

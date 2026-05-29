@@ -18,7 +18,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
-import httpx
+try:
+    import httpx
+except ImportError:  # httpx is an optional extra (providers / server / webhooks)
+    httpx = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +118,13 @@ def _fetch_json(
     headers: Dict[str, str],
 ) -> Any:
     """Fetch JSON from a URL. Returns None on any failure."""
+    if httpx is None:
+        logger.warning(
+            "Recommendation fetch skipped for %s: httpx is not installed "
+            "(install context-engineering[providers])",
+            url,
+        )
+        return None
     try:
         merged_headers = {"Accept": "application/json", **headers}
         response = httpx.get(url, headers=merged_headers, timeout=timeout_s)

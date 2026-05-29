@@ -111,18 +111,23 @@ export class FileFeedbackStore implements FeedbackStore {
 
   private async doLoad(): Promise<void> {
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
+    this.records = await this.readDiskRecords();
+  }
 
+  /**
+   * Read the current on-disk records as a fresh array.
+   * Returns an empty array when the file does not yet exist.
+   */
+  private async readDiskRecords(): Promise<FeedbackRecord[]> {
     try {
       const content = await fs.readFile(this.filePath, "utf-8");
       const lines = content.split(/\r?\n/).filter(l => l.trim());
-      for (const line of lines) {
-        const record = JSON.parse(line) as FeedbackRecord;
-        this.records.push(record);
-      }
+      return lines.map(line => JSON.parse(line) as FeedbackRecord);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw error;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return [];
       }
+      throw error;
     }
   }
 
@@ -192,15 +197,27 @@ export class FileFeedbackStore implements FeedbackStore {
   private persist(): Promise<void> {
     const write = this.writeQueue.then(async () => {
       await this.withFileLock(async () => {
-        const lines = this.records.map(r => JSON.stringify(r));
-        const content = lines.join("\n") + (lines.length ? "\n" : "");
-        const tmpPath = this.filePath + ".tmp";
-        await fs.writeFile(tmpPath, content);
-        await fs.rename(tmpPath, this.filePath);
+        // Read-merge-write under the lock so a concurrent process that has
+        // already advanced the file is not silently overwritten. The lock only
+        // prevents torn writes; without re-reading here, two processes that both
+        // loaded the same snapshot would each rewrite the whole file from their
+        // own in-memory list, dropping each other's records (lost updates).
+        const onDisk = await this.readDiskRecords();
+        this.records = mergeRecordLists(onDisk, this.records);
+        await this.writeRecords(this.records);
       });
     });
     this.writeQueue = write.catch(() => {});
     return write;
+  }
+
+  /** Atomically write records to disk via a temp file + rename. */
+  private async writeRecords(records: FeedbackRecord[]): Promise<void> {
+    const lines = records.map(r => JSON.stringify(r));
+    const content = lines.join("\n") + (lines.length ? "\n" : "");
+    const tmpPath = this.filePath + ".tmp";
+    await fs.writeFile(tmpPath, content);
+    await fs.rename(tmpPath, this.filePath);
   }
 
   async save(record: FeedbackRecord): Promise<void> {
@@ -211,11 +228,25 @@ export class FileFeedbackStore implements FeedbackStore {
 
   async updateOutcome(packId: string, outcome: Outcome): Promise<void> {
     await this.ensureLoaded();
-    const record = this.records.find(r => r.packId === packId);
-    if (record) {
-      record.outcome = outcome;
-      await this.persist();
-    }
+
+    // Re-read on-disk records under the lock before searching so an outcome can
+    // be attached to a record created by another process (which would not be in
+    // this instance's in-memory list). Without this, a long-lived optimizer can
+    // never report outcomes for packs produced by a sibling worker.
+    const write = this.writeQueue.then(async () => {
+      await this.withFileLock(async () => {
+        const onDisk = await this.readDiskRecords();
+        this.records = mergeRecordLists(onDisk, this.records);
+        const record = this.records.find(r => r.packId === packId);
+        if (!record) {
+          return;
+        }
+        record.outcome = outcome;
+        await this.writeRecords(this.records);
+      });
+    });
+    this.writeQueue = write.catch(() => {});
+    await write;
   }
 
   async getRecords(options?: {
@@ -265,11 +296,87 @@ export class FileFeedbackStore implements FeedbackStore {
 
   async clear(segment?: string): Promise<void> {
     await this.ensureLoaded();
-    if (segment !== undefined) {
-      this.records = this.records.filter(r => r.segment !== segment);
-    } else {
-      this.records = [];
-    }
-    await this.persist();
+
+    // clear() is an intentional removal, so it must NOT go through the
+    // read-merge-write path in persist() (which would resurrect just-cleared
+    // records from disk). Instead read the current on-disk state under the lock,
+    // drop the targeted records there too, and write the result directly.
+    const write = this.writeQueue.then(async () => {
+      await this.withFileLock(async () => {
+        const onDisk = await this.readDiskRecords();
+        const filtered =
+          segment !== undefined
+            ? onDisk.filter(r => r.segment !== segment)
+            : [];
+        this.records =
+          segment !== undefined
+            ? this.records.filter(r => r.segment !== segment)
+            : [];
+        await this.writeRecords(filtered);
+      });
+    });
+    this.writeQueue = write.catch(() => {});
+    await write;
   }
+}
+
+/**
+ * Merge two record lists keyed by id so concurrent writers do not lose each
+ * other's updates. On-disk records come first to preserve append order; records
+ * only present in `mine` are appended in their existing order.
+ *
+ * Conflict resolution for a shared id: prefer the copy that carries an outcome
+ * (an attached outcome is newer information than a record without one). When
+ * both copies have an outcome, prefer `mine` because it is the version this
+ * write is actively producing (last-writer-wins for the active mutation).
+ */
+function mergeRecordLists(
+  onDisk: FeedbackRecord[],
+  mine: FeedbackRecord[]
+): FeedbackRecord[] {
+  const byId = new Map<string, FeedbackRecord>();
+
+  for (const record of onDisk) {
+    byId.set(record.id, record);
+  }
+
+  for (const record of mine) {
+    const existing = byId.get(record.id);
+    if (existing === undefined) {
+      byId.set(record.id, record);
+      continue;
+    }
+    byId.set(record.id, pickPreferred(existing, record));
+  }
+
+  // Preserve on-disk order first, then any ids only present in `mine`.
+  const ordered: FeedbackRecord[] = [];
+  const seen = new Set<string>();
+  for (const record of onDisk) {
+    ordered.push(byId.get(record.id)!);
+    seen.add(record.id);
+  }
+  for (const record of mine) {
+    if (!seen.has(record.id)) {
+      ordered.push(byId.get(record.id)!);
+      seen.add(record.id);
+    }
+  }
+  return ordered;
+}
+
+/**
+ * Choose between an on-disk record and the in-memory (`mine`) record for the
+ * same id. Prefers whichever carries an outcome; `mine` wins ties.
+ */
+function pickPreferred(
+  onDisk: FeedbackRecord,
+  mine: FeedbackRecord
+): FeedbackRecord {
+  const onDiskHasOutcome = onDisk.outcome !== undefined;
+  const mineHasOutcome = mine.outcome !== undefined;
+
+  if (mineHasOutcome) return mine;
+  if (onDiskHasOutcome) return onDisk;
+  return mine;
 }

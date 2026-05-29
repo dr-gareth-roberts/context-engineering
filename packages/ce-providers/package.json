@@ -1,6 +1,9 @@
 {
   "name": "@context-engineering/providers",
   "version": "0.1.0",
+  "publishConfig": {
+    "provenance": true
+  },
   "type": "module",
   "description": "OpenAI and Anthropic provider adapters with token estimators for context engineering",
   "license": "MIT",

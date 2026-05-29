@@ -245,11 +245,22 @@ export function contextItemToBeads(
   const labels: string[] = [];
   if (item.kind) {
     labels.push(`kind:${item.kind}`);
-    if (labelMap[item.kind]) {
+    // Own-property check guards against kind values that collide with
+    // Object.prototype members (e.g. "toString", "constructor", "__proto__"),
+    // which would otherwise resolve to inherited members and crash the spread.
+    if (Object.prototype.hasOwnProperty.call(labelMap, item.kind)) {
       labels.push(...labelMap[item.kind]);
     }
   }
   labels.push("context-engineering");
+
+  // Own-property check guards against kind values that collide with
+  // Object.prototype members, which would otherwise resolve to inherited
+  // members instead of falling back to "context".
+  const kind = item.kind ?? "";
+  const issueType = Object.prototype.hasOwnProperty.call(kindMap, kind)
+    ? kindMap[kind]
+    : undefined;
 
   return {
     id: `ce-${item.id}`,
@@ -257,7 +268,7 @@ export function contextItemToBeads(
     description: item.content,
     status: options.defaultStatus ?? "open",
     priority: beadsPriority,
-    issue_type: kindMap[item.kind ?? ""] ?? "context",
+    issue_type: issueType ?? "context",
     assignee: options.agent,
     source_system: options.sourceSystem ?? "context-engineering",
     labels,

@@ -297,6 +297,30 @@ describe("createTimeline", () => {
       const mainHist = tl.history();
       expect(mainHist.every(s => s.branchName === "main")).toBe(true);
     });
+
+    it("returns deep copies that cannot corrupt stored history", () => {
+      const tl = createTimeline();
+      tl.setItems([makeItem("a", "original")]);
+      tl.checkpoint("cp1");
+
+      // Mutate items of a snapshot returned by history()
+      const hist = tl.history();
+      const target = hist.find(snap => snap.name === "cp1");
+      target!.items[0].content = "edited";
+      target!.items.push(makeItem("b", "injected"));
+
+      // A fresh history() read must be unaffected
+      const fresh = tl.history().find(snap => snap.name === "cp1");
+      expect(fresh!.items).toHaveLength(1);
+      expect(fresh!.items[0].content).toBe("original");
+
+      // And a rewind must restore the original, uncorrupted state
+      tl.setItems([]);
+      tl.rewind("cp1");
+      const restored = tl.getItems();
+      expect(restored).toHaveLength(1);
+      expect(restored[0].content).toBe("original");
+    });
   });
 
   describe("getSnapshot", () => {
@@ -319,6 +343,43 @@ describe("createTimeline", () => {
     it("returns null for nonexistent snapshot", () => {
       const tl = createTimeline();
       expect(tl.getSnapshot("nonexistent")).toBeNull();
+    });
+
+    it("returns a deep copy that cannot corrupt stored history", () => {
+      const tl = createTimeline();
+      tl.setItems([makeItem("a", "original", { metadata: { k: "v" } })]);
+      tl.checkpoint("cp1");
+
+      // Mutate the returned snapshot's items in place
+      const snap = tl.getSnapshot("cp1");
+      snap!.items[0].content = "edited";
+      snap!.items[0].metadata!["k"] = "changed";
+      snap!.items.push(makeItem("b", "injected"));
+
+      // A fresh read must be unaffected
+      const fresh = tl.getSnapshot("cp1");
+      expect(fresh!.items).toHaveLength(1);
+      expect(fresh!.items[0].content).toBe("original");
+      expect(fresh!.items[0].metadata!["k"]).toBe("v");
+
+      // And a rewind must restore the original, uncorrupted state
+      tl.setItems([]);
+      tl.rewind("cp1");
+      const restored = tl.getItems();
+      expect(restored).toHaveLength(1);
+      expect(restored[0].content).toBe("original");
+      expect(restored[0].metadata!["k"]).toBe("v");
+    });
+
+    it("returns a fresh reference on each call", () => {
+      const tl = createTimeline();
+      tl.setItems([makeItem("a", "x")]);
+      tl.checkpoint("cp1");
+
+      const first = tl.getSnapshot("cp1");
+      const second = tl.getSnapshot("cp1");
+      expect(first).not.toBe(second);
+      expect(first!.items).not.toBe(second!.items);
     });
   });
 

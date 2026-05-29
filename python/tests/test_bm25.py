@@ -92,3 +92,45 @@ class TestBM25Index:
         rare_score = idx.score("rare", "d3")
         common_score = idx.score("common", "d1")
         assert rare_score > common_score
+
+    def test_readd_same_id_does_not_leak_corpus_stats(self):
+        """Re-adding the same id must refresh, not accumulate, corpus stats.
+
+        Regression: add() previously never subtracted the prior document's
+        length/df, so re-adding an id inflated _total_length and _df while
+        document_count stayed flat, distorting avgdl and idf for every doc.
+        """
+        idx = create_bm25_index()
+        idx.add("doc1", "context engineering token budget")
+
+        count_after_first = idx.document_count
+        total_after_first = idx._total_length
+        df_after_first = dict(idx._df)
+        score_after_first = idx.score("context budget", "doc1")
+
+        # Re-add the exact same content under the same id (incremental refresh).
+        idx.add("doc1", "context engineering token budget")
+
+        assert idx.document_count == count_after_first
+        assert idx._total_length == total_after_first
+        assert dict(idx._df) == df_after_first
+        assert idx.score("context budget", "doc1") == score_after_first
+
+    def test_readd_with_new_content_replaces_old_contribution(self):
+        """Re-adding an id with different content reflects only the new text."""
+        idx = create_bm25_index()
+        idx.add("doc1", "alpha beta gamma")
+        idx.add("doc1", "delta epsilon")
+
+        assert idx.document_count == 1
+        assert idx._total_length == 2
+        # Old terms must be gone from the document frequency table.
+        assert "alpha" not in idx._df
+        assert "beta" not in idx._df
+        assert "gamma" not in idx._df
+        # New terms must be present exactly once.
+        assert idx._df["delta"] == 1
+        assert idx._df["epsilon"] == 1
+        # Querying an old term yields no score; a new term scores.
+        assert idx.score("alpha", "doc1") == 0
+        assert idx.score("delta", "doc1") > 0

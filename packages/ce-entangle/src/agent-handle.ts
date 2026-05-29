@@ -133,6 +133,16 @@ export function createAgentHandle(
       for (const id of itemIds) {
         acknowledged.add(id);
       }
+      // Drop acknowledged IDs whose items have been pruned from the store —
+      // they are never queried again (filterForAgent only iterates store.items).
+      if (acknowledged.size > store.items.length) {
+        const live = new Set(store.items.map(ei => ei.item.id));
+        for (const id of acknowledged) {
+          if (!live.has(id)) {
+            acknowledged.delete(id);
+          }
+        }
+      }
     },
 
     unregister(): void {

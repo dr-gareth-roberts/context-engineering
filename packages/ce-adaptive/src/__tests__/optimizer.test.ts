@@ -96,6 +96,59 @@ describe("ContextOptimizer", () => {
     });
   });
 
+  describe("reportOutcome validation", () => {
+    it("rejects a non-finite quality before it reaches the store", async () => {
+      const store = new InMemoryFeedbackStore();
+      const optimizer = createContextOptimizer({
+        feedback: "explicit",
+        store,
+      });
+
+      const items = makeItems(3);
+      const result = await optimizer.pack(items, { maxTokens: 500 });
+
+      for (const bad of [NaN, Infinity, -Infinity]) {
+        await expect(
+          optimizer.reportOutcome(result.optimizerId, { quality: bad })
+        ).rejects.toThrow(RangeError);
+      }
+
+      // The poisoned outcome must never have been persisted.
+      const withOutcomes = await store.getRecordsWithOutcomes();
+      expect(withOutcomes).toHaveLength(0);
+    });
+
+    it("accepts a finite quality", async () => {
+      const optimizer = createContextOptimizer({ feedback: "explicit" });
+      const items = makeItems(3);
+      const result = await optimizer.pack(items, { maxTokens: 500 });
+
+      await expect(
+        optimizer.reportOutcome(result.optimizerId, { quality: 0.5 })
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("importState validation", () => {
+    it("rejects non-finite weights", async () => {
+      const optimizer = createContextOptimizer({ feedback: "explicit" });
+
+      await expect(
+        optimizer.importState({
+          weights: {
+            priority: NaN,
+            recency: 1,
+            salience: 1,
+            relevance: 1,
+          },
+          segment: "default",
+          sampleCount: 5,
+          exportedAt: Date.now(),
+        })
+      ).rejects.toThrow(RangeError);
+    });
+  });
+
   describe("getInsights", () => {
     it("returns insights with zero samples when no outcomes exist", async () => {
       const optimizer = createContextOptimizer({ feedback: "explicit" });

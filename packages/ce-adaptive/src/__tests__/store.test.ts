@@ -265,3 +265,83 @@ describe("FileFeedbackStore", () => {
     expect(records).toHaveLength(0);
   });
 });
+
+describe("FileFeedbackStore cross-process merge", () => {
+  const tmpDir = path.join(os.tmpdir(), "ce-adaptive-merge-test");
+
+  afterEach(async () => {
+    try {
+      await fs.rm(tmpDir, { recursive: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  function freshPath(): string {
+    return path.join(
+      tmpDir,
+      `merge_${Math.random().toString(36).slice(2)}.jsonl`
+    );
+  }
+
+  it("does not lose records when two stores write the same file", async () => {
+    const storePath = freshPath();
+
+    // Two independent instances simulate two processes sharing one file.
+    const a = new FileFeedbackStore(storePath);
+    const b = new FileFeedbackStore(storePath);
+
+    const rec1 = makeRecord({ id: "rec1" });
+    const rec2 = makeRecord({ id: "rec2" });
+    const rec3 = makeRecord({ id: "rec3" });
+
+    // Both load the same initial snapshot (rec1).
+    await a.save(rec1);
+    await b.getRecords(); // forces b to load rec1 into its in-memory list
+
+    // A appends rec2, then B appends rec3. Before the fix, B's blind rewrite
+    // would drop rec2.
+    await a.save(rec2);
+    await b.save(rec3);
+
+    const onDisk = new FileFeedbackStore(storePath);
+    const ids = new Set((await onDisk.getRecords()).map(r => r.id));
+
+    expect(ids.has("rec1")).toBe(true);
+    expect(ids.has("rec2")).toBe(true);
+    expect(ids.has("rec3")).toBe(true);
+    expect(ids.size).toBe(3);
+  });
+
+  it("attaches an outcome to a record created by another store instance", async () => {
+    const storePath = freshPath();
+
+    const creator = new FileFeedbackStore(storePath);
+    const rec = makeRecord({ id: "shared", packId: "pack-shared" });
+    await creator.save(rec);
+
+    // A second instance that never loaded `rec` should still be able to attach
+    // an outcome to it, because updateOutcome re-reads from disk under the lock.
+    const reporter = new FileFeedbackStore(storePath);
+    await reporter.updateOutcome("pack-shared", { quality: 0.77 });
+
+    const verifier = new FileFeedbackStore(storePath);
+    const [stored] = await verifier.getRecords();
+    expect(stored.outcome?.quality).toBe(0.77);
+  });
+
+  it("clear() does not resurrect records from disk", async () => {
+    const storePath = freshPath();
+
+    const store = new FileFeedbackStore(storePath);
+    await store.save(makeRecord({ id: "k1", segment: "keep" }));
+    await store.save(makeRecord({ id: "r1", segment: "remove" }));
+
+    await store.clear("remove");
+
+    const verifier = new FileFeedbackStore(storePath);
+    const records = await verifier.getRecords();
+    expect(records).toHaveLength(1);
+    expect(records[0].segment).toBe("keep");
+  });
+});

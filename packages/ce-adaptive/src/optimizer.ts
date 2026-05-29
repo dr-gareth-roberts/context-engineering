@@ -27,6 +27,12 @@ const DEFAULT_BASE_WEIGHTS: ScoringWeights = {
   salience: 1.0,
   relevance: 1.0,
 };
+const SCORING_DIMENSIONS = [
+  "priority",
+  "recency",
+  "salience",
+  "relevance",
+] as const;
 
 let idCounter = 0;
 
@@ -124,6 +130,15 @@ export class ContextOptimizer {
    * This is how the optimizer learns which weights work.
    */
   async reportOutcome(optimizerId: string, outcome: Outcome): Promise<void> {
+    // Validate at the boundary: a non-finite quality (NaN/Infinity from a
+    // divide-by-zero metric or implicit-analysis score) would propagate through
+    // correlation analysis and poison the learned weights, corrupting every
+    // subsequent pack(). Reject it here so it never enters a FeedbackRecord.
+    if (!Number.isFinite(outcome.quality)) {
+      throw new RangeError(
+        `Outcome.quality must be a finite number (0-1), got ${outcome.quality}`
+      );
+    }
     await this.store.updateOutcome(optimizerId, outcome);
     // Invalidate cached learned weights so next pack() recomputes
     this.learnedWeights = null;
@@ -188,6 +203,17 @@ export class ContextOptimizer {
    * Sets learned weights directly without needing to replay feedback.
    */
   async importState(state: OptimizerState): Promise<void> {
+    // Exported state can carry poisoned (non-finite) weights from a previously
+    // corrupted optimizer. Reject them here so importing cannot reintroduce a
+    // NaN/Infinity weight that would corrupt every pack().
+    for (const dim of SCORING_DIMENSIONS) {
+      const value = state.weights[dim];
+      if (value !== undefined && !Number.isFinite(value)) {
+        throw new RangeError(
+          `OptimizerState.weights.${dim} must be a finite number, got ${value}`
+        );
+      }
+    }
     this.learnedWeights = { ...state.weights };
   }
 

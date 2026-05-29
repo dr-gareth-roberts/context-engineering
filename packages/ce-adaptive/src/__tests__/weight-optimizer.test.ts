@@ -536,4 +536,74 @@ describe("WeightOptimizer", () => {
       expect(confidence).toBeLessThanOrEqual(1);
     });
   });
+
+  describe("non-finite quality does not poison results", () => {
+    function isFiniteWeights(w: ScoringWeights): boolean {
+      return (["priority", "recency", "salience", "relevance"] as const).every(
+        d => Number.isFinite(w[d])
+      );
+    }
+
+    for (const bad of [NaN, Infinity, -Infinity] as const) {
+      it(`optimize() stays all-finite with one quality=${bad} record`, () => {
+        const optimizer = new WeightOptimizer({
+          ...defaultConfig,
+          minSamples: 2,
+        });
+
+        const records = makeRecords(10, i => ({
+          quality: i / 10,
+          features: [
+            {
+              priority: i,
+              recency: 1,
+              salience: 1,
+              relevance: 1,
+              selected: true,
+            },
+          ],
+        }));
+        // Poison one record's outcome.
+        records[3].outcome = { quality: bad };
+
+        const result = optimizer.optimize(records);
+        expect(isFiniteWeights(result)).toBe(true);
+      });
+
+      it(`getInsights math (correlations/kindInsights) stays finite with quality=${bad}`, () => {
+        const optimizer = new WeightOptimizer(defaultConfig);
+
+        const records = makeRecords(10, i => ({
+          quality: i / 10,
+          features: [
+            {
+              priority: i,
+              recency: 1,
+              salience: 1,
+              relevance: 1,
+              selected: true,
+            },
+          ],
+        }));
+        records[5].outcome = { quality: bad };
+
+        const correlations = optimizer.computeCorrelations(records);
+        for (const dim of [
+          "priority",
+          "recency",
+          "salience",
+          "relevance",
+        ] as const) {
+          expect(Number.isFinite(correlations[dim])).toBe(true);
+        }
+
+        const kindInsights = optimizer.computeKindInsights(records);
+        for (const insight of kindInsights) {
+          expect(Number.isFinite(insight.avgQualityWhenIncluded)).toBe(true);
+          expect(Number.isFinite(insight.avgQualityWhenExcluded)).toBe(true);
+          expect(Number.isFinite(insight.inclusionLift)).toBe(true);
+        }
+      });
+    }
+  });
 });

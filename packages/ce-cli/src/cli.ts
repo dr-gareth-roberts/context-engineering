@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { createRequire } from "module";
-import { promises as fs } from "fs";
+import { promises as fs, existsSync } from "fs";
 import type { ContextItem } from "@context-engineering/core";
 import {
   loadItemsFromFile,
@@ -69,8 +69,8 @@ async function loadItems(input: string): Promise<ContextItem[]> {
       const raw = await readStdin();
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
-      if (Array.isArray(parsed.items)) return parsed.items;
-      if (Array.isArray(parsed.selected)) {
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+      if (parsed && Array.isArray(parsed.selected)) {
         return [...parsed.selected, ...(parsed.dropped ?? [])];
       }
       return outputError(
@@ -286,7 +286,11 @@ program
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("ENOENT")) {
+      // An ENOENT can come from the input file OR from a missing ce schema
+      // file (e.g. when schema resolution lands in the wrong directory). Only
+      // blame the input when it is genuinely absent, otherwise surface the raw
+      // error so a schema-loading failure is not misreported as a bad input.
+      if (msg.includes("ENOENT") && !existsSync(options.input)) {
         return outputError(
           `File not found: ${options.input}`,
           "Check the file path and try again"

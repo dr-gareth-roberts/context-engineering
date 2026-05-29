@@ -747,3 +747,29 @@ describe("createMemoryStore", () => {
     expect(() => createMemoryStore("redis")).toThrow("url");
   });
 });
+
+describe("FileStore concurrent write safety (regression)", () => {
+  it("does not lose a concurrent instance's committed write (atomic read-modify-write)", async () => {
+    const filePath = tempPath("concurrent.jsonl");
+
+    // Seed shared on-disk state with item "x".
+    const seed = new FileStore(filePath);
+    await seed.put({ id: "x", content: "x" });
+
+    // Two instances both load the seeded state into memory.
+    const a = new FileStore(filePath);
+    const b = new FileStore(filePath);
+    await a.get("x"); // force load
+    await b.get("x"); // force load
+
+    // B commits "y", then A commits "z". Because each instance re-reads the
+    // current file contents inside the write lock before serializing, A must
+    // not rewrite the file from its stale {x} snapshot and drop "y".
+    await b.put({ id: "y", content: "y" });
+    await a.put({ id: "z", content: "z" });
+
+    const fresh = new FileStore(filePath);
+    const ids = (await fresh.query()).map(i => i.id).sort();
+    expect(ids).toEqual(["x", "y", "z"]);
+  });
+});

@@ -169,7 +169,7 @@ class ContextManager:
 
         elif older_turns and len(older_turns) >= self._summarize_after:
             combined = "\n".join(f"[{t.role}]: {t.content}" for t in older_turns)
-            target_tokens = int(available * 0.3)
+            target_tokens = int(max(0, available) * 0.3)
             # Binary search for the right truncation point to hit target_tokens.
             # Start with a heuristic then adjust.
             lo, hi = 0, len(combined)
@@ -239,7 +239,7 @@ class ContextManager:
     ) -> tuple[Turn, int]:
         """Truncate older turns into a summary that fits within budget."""
         combined = "\n".join(f"[{t.role}]: {t.content}" for t in older_turns)
-        target_tokens = int(available_budget * 0.3)
+        target_tokens = int(max(0, available_budget) * 0.3)
         lo, hi = 0, len(combined)
         truncated = combined
         while lo < hi:

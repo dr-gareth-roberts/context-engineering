@@ -6,17 +6,27 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Union, cast
 
-import tiktoken
+try:
+    import tiktoken
+except ImportError:  # tiktoken is an optional extra (providers / cli)
+    tiktoken = None  # type: ignore[assignment]
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from ._similarity import cosine_similarity as _cosine_similarity
 from .errors import BudgetExceededError, ValidationError
 
 # Cache the tiktoken encoding at module level to avoid repeated lookups.
-_CL100K_ENCODING: tiktoken.Encoding | None = None
+# Typed as Any so the annotation stays valid when tiktoken is not installed.
+_CL100K_ENCODING: Any = None
 
 
-def _get_cl100k_encoding() -> tiktoken.Encoding:
+def _get_cl100k_encoding() -> Any:
+    if tiktoken is None:
+        raise ImportError(
+            "tiktoken is required for token counting; install "
+            "context-engineering[providers] or context-engineering[cli]"
+        )
     global _CL100K_ENCODING
     if _CL100K_ENCODING is None:
         _CL100K_ENCODING = tiktoken.get_encoding("cl100k_base")
@@ -426,7 +436,12 @@ def internal_pack(
                 f"Item at index {idx} has empty id",
                 [{"path": f"items[{idx}].id", "message": "id must be a non-empty string"}],
             )
-        for field_name in ("priority", "recency"):
+        # cost/latency are always-present float fields; priority/recency are
+        # Optional[float]. The `is not None` guard is harmless for the former and
+        # required for the latter. All four feed calculate_weighted_score, so a
+        # non-finite value here would poison the selection heap (NaN comparisons
+        # are always False, corrupting heap ordering).
+        for field_name in ("priority", "recency", "cost", "latency"):
             val = getattr(item, field_name, None)
             if val is not None and (math.isnan(val) or math.isinf(val)):
                 raise ValidationError(
@@ -434,6 +449,21 @@ def internal_pack(
                     [
                         {
                             "path": f"items[{item.id}].{field_name}",
+                            "message": "must be a finite number",
+                        }
+                    ],
+                )
+        # salience lives in metadata (not a model attribute) but is also read into
+        # the weighted score, so it needs the same finite check.
+        salience = item.metadata.get("salience")
+        if salience is not None:
+            sval = float(salience)
+            if math.isnan(sval) or math.isinf(sval):
+                raise ValidationError(
+                    f"Item '{item.id}' has non-finite salience ({sval})",
+                    [
+                        {
+                            "path": f"items[{item.id}].metadata.salience",
                             "message": "must be a finite number",
                         }
                     ],

@@ -241,6 +241,31 @@ describe("contextItemToBeads", () => {
     expect(issue.source_system).toBe("my-app");
     expect(issue.status).toBe("pinned");
   });
+
+  // Regression: item.kind is user-controlled (schema only requires a string).
+  // Kinds that collide with Object.prototype members used to walk the
+  // prototype chain on the default ({}) maps — the labels spread crashed
+  // and issue_type resolved to an inherited function.
+  it.each([
+    "toString",
+    "constructor",
+    "valueOf",
+    "hasOwnProperty",
+    "__proto__",
+  ])(
+    "does not crash or corrupt issue_type for prototype-member kind %s",
+    kind => {
+      const item = makeItem("x", kind, 5, 10);
+      expect(() => contextItemToBeads(item)).not.toThrow();
+
+      const issue = contextItemToBeads(item);
+      // Falls back to the default issue type, never an inherited member.
+      expect(issue.issue_type).toBe("context");
+      expect(typeof issue.issue_type).toBe("string");
+      // Only the kind label and the standard label, nothing inherited.
+      expect(issue.labels).toEqual([`kind:${kind}`, "context-engineering"]);
+    }
+  );
 });
 
 describe("beadsToContextItem", () => {
@@ -326,6 +351,17 @@ describe("createHandoff", () => {
     expect(result.stats.activeItems).toBe(2);
     expect(result.stats.deferredItems).toBe(0);
     expect(result.jsonl).toBeTruthy();
+  });
+
+  it("does not crash when an item kind is a prototype-member name", () => {
+    // Regression: a single item with a prototype-polluting kind used to crash
+    // contextItemToBeads, taking down the whole handoff path.
+    const pack = makePack([makeItem("evil", "toString", 5, 10)]);
+    expect(() => createHandoff(pack)).not.toThrow();
+
+    const result = createHandoff(pack);
+    const itemIssue = result.issues.find(i => i.id === "ce-evil");
+    expect(itemIssue?.issue_type).toBe("context");
   });
 
   it("includes dropped items when requested", () => {

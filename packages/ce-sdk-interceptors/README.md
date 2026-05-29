@@ -108,7 +108,7 @@ Recency is normalised 0-1 across the conversation. The system prompt and most re
 
 ## Design Decisions
 
-**Why a Proxy-based wrapper instead of middleware?** Proxies are transparent — the wrapped client has the exact same API as the original. No new abstractions to learn, no middleware registration, no request/response pipeline to understand. You swap one line of client initialisation and everything else stays the same.
+**Why a Proxy-based wrapper instead of middleware?** Proxies are transparent — the wrapped client keeps the same call surface as the original. No new abstractions to learn, no middleware registration, no request/response pipeline to understand. You swap one line of client initialisation and everything else stays the same. (See _Limitations_ below for the one place the surface differs: the helper methods exposed on the object returned by `create()`.)
 
 **Why fall through on packing errors?** If packing fails (malformed messages, unexpected types), the interceptor forwards the original request unchanged rather than throwing. This makes the interceptor safe to add to production code — the worst case is that packing doesn't happen, not that your API call fails.
 
@@ -127,6 +127,36 @@ Model metadata (context window sizes) comes from `MODEL_METADATA` in ce-provider
 ### ce-core (recorder)
 
 Pass a `ContextRecorder` to capture every packing decision. Use `replay()` from ce-core to A/B test different strategies against recorded production traffic.
+
+## Limitations
+
+### `create()` returns a forwarding thenable, not the raw SDK `APIPromise`
+
+The OpenAI and Anthropic SDKs return a custom `APIPromise` from `create()`. It
+is awaitable like a normal `Promise`, but also exposes helper methods on top of
+the thenable. The wrapped `create()` cannot return the raw `APIPromise`
+synchronously, because packing is asynchronous and must finish before the real
+request is issued. Instead it returns a forwarding thenable that:
+
+- **awaits to the same value** — `await client.chat.completions.create(params)`
+  yields the response body, and `for await (...)` over a streaming call yields
+  the `Stream`, exactly as with the unwrapped client.
+- **forwards the public helpers** `.withResponse()` and `.asResponse()`, so the
+  documented pattern for reading rate-limit headers and request IDs still works:
+
+  ```typescript
+  const { data, response } = await client.chat.completions
+    .create(params)
+    .withResponse();
+  ```
+
+- **does not forward private members** (`.parse()`, `._thenUnwrap`, and any other
+  internal APIPromise members). These are not part of the SDK's public contract.
+  Callers who need them must use the unwrapped client.
+
+Because the forwarded set is tied to the SDK's public `APIPromise` surface, it is
+SDK-version-coupled: if a future SDK release adds a new public helper, it must be
+added here too.
 
 ## License
 

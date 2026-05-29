@@ -318,8 +318,14 @@ function packWithAllocationImpl(
           if (alloc.targetRatio !== undefined && totalTokens > 0) {
             const actualRatio =
               (allocResult[alloc.kind]?.budgetUsed ?? 0) / totalTokens;
-            const diff = Math.abs(actualRatio - alloc.targetRatio);
-            efficiencySum += 1 - Math.min(diff / alloc.targetRatio, 1);
+            if (alloc.targetRatio === 0) {
+              // Guard 0/0: a kind that targeted 0% is perfect (1) iff it
+              // actually received nothing, otherwise it is a total miss (0).
+              efficiencySum += actualRatio === 0 ? 1 : 0;
+            } else {
+              const diff = Math.abs(actualRatio - alloc.targetRatio);
+              efficiencySum += 1 - Math.min(diff / alloc.targetRatio, 1);
+            }
             efficiencyCount++;
           }
         }

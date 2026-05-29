@@ -129,6 +129,12 @@ export async function internalPackAsync(
   options: PackOptions = {},
   trace = false
 ): Promise<PackResult> {
+  // Validate before eliminateRedundancy and enrichWithEmbeddings, both of which
+  // consume item.content. internalPack re-validates the filtered/enriched items
+  // (harmless double-validation), but validating here ensures off-type content
+  // throws the documented ValidationError rather than a raw TypeError.
+  validatePackInputs(items, budget);
+
   let processedItems = items;
   let processedOptions = options;
 
@@ -157,12 +163,15 @@ export function internalPack(
   options: PackOptions = {},
   trace = false
 ): PackResult {
+  // Validate inputs before any code path that consumes item.content (e.g.
+  // redundancy tokenization), so off-type content surfaces as the documented
+  // ValidationError instead of a raw TypeError.
+  validatePackInputs(items, budget);
+
   // Sync Jaccard redundancy elimination when no embedding provider is configured
   if (options.redundancyConfig && !options.redundancyConfig.embeddingProvider) {
     items = eliminateRedundancySync(items, options.redundancyConfig);
   }
-
-  validatePackInputs(items, budget);
 
   const scorer =
     options.scorer ??

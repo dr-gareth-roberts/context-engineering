@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Any, List, Optional, cast
@@ -23,6 +24,7 @@ class PostgresMemoryStore(MemoryStore):
         self.dsn = dsn
         self.pool_size = pool_size
         self._pool: Pool | None = None
+        self._init_lock = asyncio.Lock()
 
     def _require_asyncpg(self) -> Any:
         if asyncpg is None:
@@ -38,12 +40,15 @@ class PostgresMemoryStore(MemoryStore):
         return self._pool
 
     async def init(self):
-        if not self._pool:
-            asyncpg_mod = self._require_asyncpg()
-            self._pool = await asyncpg_mod.create_pool(
-                dsn=self.dsn, min_size=1, max_size=self.pool_size
-            )
+        if self._pool is None:
+            async with self._init_lock:
+                if self._pool is None:  # authoritative re-check inside the lock
+                    asyncpg_mod = self._require_asyncpg()
+                    self._pool = await asyncpg_mod.create_pool(
+                        dsn=self.dsn, min_size=1, max_size=self.pool_size
+                    )
 
+        assert self._pool is not None
         async with self._pool.acquire() as conn:
             try:
                 await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
@@ -157,6 +162,8 @@ class PostgresMemoryStore(MemoryStore):
                 except Exception:
                     pass
 
+            md_raw = row["metadata"]
+            md = json.loads(md_raw) if isinstance(md_raw, str) else md_raw
             return MemoryItem(
                 id=row["id"],
                 content=row["content"],
@@ -166,9 +173,7 @@ class PostgresMemoryStore(MemoryStore):
                 salience=row["salience"],
                 ttlSeconds=row["ttl_seconds"],
                 isSummary=row["is_summary"],
-                metadata=json.loads(row["metadata"])
-                if isinstance(row["metadata"], str)
-                else row["metadata"],
+                metadata=md or {},
                 embedding=embedding_list,
             )
 
@@ -196,20 +201,26 @@ class PostgresMemoryStore(MemoryStore):
             # if we wanted to be perfectly compatible. For now, we fetch a larger set and filter in Python.
             pass
 
-        # Order by vector similarity if provided
+        # Order by vector similarity if provided.
+        #
+        # For vector-less queries we deliberately do NOT push a SQL LIMIT here.
+        # _apply_query re-ranks the fetched set by the hybrid score, which is
+        # salience-dominated when no query.vector is present. Truncating to the
+        # newest rows by created_at before that ranking would permanently hide
+        # high-salience old memories that fall outside the recency window,
+        # producing recency-biased results that differ from the in-memory /
+        # Redis / SQLite / file backends (which rank over the full set). So we
+        # fetch the full candidate set and let _apply_query apply query.limit
+        # after ranking, matching the other backends.
         if query.vector:
             vec_str = f"[{','.join(map(str, query.vector))}]"
             base_sql += f" ORDER BY embedding <=> ${idx}::vector"
             args.append(vec_str)
             idx += 1
-        elif query.limit:
-            # Sort by created_at desc as a fallback
-            base_sql += " ORDER BY created_at DESC"
-
-        if query.limit:
-            base_sql += f" LIMIT ${idx}"
-            args.append(query.limit * 2)  # Fetch extra in case of TTL/salience dropping
-            idx += 1
+            if query.limit:
+                base_sql += f" LIMIT ${idx}"
+                args.append(query.limit * 2)  # overfetch for TTL/min_score dropping
+                idx += 1
 
         pool = await self._get_pool()
         async with pool.acquire() as conn:
@@ -225,6 +236,8 @@ class PostgresMemoryStore(MemoryStore):
                 except Exception:
                     pass
 
+            md_raw = row["metadata"]
+            md = json.loads(md_raw) if isinstance(md_raw, str) else md_raw
             item = MemoryItem(
                 id=row["id"],
                 content=row["content"],
@@ -234,9 +247,7 @@ class PostgresMemoryStore(MemoryStore):
                 salience=row["salience"],
                 ttlSeconds=row["ttl_seconds"],
                 isSummary=row["is_summary"],
-                metadata=json.loads(row["metadata"])
-                if isinstance(row["metadata"], str)
-                else row["metadata"],
+                metadata=md or {},
                 embedding=embedding_list,
             )
             items.append(item)
