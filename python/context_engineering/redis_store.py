@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 try:
-    import redis.asyncio as redis
+    import redis.asyncio as redis  # pyright: ignore[reportMissingImports]
 except ImportError:
     redis = None
 
