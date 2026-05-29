@@ -6,19 +6,19 @@ Full Python SDK with API parity to the TypeScript packages.
 
 ```bash
 # Core only (just pydantic — no heavy deps)
-pip install context-engineering
+pip install context-engineering-toolkit
 
 # With provider adapters (OpenAI/Anthropic)
-pip install context-engineering[providers]
+pip install context-engineering-toolkit[providers]
 
 # With CLI
-pip install context-engineering[cli]
+pip install context-engineering-toolkit[cli]
 
 # With everything
-pip install context-engineering[all]
+pip install context-engineering-toolkit[all]
 
 # For development
-pip install context-engineering[dev]
+pip install context-engineering-toolkit[dev]
 ```
 
 ### Optional Extras
@@ -54,7 +54,7 @@ the published `context-engineering` wheel — only `context_engineering` is pack
 extra installs only their runtime _dependencies_ (httpx, structlog), not the runtime code itself:
 
 ```bash
-pip install context-engineering[runtimes]  # installs httpx + structlog only
+pip install context-engineering-toolkit[runtimes]  # installs httpx + structlog only
 ```
 
 To use `context_framework`, clone the repo and run the runtime scripts from `python/` (they add the

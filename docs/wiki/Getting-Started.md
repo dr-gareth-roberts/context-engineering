@@ -30,16 +30,16 @@ npm install -g @context-engineering/cli       # CLI tools
 ### Python
 
 ```bash
-pip install context-engineering
+pip install context-engineering-toolkit
 
 # With provider adapters (OpenAI/Anthropic)
-pip install context-engineering[providers]
+pip install context-engineering-toolkit[providers]
 
 # With CLI
-pip install context-engineering[cli]
+pip install context-engineering-toolkit[cli]
 
 # With everything
-pip install context-engineering[all]
+pip install context-engineering-toolkit[all]
 ```
 
 #### Optional Extras
