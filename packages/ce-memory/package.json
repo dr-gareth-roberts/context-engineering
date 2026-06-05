@@ -45,9 +45,9 @@
   },
   "dependencies": {
     "@context-engineering/core": "workspace:*",
-    "better-sqlite3": "^12.6.2",
-    "ioredis": "^5.10.0",
-    "nanoid": "^5.1.5"
+    "better-sqlite3": "^12.10.0",
+    "ioredis": "^5.11.1",
+    "nanoid": "^5.1.11"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.10",
