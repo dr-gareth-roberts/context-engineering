@@ -125,3 +125,6 @@ python/dist/
 .claude/
 client.log
 demo_agent.db
+
+# Generated artifacts
+codebase-map.html
