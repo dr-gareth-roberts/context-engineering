@@ -449,9 +449,7 @@ class BaseIntegrationCommanderMixin:
             futures = [executor.submit(self._execute_integration_task, task) for task in tasks]
             return [future.result() for future in futures]
 
-    def _execute_integration_task(
-        self, task: IntegrationExecutionTask
-    ) -> IntegrationActionResult:
+    def _execute_integration_task(self, task: IntegrationExecutionTask) -> IntegrationActionResult:
         if task.idempotency_key and self.idempotency_store.seen(task.idempotency_key):
             return IntegrationActionResult(
                 integration=task.integration,
