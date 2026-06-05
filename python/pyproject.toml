@@ -20,7 +20,7 @@ authors = [
 ]
 
 dependencies = [
-  "pydantic>=2.7.0",
+  "pydantic>=2.13.0",
 ]
 
 [project.urls]
@@ -34,38 +34,38 @@ Changelog = "https://github.com/dr-gareth-roberts/context-engineering/blob/main/
 # Provider adapters and token counting
 providers = ["httpx>=0.27.0", "tiktoken>=0.7.0"]
 # REST API server
-server = ["fastapi>=0.110.0", "uvicorn>=0.29.0", "httpx>=0.27.0"]
+server = ["fastapi>=0.110.0", "uvicorn>=0.44.0", "httpx>=0.27.0"]
 # Structured logging
-logging = ["structlog>=24.1.0"]
+logging = ["structlog>=25.5.0"]
 # CLI with schema validation
 cli = ["jsonschema>=4.21.0", "tiktoken>=0.7.0"]
 # Webhook telemetry
 webhooks = ["httpx>=0.27.0"]
 # Storage backends
 redis = ["redis>=5.0.0"]
-postgres = ["asyncpg>=0.29.0"]
+postgres = ["asyncpg>=0.31.0"]
 # Domain runtimes (context_framework)
-runtimes = ["httpx>=0.27.0", "structlog>=24.1.0"]
+runtimes = ["httpx>=0.27.0", "structlog>=25.5.0"]
 # Everything
 all = [
   "httpx>=0.27.0",
   "tiktoken>=0.7.0",
   "jsonschema>=4.21.0",
-  "structlog>=24.1.0",
+  "structlog>=25.5.0",
   "fastapi>=0.110.0",
-  "uvicorn>=0.29.0",
+  "uvicorn>=0.44.0",
 ]
 dev = [
   "httpx>=0.27.0",
   "tiktoken>=0.7.0",
   "jsonschema>=4.21.0",
-  "structlog>=24.1.0",
+  "structlog>=25.5.0",
   "fastapi>=0.110.0",
-  "uvicorn>=0.29.0",
+  "uvicorn>=0.44.0",
   "pytest>=7.0",
   "pytest-asyncio>=0.21.0",
   "ruff>=0.1.0",
-  "pyright>=1.1.350",
+  "pyright>=1.1.408",
 ]
 
 [project.scripts]
