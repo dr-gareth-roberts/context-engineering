@@ -47,12 +47,12 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
-    "@vitest/coverage-v8": "^4.1.8",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   }
 }
