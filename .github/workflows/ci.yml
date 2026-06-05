@@ -68,6 +68,9 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Format check
+        run: ruff format --check .
+
       - name: Type check
         # Blocking: the codebase is pyright-clean. Pin the analysis binary so the
         # gate is deterministic (the pyright-python wrapper otherwise fetches latest).
