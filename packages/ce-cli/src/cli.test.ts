@@ -24,12 +24,17 @@ function run(
   args: string[],
   options: { input?: string; env?: Record<string, string> } = {}
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  // Strip FORCE_COLOR from the child env: combined with NO_COLOR it makes
+  // commander emit a "NO_COLOR is ignored…" warning to stderr, which would
+  // corrupt the JSON-on-stderr that these tests parse. (FORCE_COLOR is set in
+  // some terminals/CI-adjacent shells but never in the GitHub CI job.)
+  const { FORCE_COLOR: _ignoredForceColor, ...baseEnv } = process.env;
   return new Promise(resolve => {
     const child = execFile(
       process.execPath,
       [CLI, ...args],
       {
-        env: { ...process.env, NO_COLOR: "1", ...options.env },
+        env: { ...baseEnv, NO_COLOR: "1", ...options.env },
         cwd: path.resolve(FIXTURES, ".."),
         maxBuffer: 10 * 1024 * 1024,
       },
