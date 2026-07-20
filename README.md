@@ -9,11 +9,22 @@
 
 A workspace of **17 TypeScript packages with full Python parity**, 2,200+ tests, and an interactive in-browser inspector. [Browse the Wiki →](./docs/wiki/Home.md)
 
-```text
-items + budget ──► score ──► place ──► pack ──► quality gate ──► trace
-                    ▲          ▲                     │
-              learned weights  cache topology   drift / immune / council
+```mermaid
+flowchart LR
+    IN([Items + Budget]) --> SCORE[Score]
+    SCORE --> PLACE[Place]
+    PLACE --> PACK[Pack]
+    PACK --> GATE{Quality Gate}
+    GATE --> TRACE([Trace])
+
+    ADAPT[Adaptive weights] -. learned .-> SCORE
+    CACHE[Cache topology] -. ordering .-> PLACE
+    MEM[(Memory / Providers)] --> IN
+    GATE -. monitor .-> WATCH[Drift · Immune · Council]
+    WATCH -. feedback .-> SCORE
 ```
+
+The green path — **score → place → pack → quality gate → trace** — is the core pipeline in `ce-core`. The dashed edges are the subsystems that feed and observe it: learned weights adjust scoring, cache topology orders items for prefix reuse, and the drift/immune/council layer monitors output and closes the loop.
 
 ---
 
@@ -200,7 +211,15 @@ The Python core depends only on `pydantic`. Optional extras pull in what each fe
 
 ## Python
 
-The TypeScript and Python implementations are kept at feature parity — the same packing, scoring, council, drift, immune, time-travel, and compiler algorithms exist in both.
+This repository ships **two implementations of the same toolkit**, kept at feature parity so you can use whichever fits your stack:
+
+| Location                                                       | What it is                                                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [`packages/`](./packages/)                                     | The **TypeScript** workspace — 17 packages + the Context Inspector web app. The reference source.      |
+| [`python/context_engineering/`](./python/context_engineering/) | A **1:1 Python port** of those packages — the same APIs and algorithms. This is the published package. |
+| [`python/context_framework/`](./python/context_framework/)     | **Applied Python runtimes** built on the port — domain pipelines, not part of the published package.   |
+
+The same packing, scoring, council, drift, immune, time-travel, and compiler algorithms exist in both stacks, so the concepts and API shapes below translate directly between them.
 
 ```python
 from context_engineering import pack, ContextItem, Budget
