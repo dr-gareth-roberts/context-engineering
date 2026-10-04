@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Type errors in `ce-providers` caused by OpenAI/Anthropic SDK union return types (`Stream | ChatCompletion`)
 - Harmonised vitest versions across all packages (^4.1.0)
+- Python CI format gate: pinned `ruff==0.16.10` (newer releases started formatting Markdown code blocks, failing `ruff format --check`) and reformatted `python/README.md`
+
+### Security
+
+- Patched vulnerable dependencies reported by `pnpm audit`: `fast-uri` 3.1.8 (SSRF/host confusion, via `ce-cli` → `ajv`), `nanoid` 5.1.16 / 3.3.19, `qs` 6.16.0, `body-parser` 2.3.0, `brace-expansion` 5.0.12, `postcss` 8.5.28, `browserslist` 4.29.3, `esbuild` 0.28.2, `vitest` 4.1.11
+- The updated `fast-uri`/`qs` overrides and new `body-parser` override use caret ranges so security floors cannot pull in incompatible major versions (e.g. `fast-uri` 4.x under `ajv`); removed the stale `tailwindcss>nanoid` override that pinned a vulnerable release
+- Accepted risk: `braces` ≤ 3.0.3 (via `http-proxy-middleware` → `micromatch`) has no patched release; it is unreachable because the `/api` proxy does not use glob path filters
 
 ## [0.1.0] - 2026-02-27
 
