@@ -346,3 +346,95 @@ describe("compileAsync", () => {
     expect(result.turns.length).toBeGreaterThan(0);
   });
 });
+
+describe("compile budget hard cap (P1 regression)", () => {
+  function sumTokens(result: {
+    turns: { tokens?: number }[];
+    items: ContextItem[];
+  }): number {
+    return (
+      result.turns.reduce((s, t) => s + (t.tokens ?? 0), 0) +
+      result.items.reduce((s, i) => s + (i.tokens ?? 0), 0)
+    );
+  }
+
+  it("does not exceed maxTokens when the preserved recent turns are too large", async () => {
+    const ctx = createContextManager({
+      budget: { maxTokens: 5 },
+      preserveRecentTurns: 2,
+      tokenEstimator: wordEstimator,
+    });
+    ctx.addTurn({ role: "user", content: "a b c d" });
+    ctx.addTurn({ role: "assistant", content: "e f g h" });
+
+    for (const result of [ctx.compile(), await ctx.compileAsync()]) {
+      expect(result.totalTokens).toBeLessThanOrEqual(5);
+      expect(sumTokens(result)).toBe(result.totalTokens);
+      // The newest turn is kept verbatim; the older one is truncated to fit.
+      expect(result.turns[result.turns.length - 1].content).toBe("e f g h");
+      expect(result.turns.map(t => t.content)).toEqual(["a", "e f g h"]);
+    }
+  });
+
+  it("does not add a summary when no budget remains for it", async () => {
+    const ctx = createContextManager({
+      budget: { maxTokens: 5 },
+      summarizeAfterTurns: 2,
+      preserveRecentTurns: 1,
+      tokenEstimator: wordEstimator,
+    });
+    for (let i = 0; i < 3; i++) {
+      ctx.addTurn({ role: "user", content: `older turn ${i}` });
+    }
+    ctx.addTurn({ role: "user", content: "one two three four five six" });
+
+    for (const result of [ctx.compile(), await ctx.compileAsync()]) {
+      expect(result.totalTokens).toBeLessThanOrEqual(5);
+      expect(sumTokens(result)).toBe(result.totalTokens);
+      expect(result.turns.some(t => t.isSummary)).toBe(false);
+    }
+  });
+
+  it("never exceeds the effective budget across many budgets", async () => {
+    for (let maxTokens = 1; maxTokens <= 40; maxTokens++) {
+      const ctx = createContextManager({
+        budget: { maxTokens: maxTokens + 2, reserveTokens: 2 },
+        summarizeAfterTurns: 2,
+        preserveRecentTurns: 2,
+        tokenEstimator: wordEstimator,
+        asyncSummarizer: async item => ({
+          ...item,
+          content: item.content.split(/\s+/).slice(0, 3).join(" "),
+          tokens: undefined,
+        }),
+      });
+      for (let i = 0; i < 6; i++) {
+        ctx.addTurn({
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `turn ${i} has a handful of words in it`,
+        });
+      }
+      ctx.addItems([{ id: "doc", content: "some doc words", score: 1 }]);
+      for (const result of [ctx.compile(), await ctx.compileAsync()]) {
+        expect(result.totalTokens).toBeLessThanOrEqual(maxTokens);
+        expect(sumTokens(result)).toBe(result.totalTokens);
+      }
+    }
+  });
+
+  it("rejects a reserve that consumes the whole budget", () => {
+    expect(() =>
+      createContextManager({ budget: { maxTokens: 10, reserveTokens: 10 } })
+    ).toThrow(/reserveTokens/);
+  });
+
+  it("rejects a system prompt larger than the effective budget", () => {
+    expect(() =>
+      createContextManager({
+        budget: { maxTokens: 3 },
+        systemPrompt: "you are a helpful assistant",
+        tokenEstimator: wordEstimator,
+      })
+    ).toThrow(/systemPrompt/);
+  });
+});

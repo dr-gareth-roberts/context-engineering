@@ -272,3 +272,144 @@ class TestAllocationRegressions:
             # Higher-priority kind keeps its floor; the lower one absorbs the cut.
             assert result.allocations["a"].budget_allocated == 80
             assert result.allocations["b"].budget_allocated == 20
+
+
+# ---------------------------------------------------------------------------
+# Compaction (bug 7 parity, bugs 31, 32)
+# ---------------------------------------------------------------------------
+
+
+def _words(text: str) -> int:
+    trimmed = text.strip()
+    return len(trimmed.split()) if trimmed else 0
+
+
+class TestCompactionRegressions:
+    def _sum(self, result) -> int:
+        return sum(t.tokens for t in result.turns) + sum(i.tokens or 0 for i in result.items)
+
+    def test_recent_turns_never_exceed_budget(self):
+        import asyncio
+
+        from context_engineering.compaction import create_context_manager
+        from context_engineering.core import Budget
+
+        mgr = create_context_manager(
+            budget=Budget(max_tokens=5), preserve_recent_turns=2, token_estimator=_words
+        )
+        mgr.add_turn("user", "a b c d")
+        mgr.add_turn("assistant", "e f g h")
+        for result in (mgr.compile(), asyncio.run(mgr.compile_async())):
+            assert result.total_tokens <= 5
+            assert self._sum(result) == result.total_tokens
+            assert [t.content for t in result.turns] == ["a", "e f g h"]
+
+    def test_no_summary_when_no_budget_remains(self):
+        import asyncio
+
+        from context_engineering.compaction import create_context_manager
+        from context_engineering.core import Budget
+
+        mgr = create_context_manager(
+            budget=Budget(max_tokens=5),
+            summarize_after_turns=2,
+            preserve_recent_turns=1,
+            token_estimator=_words,
+        )
+        for i in range(3):
+            mgr.add_turn("user", f"older turn {i}")
+        mgr.add_turn("user", "one two three four five six")
+        for result in (mgr.compile(), asyncio.run(mgr.compile_async())):
+            assert result.total_tokens <= 5
+            assert self._sum(result) == result.total_tokens
+            assert not any(t.is_summary for t in result.turns)
+
+    def test_never_exceeds_effective_budget_across_budgets(self):
+        import asyncio
+
+        from context_engineering.compaction import create_context_manager
+        from context_engineering.core import Budget
+
+        async def summarizer(item, _target):
+            return item.model_copy(
+                update={"content": " ".join(item.content.split()[:3]), "tokens": None}
+            )
+
+        for max_tokens in range(1, 41):
+            mgr = create_context_manager(
+                budget=Budget(max_tokens=max_tokens + 2, reserve_tokens=2),
+                summarize_after_turns=2,
+                preserve_recent_turns=2,
+                token_estimator=_words,
+                async_summarizer=summarizer,
+            )
+            for i in range(6):
+                mgr.add_turn("user" if i % 2 == 0 else "assistant", f"turn {i} has a few words")
+            mgr.add_items([ContextItem(id="doc", content="some doc words", score=1)])
+            for result in (mgr.compile(), asyncio.run(mgr.compile_async())):
+                assert result.total_tokens <= max_tokens
+                assert self._sum(result) == result.total_tokens
+
+    def test_rejects_reserve_that_consumes_budget(self):
+        import pytest
+
+        from context_engineering.compaction import create_context_manager
+        from context_engineering.core import Budget
+        from context_engineering.errors import BudgetExceededError
+
+        with pytest.raises(BudgetExceededError):
+            create_context_manager(budget=Budget(max_tokens=10, reserve_tokens=10))
+
+    def test_rejects_system_prompt_over_budget(self):
+        import pytest
+
+        from context_engineering.compaction import create_context_manager
+        from context_engineering.core import Budget
+        from context_engineering.errors import BudgetExceededError
+
+        with pytest.raises(BudgetExceededError):
+            create_context_manager(
+                budget=Budget(max_tokens=3),
+                system_prompt="you are a helpful assistant",
+                token_estimator=_words,
+            )
+
+    def test_summary_tokens_count_the_prefix(self):
+        from context_engineering.compaction import create_context_manager
+        from context_engineering.core import Budget
+
+        mgr = create_context_manager(
+            budget=Budget(max_tokens=100),
+            summarize_after_turns=3,
+            preserve_recent_turns=1,
+            token_estimator=_words,
+        )
+        for i in range(4):
+            mgr.add_turn("user", f"message number {i} with some extra words")
+        result = mgr.compile()
+        summary = next(t for t in result.turns if t.is_summary)
+        assert summary.tokens == _words(summary.content)
+        assert self._sum(result) == result.total_tokens
+
+    def test_causal_scoring_normalizes_timestamps(self, monkeypatch):
+        from context_engineering import compaction
+        from context_engineering.compaction import create_context_manager
+        from context_engineering.core import Budget
+
+        clock = iter([1_700_000_000.0, 1_700_000_001.0, 1_700_000_002.0])
+        monkeypatch.setattr(compaction.time, "time", lambda: next(clock))
+
+        mgr = create_context_manager(
+            budget=Budget(max_tokens=3), preserve_recent_turns=1, token_estimator=_words
+        )
+        # Related to an in-progress (non-active) task: 1.2x multiplier, oldest.
+        mgr.add_turn("user", "side task", task_id="t-side")
+        # Untagged and newer: on TS's 0-10 recency scale it outranks the
+        # older side-task turn ((5 + 10 * 0.7) * 1.0 > (5 + 0) * 1.2). Raw
+        # Unix timestamps made recency dominate everything instead.
+        mgr.add_turn("assistant", "fresh context")
+        mgr.add_turn("user", "now")
+        mgr.set_beads_graph([{"id": "t-side", "status": "in_progress"}])
+
+        result = mgr.compile()
+        assert [t.content for t in result.turns] == ["fresh context", "now"]

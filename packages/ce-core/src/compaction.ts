@@ -9,6 +9,7 @@ import type { BeadsIssue } from "./beads.js";
 import { defaultTokenEstimator } from "./estimate.js";
 import { createCausalScorer } from "./score.js";
 import { CompactionOptionsSchema, validateWithSchema } from "./schemas.js";
+import { BudgetExceededError } from "./errors.js";
 
 export interface Turn {
   role: "user" | "assistant" | "tool" | "system";
@@ -28,7 +29,12 @@ export interface CompactionOptions {
   budget: Budget;
   /** Summarize tool results older than N turns (default: 5) */
   summarizeAfterTurns?: number;
-  /** Always preserve the last N turns verbatim (default: 2) */
+  /**
+   * Always preserve the last N turns verbatim (default: 2). The budget is a
+   * hard cap: if the recent turns alone do not fit, the newest turns are kept
+   * and the oldest one that overflows is truncated (or dropped) so that
+   * `compile()` never exceeds `maxTokens - reserveTokens`.
+   */
   preserveRecentTurns?: number;
   /** System prompt to always include */
   systemPrompt?: string;
@@ -116,6 +122,11 @@ export function createContextManager(
   const maxTokens = options.budget.maxTokens;
   const reserveTokens = options.budget.reserveTokens ?? 0;
   const effectiveBudget = maxTokens - reserveTokens;
+  if (effectiveBudget <= 0) {
+    throw new BudgetExceededError(
+      `reserveTokens (${reserveTokens}) must be less than maxTokens (${maxTokens})`
+    );
+  }
 
   let turns: Turn[] = [];
   let items: ContextItem[] = [];
@@ -125,6 +136,11 @@ export function createContextManager(
   const systemTokens = options.systemPrompt
     ? estimate(options.systemPrompt)
     : 0;
+  if (systemTokens > effectiveBudget) {
+    throw new BudgetExceededError(
+      `systemPrompt (${systemTokens} tokens) exceeds the effective budget (${effectiveBudget} tokens)`
+    );
+  }
 
   function setActiveTask(taskId: string): void {
     activeTaskId = taskId;
@@ -167,16 +183,15 @@ export function createContextManager(
   } {
     let availableTokens = effectiveBudget - systemTokens;
 
-    // Phase 1: Always preserve recent turns
-    const recentTurns = preserveRecent > 0 ? turns.slice(-preserveRecent) : [];
+    // Phase 1: Always preserve recent turns (within the hard budget cap)
     const olderTurns =
       preserveRecent > 0 ? turns.slice(0, -preserveRecent) : turns;
-
-    const recentTokens = recentTurns.reduce(
-      (sum, t) => sum + (t.tokens ?? 0),
-      0
+    const recent = fitRecentTurns(
+      preserveRecent > 0 ? turns.slice(-preserveRecent) : [],
+      availableTokens
     );
-    availableTokens -= recentTokens;
+    const recentTurns = recent.turns;
+    availableTokens -= recent.tokens;
 
     // Phase 2: Compact older turns
     // If we have a BEADS graph, we use causal scoring to prune older turns
@@ -223,9 +238,11 @@ export function createContextManager(
       compactedOlder.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
     } else if (olderTurns.length > 0 && olderTurns.length >= summarizeAfter) {
       // Fallback: truncate older turns to fit token budget
-      const { turn, tokens } = truncateOlderTurns(olderTurns, availableTokens);
-      compactedOlder.push(turn);
-      availableTokens -= tokens;
+      const summary = truncateOlderTurns(olderTurns, availableTokens);
+      if (summary) {
+        compactedOlder.push(summary.turn);
+        availableTokens -= summary.tokens;
+      }
     } else {
       // Include older turns as-is
       for (const turn of olderTurns) {
@@ -249,53 +266,99 @@ export function createContextManager(
   }
 
   /**
+   * Truncate `text` word-by-word to the longest prefix whose estimate (with
+   * `prefix` prepended) fits in `maxTokens`. Returns null if not even one word
+   * fits.
+   */
+  function truncateToFit(
+    text: string,
+    maxTokens: number,
+    prefix = ""
+  ): { content: string; tokens: number } | null {
+    if (maxTokens <= 0) return null;
+    const full = prefix + text;
+    const fullTokens = estimate(full);
+    if (fullTokens <= maxTokens) return { content: full, tokens: fullTokens };
+
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+    let lo = 0;
+    let hi = words.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      const candidate = prefix + words.slice(0, mid).join(" ");
+      if (estimate(candidate) <= maxTokens) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (lo === 0) return null;
+    const content = prefix + words.slice(0, lo).join(" ");
+    return { content, tokens: estimate(content) };
+  }
+
+  /**
+   * Keep the most recent contiguous run of `recent` turns that fits in
+   * `available` tokens. The oldest turn that overflows is truncated to the
+   * remaining space when possible; anything older is dropped.
+   */
+  function fitRecentTurns(
+    recent: Turn[],
+    available: number
+  ): { turns: Turn[]; tokens: number } {
+    const kept: Turn[] = [];
+    let remaining = Math.max(0, available);
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const turn = recent[i];
+      const tokens = turn.tokens ?? 0;
+      if (tokens <= remaining) {
+        kept.unshift(turn);
+        remaining -= tokens;
+        continue;
+      }
+      const truncated = truncateToFit(turn.content, remaining);
+      if (truncated) {
+        kept.unshift({
+          ...turn,
+          content: truncated.content,
+          tokens: truncated.tokens,
+        });
+        remaining -= truncated.tokens;
+      }
+      break;
+    }
+    return { turns: kept, tokens: Math.max(0, available) - remaining };
+  }
+
+  /**
    * Truncate older turns into a summary that fits within the given token budget.
-   * Returns the summary turn and how many tokens it consumed.
+   * Returns the summary turn and how many tokens it consumed, or null when the
+   * budget has no room for a summary with any content.
    */
   function truncateOlderTurns(
     olderTurns: Turn[],
     availableBudget: number
-  ): { turn: Turn; tokens: number } {
+  ): { turn: Turn; tokens: number } | null {
     const combinedContent = olderTurns
       .map(t => `[${t.role}]: ${t.content}`)
       .join("\n");
 
-    const targetTokens = Math.floor(availableBudget * 0.3);
+    const targetTokens = Math.floor(Math.max(0, availableBudget) * 0.3);
     const prefix = `[Summary of ${olderTurns.length} earlier turns]\n`;
-    const prefixTokens = estimate(prefix);
-    const contentBudget = Math.max(0, targetTokens - prefixTokens);
-
-    const words = combinedContent.split(/\s+/);
-    let truncated = combinedContent;
-    const truncatedTokens = estimate(truncated);
-
-    if (truncatedTokens > contentBudget) {
-      let lo = 0;
-      let hi = words.length;
-      while (lo < hi) {
-        const mid = Math.ceil((lo + hi) / 2);
-        const candidate = words.slice(0, mid).join(" ");
-        if (estimate(candidate) <= contentBudget) {
-          lo = mid;
-        } else {
-          hi = mid - 1;
-        }
-      }
-      truncated = words.slice(0, lo).join(" ");
-    }
-
-    const summaryContent = prefix + truncated;
-    const summaryTokens = estimate(summaryContent);
+    // Estimate the full summary string (prefix included) so the reported
+    // tokens match what is actually emitted and never exceed the target.
+    const summary = truncateToFit(combinedContent, targetTokens, prefix);
+    if (!summary) return null;
 
     return {
       turn: {
         role: "system",
-        content: summaryContent,
-        tokens: summaryTokens,
+        content: summary.content,
+        tokens: summary.tokens,
         isSummary: true,
         timestamp: olderTurns[0]?.timestamp,
       },
-      tokens: summaryTokens,
+      tokens: summary.tokens,
     };
   }
 
@@ -335,16 +398,15 @@ export function createContextManager(
   }> {
     let availableTokens = effectiveBudget - systemTokens;
 
-    // Phase 1: Always preserve recent turns
-    const recentTurns = preserveRecent > 0 ? turns.slice(-preserveRecent) : [];
+    // Phase 1: Always preserve recent turns (within the hard budget cap)
     const olderTurns =
       preserveRecent > 0 ? turns.slice(0, -preserveRecent) : turns;
-
-    const recentTokens = recentTurns.reduce(
-      (sum, t) => sum + (t.tokens ?? 0),
-      0
+    const recent = fitRecentTurns(
+      preserveRecent > 0 ? turns.slice(-preserveRecent) : [],
+      availableTokens
     );
-    availableTokens -= recentTokens;
+    const recentTurns = recent.turns;
+    availableTokens -= recent.tokens;
 
     // Phase 2: Compact older turns
     const scorer =
@@ -438,16 +500,20 @@ export function createContextManager(
           availableTokens -= summaryTokens;
         } else {
           // Fallback: truncate this batch
-          const { turn, tokens } = truncateOlderTurns(batch, availableTokens);
-          compactedOlder.push(turn);
-          availableTokens -= tokens;
+          const summary = truncateOlderTurns(batch, availableTokens);
+          if (summary) {
+            compactedOlder.push(summary.turn);
+            availableTokens -= summary.tokens;
+          }
         }
       }
     } else if (olderTurns.length > 0 && olderTurns.length >= summarizeAfter) {
       // No asyncSummarizer — use truncation (same as sync)
-      const { turn, tokens } = truncateOlderTurns(olderTurns, availableTokens);
-      compactedOlder.push(turn);
-      availableTokens -= tokens;
+      const summary = truncateOlderTurns(olderTurns, availableTokens);
+      if (summary) {
+        compactedOlder.push(summary.turn);
+        availableTokens -= summary.tokens;
+      }
     } else {
       // Include older turns as-is
       for (const turn of olderTurns) {

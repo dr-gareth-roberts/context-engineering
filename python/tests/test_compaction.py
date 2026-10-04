@@ -347,14 +347,14 @@ class TestCreateLLMSummarizer:
 
 
 class TestCompactionBudgetPressure:
-    def test_summary_is_header_only_when_recent_exceeds_budget(self):
-        """When preserved recent turns exceed the budget, available goes
-        negative. The truncation target must clamp to >= 0 so the summary
-        contains only its header, not the full untruncated older text.
+    def test_no_summary_when_recent_exceeds_budget(self):
+        """When preserved recent turns exceed the budget there is no room for
+        a summary at all, and the budget stays a hard cap.
 
-        Regression: a negative target_tokens previously left `truncated`
-        equal to the full combined older-turn text, inverting compaction
-        exactly under maximum budget pressure.
+        Regressions: a negative target_tokens once leaked the full combined
+        older-turn text into the summary; later a header-only summary was
+        still appended (and the recent turn kept whole), so total_tokens
+        exceeded max_tokens.
         """
         mgr = create_context_manager(
             budget=Budget(maxTokens=20),
@@ -372,21 +372,17 @@ class TestCompactionBudgetPressure:
 
         result = mgr.compile()
 
-        summary_turns = [t for t in result.turns if t.is_summary]
-        assert len(summary_turns) == 1
-        summary = summary_turns[0]
-        # Header only -- no older-turn body leaked in.
-        assert summary.content == "[Summary of 3 earlier turns]\n"
-        assert "older one" not in summary.content
-        # Summary token count is small (truncated body is empty), not the
-        # full untruncated older text.
-        assert summary.tokens <= 5
+        assert not [t for t in result.turns if t.is_summary]
+        assert all("older one" not in t.content for t in result.turns)
+        assert result.total_tokens <= 20
+        # The recent turn is truncated to fit rather than kept whole.
+        assert result.turns[-1].content == " ".join(f"word{i}" for i in range(20))
 
     @pytest.mark.asyncio
-    async def test_async_truncation_fallback_clamps_negative_budget(self):
+    async def test_async_truncation_fallback_respects_budget(self):
         """The shared _truncate_older_turns helper (used by both async
-        branches) must clamp a negative available budget to 0 so the
-        fallback summary is the header only, not the full older text."""
+        branches) must never leak the full older text or push the result over
+        budget when the preserved recent turn already fills it."""
 
         async def null_summarizer(item, target_tokens):
             return None
@@ -406,9 +402,6 @@ class TestCompactionBudgetPressure:
 
         result = await mgr.compile_async()
 
-        summary_turns = [t for t in result.turns if t.is_summary]
-        assert len(summary_turns) >= 1
-        for summary in summary_turns:
-            assert "older one" not in summary.content
-            assert summary.content.startswith("[Summary of ")
-            assert summary.content.endswith("]\n")
+        assert result.total_tokens <= 20
+        assert all("older one" not in t.content for t in result.turns)
+        assert not [t for t in result.turns if t.is_summary]
