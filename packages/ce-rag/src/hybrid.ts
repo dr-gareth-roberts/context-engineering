@@ -1,5 +1,5 @@
 import { estimateTokens, createBM25Index } from "@context-engineering/core";
-import { computeInformationGain } from "./information-gain.js";
+import { computeInformationGainAsync } from "./information-gain.js";
 import type {
   HybridRetrieverConfig,
   RetrieveOptions,
@@ -114,10 +114,13 @@ export function createHybridRetriever(
       let filtered = 0;
 
       for (const { candidate } of rrfScored) {
-        const { gain } = computeInformationGain(
+        const { gain } = await computeInformationGainAsync(
           candidate,
           config.currentContext,
-          { queryContext: options?.query }
+          {
+            embeddingProvider: config.embeddingProvider,
+            queryContext: options?.query,
+          }
         );
 
         if (gain >= minGain) {
@@ -141,6 +144,7 @@ export function createHybridRetriever(
         selected.push(item);
         totalGain += gain;
         tokensUsed += tokens;
+        if (selected.length >= topK) break;
       }
 
       return {

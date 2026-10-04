@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createContextAwareRetriever } from "../retriever.js";
-import type { VectorStoreLike, VectorResult } from "../types.js";
+import type {
+  EmbeddingProvider,
+  VectorStoreLike,
+  VectorResult,
+} from "../types.js";
 import type { ContextItem } from "@context-engineering/core";
 
 function createMockStore(results: VectorResult[]): VectorStoreLike {
@@ -157,6 +161,45 @@ describe("createContextAwareRetriever", () => {
 
     // Default maxCandidates = topK * 3 = 15
     expect(queriedTopK).toBe(15);
+  });
+
+  it("caps final returned items at topK after fetching extra candidates", async () => {
+    const results = Array.from({ length: 6 }, (_, i) =>
+      makeResult(
+        `r${i}`,
+        `unique content number ${i} with distinct words`,
+        1 - i * 0.01
+      )
+    );
+    const retriever = createContextAwareRetriever({
+      store: createMockStore(results),
+      currentContext: [],
+      budget: { maxTokens: 100000 },
+    });
+
+    const pack = await retriever.retrieve("query", { topK: 2 });
+
+    expect(pack.candidatesEvaluated).toBe(6);
+    expect(pack.items).toHaveLength(2);
+  });
+
+  it("uses the configured embeddingProvider for information gain", async () => {
+    const provider: EmbeddingProvider = {
+      embed: async (texts: string[]) => texts.map(() => [1, 0, 0]),
+    };
+    const retriever = createContextAwareRetriever({
+      store: createMockStore([
+        makeResult("candidate", "lexically unrelated candidate", 0.9),
+      ]),
+      currentContext: [makeItem("existing", "different existing context")],
+      budget: { maxTokens: 100000 },
+      embeddingProvider: provider,
+    });
+
+    const pack = await retriever.retrieve("query", { minGain: 0.5 });
+
+    expect(pack.items).toHaveLength(0);
+    expect(pack.candidatesFiltered).toBe(1);
   });
 
   it("metadata includes source: rag and vectorScore", async () => {

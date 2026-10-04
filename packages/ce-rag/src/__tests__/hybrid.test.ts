@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createHybridRetriever } from "../hybrid.js";
-import type { VectorStoreLike, VectorResult } from "../types.js";
+import type {
+  EmbeddingProvider,
+  VectorStoreLike,
+  VectorResult,
+} from "../types.js";
 import type { ContextItem } from "@context-engineering/core";
 
 function createMockStore(results: VectorResult[]): VectorStoreLike {
@@ -122,6 +126,49 @@ describe("createHybridRetriever", () => {
     const ids = pack.items.map(item => item.id);
     expect(ids).not.toContain("dup");
     expect(ids).toContain("novel");
+  });
+
+  it("caps final returned items at topK after hybrid re-ranking", async () => {
+    const store = createMockStore(
+      Array.from({ length: 6 }, (_, i) =>
+        makeResult(
+          `r${i}`,
+          `unique hybrid content ${i} with distinct words`,
+          1 - i * 0.01
+        )
+      )
+    );
+
+    const retriever = createHybridRetriever({
+      store,
+      currentContext: [],
+      budget: { maxTokens: 100000 },
+    });
+
+    const pack = await retriever.retrieve("query", { topK: 2 });
+
+    expect(pack.candidatesEvaluated).toBe(6);
+    expect(pack.items).toHaveLength(2);
+  });
+
+  it("uses the configured embeddingProvider for hybrid information gain", async () => {
+    const provider: EmbeddingProvider = {
+      embed: async (texts: string[]) => texts.map(() => [1, 0, 0]),
+    };
+    const store = createMockStore([
+      makeResult("candidate", "lexically unrelated hybrid candidate", 0.9),
+    ]);
+    const retriever = createHybridRetriever({
+      store,
+      currentContext: [makeItem("existing", "different existing context")],
+      budget: { maxTokens: 100000 },
+      embeddingProvider: provider,
+    });
+
+    const pack = await retriever.retrieve("query", { minGain: 0.5 });
+
+    expect(pack.items).toHaveLength(0);
+    expect(pack.candidatesFiltered).toBe(1);
   });
 
   it("budget-aware cutoff works", async () => {

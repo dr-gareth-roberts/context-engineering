@@ -1,6 +1,6 @@
 import type { ContextItem } from "@context-engineering/core";
 import { estimateTokens } from "@context-engineering/core";
-import { computeInformationGain } from "./information-gain.js";
+import { computeInformationGainAsync } from "./information-gain.js";
 import type {
   RetrieverConfig,
   RetrieveOptions,
@@ -31,7 +31,8 @@ function toContextItem(result: VectorResult): ContextItem {
 function fillWithinBudget(
   items: Array<{ item: ContextItem; gain: number }>,
   maxTokens: number,
-  reserveTokens: number
+  reserveTokens: number,
+  limit = Number.POSITIVE_INFINITY
 ): { selected: ContextItem[]; totalGain: number; tokensUsed: number } {
   const capacity = maxTokens - reserveTokens;
   const selected: ContextItem[] = [];
@@ -45,6 +46,7 @@ function fillWithinBudget(
     selected.push(item);
     totalGain += gain;
     tokensUsed += tokens;
+    if (selected.length >= limit) break;
   }
 
   return { selected, totalGain, tokensUsed };
@@ -78,10 +80,13 @@ export function createContextAwareRetriever(
       let filtered = 0;
 
       for (const candidate of candidates) {
-        const { gain } = computeInformationGain(
+        const { gain } = await computeInformationGainAsync(
           candidate,
           config.currentContext,
-          { queryContext: options?.query }
+          {
+            embeddingProvider: config.embeddingProvider,
+            queryContext: options?.query,
+          }
         );
 
         if (gain >= minGain) {
@@ -98,7 +103,8 @@ export function createContextAwareRetriever(
       const { selected, totalGain, tokensUsed } = fillWithinBudget(
         scored,
         config.budget.maxTokens,
-        config.budget.reserveTokens ?? 0
+        config.budget.reserveTokens ?? 0,
+        topK
       );
 
       return {
