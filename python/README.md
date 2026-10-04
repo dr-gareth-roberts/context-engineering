@@ -165,19 +165,37 @@ project root to `sys.path`), or add `context_framework*` to `packages.find` when
 
 ```python
 from context_engineering import (
-    pack, Budget, ContextItem,
-    to_context_item, memory_to_context,
-    place_items, effective_budget,
-    analyze_context, create_context_manager,
-    InMemoryStore, MemoryItem,
+    pack,
+    Budget,
+    ContextItem,
+    to_context_item,
+    memory_to_context,
+    place_items,
+    effective_budget,
+    analyze_context,
+    create_context_manager,
+    InMemoryStore,
+    MemoryItem,
 )
 
 # 1. Store and retrieve memories
 store = InMemoryStore()
-store.put([
-    MemoryItem(id="arch", content="System uses event sourcing", created_at="2024-01-15T10:00:00Z", salience=0.95),
-    MemoryItem(id="perf", content="P99 must stay under 200ms", created_at="2024-01-15T10:00:00Z", salience=0.80),
-])
+store.put(
+    [
+        MemoryItem(
+            id="arch",
+            content="System uses event sourcing",
+            created_at="2024-01-15T10:00:00Z",
+            salience=0.95,
+        ),
+        MemoryItem(
+            id="perf",
+            content="P99 must stay under 200ms",
+            created_at="2024-01-15T10:00:00Z",
+            salience=0.80,
+        ),
+    ]
+)
 memories = store.query()
 
 # 2. Bridge memories to context items
