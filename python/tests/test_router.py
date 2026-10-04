@@ -164,7 +164,7 @@ class TestContextRouter:
         # Should route to a more capable model due to high complexity.
         assert decision.model in ("mid-model", "expensive-model")
 
-    def test_falls_back_to_default(self):
+    def test_raises_when_default_does_not_satisfy_constraints(self):
         items = [
             _make_item("a", "content " * 100, tokens=5000),
         ]
@@ -180,9 +180,12 @@ class TestContextRouter:
         ]
         router = create_context_router(tiers, default_model="tiny")
 
-        decision = router.route(items, Budget(maxTokens=10000))
-
-        assert decision.model == "tiny"
+        try:
+            router.route(items, Budget(maxTokens=10000))
+        except ValueError as exc:
+            assert "No model satisfies routing constraints" in str(exc)
+        else:
+            raise AssertionError("router should reject unsatisfied hard constraints")
 
     def test_respects_max_tokens(self):
         items = [

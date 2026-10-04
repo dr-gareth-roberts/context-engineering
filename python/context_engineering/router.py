@@ -252,7 +252,7 @@ class ContextRouter:
             if tier.max_complexity < breakdown.overall:
                 continue
             # Check token capacity.
-            if tier.max_tokens < total_tokens:
+            if tier.max_tokens < budget.max_tokens:
                 continue
             # Check capabilities.
             tier_caps = set(tier.capabilities or [])
@@ -265,9 +265,13 @@ class ContextRouter:
                 alternative = tier
                 break
 
-        # Fallback to default.
         if selected is None:
-            selected = self._find_model(self._default_model) or self._models[-1]
+            required = ", ".join(sorted(required_caps)) if required_caps else "none"
+            raise ValueError(
+                "No model satisfies routing constraints "
+                f"(complexity={breakdown.overall:.2f}, max_tokens={budget.max_tokens}, "
+                f"required_capabilities={required})"
+            )
 
         # Cost estimates (assuming 500 output tokens).
         output_tokens = 500
