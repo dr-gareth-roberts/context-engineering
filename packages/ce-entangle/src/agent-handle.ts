@@ -31,9 +31,18 @@ export function createAgentHandle(
   store: MeshStore
 ): AgentHandle {
   const agentId = registration.agentId;
+  let closed = false;
 
   // Track acknowledged item IDs for "immediate" propagation
   const acknowledged = new Set<string>();
+
+  function assertOpen(action: string): void {
+    if (closed) {
+      throw new Error(
+        `Agent "${agentId}" has been unregistered and cannot ${action}`
+      );
+    }
+  }
 
   const handle: AgentHandle = {
     get agentId(): string {
@@ -41,6 +50,7 @@ export function createAgentHandle(
     },
 
     entangle(item: ContextItem, options?: EntangleOptions): void {
+      assertOpen("entangle items");
       const propagation: PropagationPolicy =
         options?.propagation ?? store.config.defaultPropagation ?? "next-pack";
 
@@ -87,6 +97,7 @@ export function createAgentHandle(
       entangledItems: EntangledItem[];
       ownItems: ContextItem[];
     } {
+      assertOpen("pack context");
       const agentReg = store.agents.get(agentId);
       const effectiveBudget = budget ?? agentReg?.budget ?? { maxTokens: 4096 };
       const kindFilter = agentReg?.kindFilter;
@@ -122,6 +133,7 @@ export function createAgentHandle(
     },
 
     getPending(): EntangledItem[] {
+      assertOpen("read pending items");
       const agentReg = store.agents.get(agentId);
       return filterForAgent(store.items, agentId, agentReg?.kindFilter, {
         acknowledged,
@@ -130,6 +142,7 @@ export function createAgentHandle(
     },
 
     acknowledge(...itemIds: string[]): void {
+      assertOpen("acknowledge items");
       for (const id of itemIds) {
         acknowledged.add(id);
       }
@@ -146,8 +159,10 @@ export function createAgentHandle(
     },
 
     unregister(): void {
+      if (closed) return;
       store.agents.delete(agentId);
       store.handles.delete(agentId);
+      closed = true;
     },
   };
 

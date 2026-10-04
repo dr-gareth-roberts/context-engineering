@@ -379,5 +379,17 @@ describe("AgentHandle", () => {
       expect(mesh.getAgent("agent-a")).toBeNull();
       expect(mesh.listAgents()).toHaveLength(0);
     });
+
+    it("prevents an unregistered handle from publishing new items", () => {
+      const handle = mesh.register("agent-a", {
+        budget: { maxTokens: 1000 },
+      });
+      mesh.register("agent-b", { budget: { maxTokens: 1000 } });
+
+      handle.unregister();
+
+      expect(() => handle.entangle(item("stale"))).toThrow(/unregistered/);
+      expect(mesh.getAgent("agent-b")!.getPending()).toHaveLength(0);
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createEntanglementMesh } from "../mesh.js";
-import type { EntangledItem, MeshConfig } from "../types.js";
+import type { MeshState } from "../types.js";
 
 function item(id: string, content?: string, kind?: string) {
   return {
@@ -172,6 +172,69 @@ describe("createEntanglementMesh", () => {
       const agents = mesh2.listAgents();
       const agentB = agents.find(a => a.agentId === "agent-b");
       expect(agentB?.kindFilter).toEqual(["doc"]);
+    });
+
+    it("exports a deep clone that cannot mutate the mesh", () => {
+      const mesh = createEntanglementMesh();
+      const handleA = mesh.register("agent-a", {
+        budget: { maxTokens: 1000 },
+      });
+      const handleB = mesh.register("agent-b", {
+        budget: { maxTokens: 1000 },
+      });
+
+      handleA.entangle({
+        ...item("shared", "content", "code"),
+        metadata: { nested: { value: "original" } },
+      });
+
+      const exported = mesh.exportState();
+      (exported.items[0].item.metadata!.nested as { value: string }).value =
+        "changed";
+      exported.items[0].item.content = "changed";
+      exported.agents[1].kindFilter = ["doc"];
+
+      const pending = handleB.getPending();
+      expect(pending[0].item.content).toBe("content");
+      expect(
+        (pending[0].item.metadata!.nested as { value: string }).value
+      ).toBe("original");
+      expect(mesh.listAgents()[1].kindFilter).toBeUndefined();
+    });
+
+    it("imports a deep clone that cannot be mutated through the source state", () => {
+      const sourceState: MeshState = {
+        items: [
+          {
+            item: {
+              ...item("shared", "content", "code"),
+              metadata: { nested: { value: "original" } },
+            },
+            sourceAgent: "agent-a",
+            propagation: "next-pack",
+            scope: "*",
+            entangledAt: Date.now(),
+            metadata: { nested: { reason: "original" } },
+          },
+        ],
+        agents: [
+          { agentId: "agent-a", budget: { maxTokens: 1000 } },
+          { agentId: "agent-b", budget: { maxTokens: 1000 } },
+        ],
+      };
+
+      const mesh = createEntanglementMesh();
+      mesh.importState(sourceState);
+
+      sourceState.items[0].item.content = "changed";
+      (sourceState.items[0].item.metadata!.nested as { value: string }).value =
+        "changed";
+
+      const pending = mesh.getAgent("agent-b")!.getPending();
+      expect(pending[0].item.content).toBe("content");
+      expect(
+        (pending[0].item.metadata!.nested as { value: string }).value
+      ).toBe("original");
     });
   });
 

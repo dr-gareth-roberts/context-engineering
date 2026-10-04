@@ -10,6 +10,13 @@ import { createAgentHandle, type MeshStore } from "./agent-handle.js";
 
 const DEFAULT_MAX_ITEMS = 1000;
 
+function deepClone<T>(value: T): T {
+  if (typeof globalThis.structuredClone === "function") {
+    return globalThis.structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 /**
  * Create an entanglement mesh — a shared fabric for multi-agent context sharing.
  *
@@ -55,7 +62,7 @@ export function createEntanglementMesh(config?: MeshConfig): EntanglementMesh {
     },
 
     listAgents(): AgentRegistration[] {
-      return Array.from(store.agents.values());
+      return deepClone(Array.from(store.agents.values()));
     },
 
     stats(): MeshStats {
@@ -89,20 +96,21 @@ export function createEntanglementMesh(config?: MeshConfig): EntanglementMesh {
 
     exportState(): MeshState {
       return {
-        items: [...store.items],
-        agents: Array.from(store.agents.values()),
+        items: deepClone(store.items),
+        agents: deepClone(Array.from(store.agents.values())),
       };
     },
 
     importState(state: MeshState): void {
       store.items.length = 0;
-      store.items.push(...state.items);
+      store.items.push(...deepClone(state.items));
 
       // Re-register agents from imported state (skip already registered ones)
       for (const reg of state.agents) {
         if (!store.agents.has(reg.agentId)) {
-          store.agents.set(reg.agentId, reg);
-          const handle = createAgentHandle(reg, store);
+          const registration = deepClone(reg);
+          store.agents.set(registration.agentId, registration);
+          const handle = createAgentHandle(registration, store);
           store.handles.set(reg.agentId, handle);
         }
       }
