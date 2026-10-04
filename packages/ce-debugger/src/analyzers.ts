@@ -119,26 +119,38 @@ export function analyzeUtilization(
   pack: ContextPack,
   thresholds: Required<QualityThresholds>
 ): AnalyzerResult {
+  const reserveTokens = pack.budget.reserveTokens ?? 0;
+  const effectiveMaxTokens = pack.budget.maxTokens - reserveTokens;
   const utilization =
-    pack.budget.maxTokens > 0 ? pack.totalTokens / pack.budget.maxTokens : 0;
+    effectiveMaxTokens > 0
+      ? pack.totalTokens / effectiveMaxTokens
+      : pack.totalTokens > 0
+        ? Number.POSITIVE_INFINITY
+        : 0;
+  const utilizationPercent = Number.isFinite(utilization)
+    ? `${Math.round(utilization * 100)}%`
+    : "over capacity";
 
   if (utilization < thresholds.minUtilization) {
     return {
       issue: {
         severity: "info",
         category: "budget-waste",
-        message: `Low budget utilization (${Math.round(utilization * 100)}%) — ${pack.budget.maxTokens - pack.totalTokens} tokens unused`,
+        message: `Low budget utilization (${utilizationPercent}) — ${Math.max(0, effectiveMaxTokens - pack.totalTokens)} tokens unused`,
         evidence: {
           utilization,
           totalTokens: pack.totalTokens,
-          maxTokens: pack.budget.maxTokens,
+          maxTokens: effectiveMaxTokens,
+          reserveTokens,
         },
       },
       recommendation: {
         action: "increase-budget",
         description:
           "Budget is underutilized — consider adding more context or reducing the budget",
-        suggestedChange: { maxTokens: Math.ceil(pack.totalTokens * 1.2) },
+        suggestedChange: {
+          maxTokens: reserveTokens + Math.ceil(pack.totalTokens * 1.2),
+        },
         estimatedImpact: "Right-sizing the budget avoids wasted allocation",
       },
     };
@@ -149,18 +161,22 @@ export function analyzeUtilization(
       issue: {
         severity: "info",
         category: "budget-waste",
-        message: `Very tight budget utilization (${Math.round(utilization * 100)}%) — important items may be getting dropped`,
+        message: `Very tight budget utilization (${utilizationPercent}) — important items may be getting dropped`,
         evidence: {
           utilization,
           totalTokens: pack.totalTokens,
-          maxTokens: pack.budget.maxTokens,
+          maxTokens: effectiveMaxTokens,
+          reserveTokens,
         },
       },
       recommendation: {
         action: "increase-budget",
         description:
           "Budget is nearly exhausted — increase to accommodate more context",
-        suggestedChange: { maxTokens: Math.ceil(pack.budget.maxTokens * 1.5) },
+        suggestedChange: {
+          maxTokens:
+            reserveTokens + Math.ceil(Math.max(0, effectiveMaxTokens) * 1.5),
+        },
         estimatedImpact:
           "More headroom reduces risk of dropping important items",
       },

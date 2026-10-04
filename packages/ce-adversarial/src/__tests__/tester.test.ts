@@ -269,6 +269,26 @@ describe("createAdversarialTester", () => {
     expect(report.worstAttack).toBeNull();
   });
 
+  it("rejects zero probe rounds", () => {
+    expect(() =>
+      createAdversarialTester({
+        attacks: ["contradiction"],
+        probeRounds: 0,
+      })
+    ).toThrow(/probeRounds/);
+  });
+
+  it("rejects non-finite evaluator scores", async () => {
+    const tester = createAdversarialTester({
+      attacks: ["contradiction"],
+      probeRounds: 1,
+    });
+
+    await expect(
+      tester.probe(makeItems(1), defaultBudget, async () => Number.NaN)
+    ).rejects.toThrow(/finite/);
+  });
+
   it("accepts AttackConfig objects with custom intensity", async () => {
     const tester = createAdversarialTester({
       attacks: [{ type: "noise-flood", intensity: 0.9 }],

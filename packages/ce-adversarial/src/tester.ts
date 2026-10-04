@@ -30,6 +30,7 @@ function normalizeAttack(attack: AttackType | AttackConfig): AttackConfig {
 function classifySeverity(
   qualityDrop: number
 ): "resilient" | "vulnerable" | "critical" {
+  if (!Number.isFinite(qualityDrop)) return "vulnerable";
   if (qualityDrop < 0.1) return "resilient";
   if (qualityDrop <= 0.3) return "vulnerable";
   return "critical";
@@ -54,6 +55,11 @@ async function measureQuality(
   for (let i = 0; i < rounds; i++) {
     const packed = pack(items, budget, options);
     const score = await evaluator(packed.selected);
+    if (!Number.isFinite(score)) {
+      throw new Error(
+        `Evaluator returned a non-finite quality score: ${score}`
+      );
+    }
     total += score;
   }
   return total / rounds;
@@ -69,6 +75,11 @@ export function createAdversarialTester(
   config: AdversarialConfig
 ): AdversarialTester {
   const probeRounds = config.probeRounds ?? DEFAULT_PROBE_ROUNDS;
+  if (!Number.isInteger(probeRounds) || probeRounds < 1) {
+    throw new Error(
+      "probeRounds must be an integer greater than or equal to 1"
+    );
+  }
   const attacks = config.attacks.map(normalizeAttack);
 
   return {

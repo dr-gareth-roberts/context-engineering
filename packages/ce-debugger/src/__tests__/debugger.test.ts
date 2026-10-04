@@ -204,6 +204,34 @@ describe("createContextDebugger.diagnose", () => {
     );
   });
 
+  it("uses reserveTokens when diagnosing tight budget utilization", () => {
+    const selected = [
+      makeItem({
+        id: "a",
+        content: "first topic about machine learning algorithms",
+        tokens: 90,
+        recency: 8,
+      }),
+    ];
+
+    const pack = makePack({
+      selected,
+      totalTokens: 90,
+      budget: { maxTokens: 100, reserveTokens: 20 },
+    });
+    const debugger_ = createContextDebugger({
+      qualityThresholds: { maxUtilization: 0.95 },
+    });
+    const diagnosis = debugger_.diagnose(pack);
+
+    const budgetIssue = diagnosis.issues.find(
+      i => i.category === "budget-waste"
+    );
+    expect(budgetIssue).toBeDefined();
+    expect(budgetIssue?.evidence.utilization).toBeCloseTo(1.125);
+    expect(budgetIssue?.evidence.maxTokens).toBe(80);
+  });
+
   it("returns critical when any critical issue present", () => {
     const dropped = [
       makeItem({ id: "hp", content: "high priority dropped", priority: 10 }),
