@@ -91,9 +91,12 @@ def place_items(
         reverse=True,
     )
 
+    # Spread positions over the full bucket range so the first and last
+    # positions hit the first and last buckets (n > 2 is guaranteed above).
+    # floor(x + 0.5) matches JS Math.round (Python's round() is banker's).
     position_attention = []
     for i in range(n):
-        bucket_index = min(int((i / n) * bucket_count), bucket_count - 1)
+        bucket_index = min(math.floor((i / (n - 1)) * (bucket_count - 1) + 0.5), bucket_count - 1)
         position_attention.append((i, prof.position_weights[bucket_index]))
 
     position_attention.sort(key=lambda pa: pa[1], reverse=True)

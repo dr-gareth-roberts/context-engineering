@@ -275,3 +275,31 @@ describe("packWithAllocationAsync", () => {
     expect(result.allocationEfficiency).toBe(0);
   });
 });
+
+describe("packWithAllocation — budget validation (P1 regression)", () => {
+  it("rejects reserveTokens >= maxTokens like pack()", () => {
+    expect(() =>
+      packWithAllocation(
+        [createContextItem("a", "alpha")],
+        { maxTokens: 100, reserveTokens: 100 },
+        [{ kind: "doc", targetRatio: 1 }]
+      )
+    ).toThrow(/reserveTokens/);
+  });
+
+  it("rejects a non-positive maxTokens like pack()", () => {
+    expect(() =>
+      packWithAllocation(
+        [createContextItem("a", "alpha")],
+        { maxTokens: 0 },
+        []
+      )
+    ).toThrow(/maxTokens/);
+  });
+
+  it("rejects invalid budgets on the async path", async () => {
+    await expect(
+      packWithAllocationAsync([], { maxTokens: -5 }, [])
+    ).rejects.toThrow(/maxTokens/);
+  });
+});

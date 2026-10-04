@@ -100,10 +100,12 @@ export function placeItems(
     }))
     .sort((a, b) => b.score - a.score);
 
-  // Get attention weight for each output position
+  // Get attention weight for each output position. Spread positions over the
+  // full bucket range so the first and last positions hit the first and last
+  // buckets (n > 2 is guaranteed above).
   const positionAttention = Array.from({ length: n }, (_, i) => {
     const bucketIndex = Math.min(
-      Math.floor((i / n) * bucketCount),
+      Math.round((i / (n - 1)) * (bucketCount - 1)),
       bucketCount - 1
     );
     return { position: i, attention: profile.positionWeights[bucketIndex] };

@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from .core import Budget, ContextItem, pack, pack_async
+from .core import Budget, ContextItem, pack, pack_async, validate_budget
 from .errors import ValidationError
 
 
@@ -51,6 +51,59 @@ class AllocatedPack:
     stats: Dict[str, Any]
     allocations: Dict[str, KindResult]
     allocation_efficiency: float
+
+
+def _compute_kind_budgets(
+    allocations: List[KindAllocation], effective_budget: int
+) -> Dict[str, int]:
+    """Compute per-kind budgets, normalising over-allocation like the TS port.
+
+    When the requested budgets (including ``min_tokens`` floors) exceed the
+    effective budget, the lowest-priority kinds are reduced first: down to
+    their floors, then below them if the floors alone are overcommitted. The
+    result therefore never sums to more than ``effective_budget``.
+    """
+    kind_budgets: Dict[str, int] = {}
+    allocated_total = 0
+
+    for alloc in allocations:
+        tokens = 0
+        if alloc.target_ratio is not None:
+            tokens = int(effective_budget * alloc.target_ratio)
+        if alloc.min_tokens is not None:
+            tokens = max(tokens, alloc.min_tokens)
+        if alloc.max_tokens is not None:
+            tokens = min(tokens, alloc.max_tokens)
+        kind_budgets[alloc.kind] = tokens
+        allocated_total += tokens
+
+    if allocated_total > effective_budget:
+        overflow = allocated_total - effective_budget
+        adjustable = sorted(allocations, key=lambda a: a.priority)
+
+        for alloc in adjustable:
+            if overflow <= 0:
+                break
+            current = kind_budgets.get(alloc.kind, 0)
+            floor = alloc.min_tokens or 0
+            reducible = max(0, current - floor)
+            if reducible <= 0:
+                continue
+            reduction = min(reducible, overflow)
+            kind_budgets[alloc.kind] = current - reduction
+            overflow -= reduction
+
+        for alloc in adjustable:
+            if overflow <= 0:
+                break
+            current = kind_budgets.get(alloc.kind, 0)
+            if current <= 0:
+                continue
+            reduction = min(current, overflow)
+            kind_budgets[alloc.kind] = current - reduction
+            overflow -= reduction
+
+    return kind_budgets
 
 
 def pack_with_allocation(
@@ -109,6 +162,8 @@ def pack_with_allocation(
     if details:
         raise ValidationError("Invalid allocation config", details=details)
 
+    validate_budget(budget)
+
     pack_kwargs = dict(options or {})
     effective_budget = budget.max_tokens - (budget.reserve_tokens or 0)
 
@@ -124,29 +179,8 @@ def pack_with_allocation(
         else:
             uncategorized.append(item)
 
-    # Phase 1: Compute initial allocation per kind
-    kind_budgets: Dict[str, int] = {}
-    allocated_total = 0
-
-    for alloc in allocations:
-        tokens = 0
-        if alloc.target_ratio is not None:
-            tokens = int(effective_budget * alloc.target_ratio)
-        if alloc.min_tokens is not None:
-            tokens = max(tokens, alloc.min_tokens)
-        if alloc.max_tokens is not None:
-            tokens = min(tokens, alloc.max_tokens)
-        kind_budgets[alloc.kind] = tokens
-        allocated_total += tokens
-
-    # Scale if over-allocated
-    if allocated_total > effective_budget:
-        scale = effective_budget / allocated_total
-        for alloc in allocations:
-            scaled = int(kind_budgets[alloc.kind] * scale)
-            if alloc.min_tokens is not None:
-                scaled = max(scaled, alloc.min_tokens)
-            kind_budgets[alloc.kind] = scaled
+    # Phase 1: Compute allocation per kind (never exceeds the effective budget)
+    kind_budgets = _compute_kind_budgets(allocations, effective_budget)
 
     # Phase 2: Pack within each kind's allocation
     kind_results: Dict[str, Dict[str, Any]] = {}
@@ -328,6 +362,8 @@ async def pack_with_allocation_async(
     if details:
         raise ValidationError("Invalid allocation config", details=details)
 
+    validate_budget(budget)
+
     async_kwargs = _extract_async_kwargs(options)
     effective_budget = budget.max_tokens - (budget.reserve_tokens or 0)
 
@@ -343,29 +379,8 @@ async def pack_with_allocation_async(
         else:
             uncategorized.append(item)
 
-    # Phase 1: Compute initial allocation per kind
-    kind_budgets: Dict[str, int] = {}
-    allocated_total = 0
-
-    for alloc in allocations:
-        tokens = 0
-        if alloc.target_ratio is not None:
-            tokens = int(effective_budget * alloc.target_ratio)
-        if alloc.min_tokens is not None:
-            tokens = max(tokens, alloc.min_tokens)
-        if alloc.max_tokens is not None:
-            tokens = min(tokens, alloc.max_tokens)
-        kind_budgets[alloc.kind] = tokens
-        allocated_total += tokens
-
-    # Scale if over-allocated
-    if allocated_total > effective_budget:
-        scale = effective_budget / allocated_total
-        for alloc in allocations:
-            scaled = int(kind_budgets[alloc.kind] * scale)
-            if alloc.min_tokens is not None:
-                scaled = max(scaled, alloc.min_tokens)
-            kind_budgets[alloc.kind] = scaled
+    # Phase 1: Compute allocation per kind (never exceeds the effective budget)
+    kind_budgets = _compute_kind_budgets(allocations, effective_budget)
 
     # Phase 2: Pack within each kind's allocation
     kind_results: Dict[str, Dict[str, Any]] = {}

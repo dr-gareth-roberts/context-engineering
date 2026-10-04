@@ -11,7 +11,11 @@
 
 import type { Budget, ContextItem, ContextPack, PackOptions } from "./types.js";
 import { pack, packAsync } from "./pack.js";
-import { KindAllocationSchema, validateWithSchema } from "./schemas.js";
+import {
+  KindAllocationSchema,
+  validatePackInputs,
+  validateWithSchema,
+} from "./schemas.js";
 import type { MaybeAsync } from "./maybe-async.js";
 import { chain } from "./maybe-async.js";
 
@@ -72,6 +76,7 @@ function packWithAllocationImpl(
   options: PackOptions,
   packFn: PackFn
 ): MaybeAsync<AllocatedPack> {
+  validatePackInputs(items, budget);
   for (let i = 0; i < allocations.length; i++) {
     validateWithSchema(
       KindAllocationSchema,

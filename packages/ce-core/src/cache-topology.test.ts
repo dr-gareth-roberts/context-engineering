@@ -267,3 +267,125 @@ describe("packWithCacheTopologyAsync", () => {
     expect(result.cacheEfficiency).toBe(0);
   });
 });
+
+describe("packWithCacheTopology — P1 regressions", () => {
+  function assertPartition(
+    input: ContextItem[],
+    result: { selected: ContextItem[]; dropped: ContextItem[] }
+  ) {
+    // Every input item ends up in exactly one of selected/dropped.
+    expect(result.selected.length + result.dropped.length).toBe(input.length);
+    const selectedIds = result.selected.map(i => i.id).sort();
+    const droppedIds = result.dropped.map(i => i.id).sort();
+    expect([...selectedIds, ...droppedIds].sort()).toEqual(
+      input.map(i => i.id).sort()
+    );
+  }
+
+  it("classifies an invalid metadata.volatility as request instead of dropping the item", () => {
+    const item: ContextItem = {
+      id: "typo",
+      content: "x",
+      tokens: 5,
+      metadata: { volatility: "typo" },
+    };
+    expect(classifyVolatility(item)).toBe("request");
+    const result = packWithCacheTopology([item], { maxTokens: 100 });
+    expect(result.selected.map(i => i.id)).toEqual(["typo"]);
+    assertPartition([item], result);
+  });
+
+  it("ignores non-string metadata.volatility values", () => {
+    expect(
+      classifyVolatility({
+        id: "a",
+        content: "",
+        kind: "system",
+        metadata: { volatility: 42 },
+      })
+    ).toBe("static");
+  });
+
+  it("rejects reserveTokens >= maxTokens like pack()", () => {
+    const items = [makeItem("s", "system", 1, 10)];
+    expect(() =>
+      packWithCacheTopology(items, { maxTokens: 100, reserveTokens: 100 })
+    ).toThrow(/reserveTokens/);
+  });
+
+  it("rejects a non-positive maxTokens like pack()", () => {
+    const items = [makeItem("s", "system", 1, 10)];
+    expect(() => packWithCacheTopology(items, { maxTokens: 0 })).toThrow(
+      /maxTokens/
+    );
+  });
+
+  it("rejects invalid budgets on the async path", async () => {
+    await expect(
+      packWithCacheTopologyAsync([], { maxTokens: 10, reserveTokens: 20 })
+    ).rejects.toThrow(/reserveTokens/);
+  });
+
+  it("keeps an unselected static item in dropped even if a selected one shares its id", () => {
+    const items = [
+      { id: "dup", content: "small", kind: "system", tokens: 10 },
+      { id: "dup", content: "big", kind: "system", tokens: 1000 },
+    ];
+    const result = packWithCacheTopology(items, { maxTokens: 100 });
+    expect(result.selected).toHaveLength(1);
+    expect(result.dropped).toHaveLength(1);
+    expect(result.dropped[0].content).toBe("big");
+    assertPartition(items, result);
+  });
+
+  it("reports zero cacheable tokens when the static prefix is below minPrefixTokens", () => {
+    const items = [
+      makeItem("sys", "system", 10, 100),
+      makeItem("q", "query", 5, 50),
+    ];
+    const result = packWithCacheTopology(
+      items,
+      { maxTokens: 1000 },
+      {},
+      { minPrefixTokens: 200 }
+    );
+    expect(result.totalTokens).toBe(150);
+    expect(result.cacheableTokens).toBe(0);
+    expect(result.cacheEfficiency).toBe(0);
+    expect(result.volatileTokens).toBe(150);
+  });
+
+  it("reports cacheable tokens when the static prefix meets minPrefixTokens", () => {
+    const items = [makeItem("sys", "system", 10, 200)];
+    const result = packWithCacheTopology(
+      items,
+      { maxTokens: 1000 },
+      {},
+      { minPrefixTokens: 200 }
+    );
+    expect(result.cacheableTokens).toBe(200);
+    expect(result.cacheEfficiency).toBe(1);
+  });
+
+  it("never exceeds the effective budget and does not mutate inputs", () => {
+    const items = [
+      makeItem("s1", "system", 9, 40),
+      makeItem("s2", "system", 3, 40),
+      makeItem("m1", "memory", 5, 30),
+      makeItem("m2", "memory", 2, 30),
+      makeItem("q1", "query", 8, 25),
+      makeItem("r1", "retrieval", 1, 25),
+    ];
+    const snapshot = JSON.parse(JSON.stringify(items));
+    const budget = { maxTokens: 150, reserveTokens: 20 };
+    const result = packWithCacheTopology(
+      items,
+      budget,
+      {},
+      { markBreakpoints: true }
+    );
+    expect(result.totalTokens).toBeLessThanOrEqual(130);
+    assertPartition(items, result);
+    expect(items).toEqual(snapshot);
+  });
+});

@@ -15,9 +15,9 @@ Based on: https://ankitbko.github.io/blog/2025/08/prompt-engineering-kv-cache/
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
-from .core import Budget, ContextItem, estimate_tokens, pack, pack_async
+from .core import Budget, ContextItem, estimate_tokens, pack, pack_async, validate_budget
 from .errors import ValidationError
 
 Volatility = Literal["static", "session", "request"]
@@ -26,6 +26,7 @@ Volatility = Literal["static", "session", "request"]
 _STATIC_KINDS = {"system", "tool", "schema", "example", "instruction", "few-shot"}
 _SESSION_KINDS = {"memory", "conversation", "history", "session"}
 _REQUEST_KINDS = {"query", "retrieval", "tool-result", "request"}
+_VOLATILITY_LEVELS = {"static", "session", "request"}
 
 
 @dataclass
@@ -33,6 +34,8 @@ class CacheConfig:
     """Provider-specific cache configuration."""
 
     provider: Optional[str] = None  # "anthropic", "openai", "auto"
+    # Minimum prefix length (tokens) for cache eligibility. A selected static
+    # prefix shorter than this is reported as not cacheable.
     min_prefix_tokens: Optional[int] = None
     mark_breakpoints: bool = False
 
@@ -60,10 +63,15 @@ def classify_volatility(item: ContextItem) -> Volatility:
     - static: system prompts, tool definitions, few-shot examples (rarely change)
     - session: conversation history, memory retrievals (change per session)
     - request: current query, fresh RAG results (change every request)
+
+    An explicit ``metadata["volatility"]`` takes precedence when it is one of
+    "static" | "session" | "request"; any other value is ignored and the item
+    is classified by ``kind`` (falling back to "request").
     """
     # Explicit volatility in metadata takes precedence
-    if item.metadata and "volatility" in item.metadata:
-        return item.metadata["volatility"]
+    explicit = item.metadata.get("volatility") if item.metadata else None
+    if isinstance(explicit, str) and explicit in _VOLATILITY_LEVELS:
+        return cast(Volatility, explicit)
 
     kind = (item.kind or "").lower()
 
@@ -83,6 +91,63 @@ def _hash_string(s: str) -> str:
     for ch in s:
         h = ((h << 5) - h + ord(ch)) & 0xFFFFFFFF
     return format(h, "x")
+
+
+def _validate_inputs(budget: Budget, cache_config: Optional[CacheConfig]) -> None:
+    validate_budget(budget)
+    _VALID_PROVIDERS = {"anthropic", "openai", "auto"}
+    if cache_config is not None and cache_config.provider is not None:
+        if cache_config.provider not in _VALID_PROVIDERS:
+            raise ValidationError(
+                "Invalid cache config",
+                details=[
+                    {
+                        "path": "cache_config.provider",
+                        "message": f"provider must be one of {sorted(_VALID_PROVIDERS)} or None",
+                    }
+                ],
+            )
+    if (
+        cache_config is not None
+        and cache_config.min_prefix_tokens is not None
+        and cache_config.min_prefix_tokens < 0
+    ):
+        raise ValidationError(
+            "Invalid cache config",
+            details=[
+                {
+                    "path": "cache_config.min_prefix_tokens",
+                    "message": "min_prefix_tokens must be non-negative",
+                }
+            ],
+        )
+
+
+def _select_static(
+    static_items: List[ContextItem], remaining: int
+) -> Tuple[List[ContextItem], List[ContextItem], int]:
+    """Greedily include static items that fit.
+
+    Dropped items are tracked directly (not by id) so duplicate ids can't hide
+    an unselected item.
+    """
+    selected: List[ContextItem] = []
+    dropped: List[ContextItem] = []
+    for item in static_items:
+        tokens = item.tokens if item.tokens is not None else estimate_tokens(item.content)
+        if tokens <= remaining:
+            item_copy = item.model_copy()
+            item_copy.tokens = tokens
+            selected.append(item_copy)
+            remaining -= tokens
+        else:
+            dropped.append(item)
+    return selected, dropped, remaining
+
+
+def _cacheable_tokens(prefix_tokens: int, config: CacheConfig) -> int:
+    """Providers only cache prefixes above a minimum length."""
+    return prefix_tokens if prefix_tokens >= (config.min_prefix_tokens or 0) else 0
 
 
 def pack_with_cache_topology(
@@ -118,18 +183,7 @@ def pack_with_cache_topology(
         print(result.cache_key)        # stable across requests with same static items
         print(result.cache_efficiency)  # 0.0 - 1.0
     """
-    _VALID_PROVIDERS = {"anthropic", "openai", "auto"}
-    if cache_config is not None and cache_config.provider is not None:
-        if cache_config.provider not in _VALID_PROVIDERS:
-            raise ValidationError(
-                "Invalid cache config",
-                details=[
-                    {
-                        "path": "cache_config.provider",
-                        "message": f"provider must be one of {sorted(_VALID_PROVIDERS)} or None",
-                    }
-                ],
-            )
+    _validate_inputs(budget, cache_config)
 
     config = cache_config or CacheConfig()
     pack_kwargs = dict(options or {})
@@ -159,14 +213,7 @@ def pack_with_cache_topology(
     remaining = max_tokens
 
     # Static items: include all that fit
-    selected_static: List[ContextItem] = []
-    for item in static_items:
-        tokens = item.tokens or estimate_tokens(item.content)
-        if tokens <= remaining:
-            item_copy = item.model_copy()
-            item_copy.tokens = tokens
-            selected_static.append(item_copy)
-            remaining -= tokens
+    selected_static, dropped_static, remaining = _select_static(static_items, remaining)
 
     # Session items: pack by score within remaining budget
     if remaining > 0 and session_items:
@@ -189,8 +236,6 @@ def pack_with_cache_topology(
 
     # 5. Compose final ordered list: static -> session -> request
     selected = selected_static + session_selected + request_selected
-    selected_ids = {i.id for i in selected_static}
-    dropped_static = [i for i in static_items if i.id not in selected_ids]
     dropped = dropped_static + session_dropped + request_dropped
 
     # 6. Add breakpoint markers if configured
@@ -214,7 +259,7 @@ def pack_with_cache_topology(
     static_content = "|".join(f"{i.id}:{i.content}" for i in selected_static)
     cache_key = _hash_string(static_content)
 
-    static_tokens = sum(i.tokens or 0 for i in selected_static)
+    static_tokens = _cacheable_tokens(sum(i.tokens or 0 for i in selected_static), config)
     total_tokens = sum(i.tokens or 0 for i in selected)
 
     return CacheAwarePack(
@@ -275,18 +320,7 @@ async def pack_with_cache_topology_async(
     Returns:
         CacheAwarePack with cache metadata
     """
-    _VALID_PROVIDERS = {"anthropic", "openai", "auto"}
-    if cache_config is not None and cache_config.provider is not None:
-        if cache_config.provider not in _VALID_PROVIDERS:
-            raise ValidationError(
-                "Invalid cache config",
-                details=[
-                    {
-                        "path": "cache_config.provider",
-                        "message": f"provider must be one of {sorted(_VALID_PROVIDERS)} or None",
-                    }
-                ],
-            )
+    _validate_inputs(budget, cache_config)
 
     config = cache_config or CacheConfig()
     async_kwargs = _extract_async_kwargs(options)
@@ -316,14 +350,7 @@ async def pack_with_cache_topology_async(
     remaining = max_tokens
 
     # Static items: include all that fit
-    selected_static: List[ContextItem] = []
-    for item in static_items:
-        tokens = item.tokens or estimate_tokens(item.content)
-        if tokens <= remaining:
-            item_copy = item.model_copy()
-            item_copy.tokens = tokens
-            selected_static.append(item_copy)
-            remaining -= tokens
+    selected_static, dropped_static, remaining = _select_static(static_items, remaining)
 
     # Session items: pack by score within remaining budget
     if remaining > 0 and session_items:
@@ -346,8 +373,6 @@ async def pack_with_cache_topology_async(
 
     # 5. Compose final ordered list: static -> session -> request
     selected = selected_static + session_selected + request_selected
-    selected_ids = {i.id for i in selected_static}
-    dropped_static = [i for i in static_items if i.id not in selected_ids]
     dropped = dropped_static + session_dropped + request_dropped
 
     # 6. Add breakpoint markers if configured
@@ -371,7 +396,7 @@ async def pack_with_cache_topology_async(
     static_content = "|".join(f"{i.id}:{i.content}" for i in selected_static)
     cache_key = _hash_string(static_content)
 
-    static_tokens = sum(i.tokens or 0 for i in selected_static)
+    static_tokens = _cacheable_tokens(sum(i.tokens or 0 for i in selected_static), config)
     total_tokens = sum(i.tokens or 0 for i in selected)
 
     return CacheAwarePack(

@@ -80,7 +80,35 @@ class Budget(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     max_tokens: int = Field(alias="maxTokens")
-    reserve_tokens: Optional[int] = Field(default=None, alias="reserveTokens")
+    reserve_tokens: Optional[int] = Field(default=None, alias="reserveTokens", ge=0)
+
+
+def validate_budget(budget: Budget) -> None:
+    """Validate a budget the same way ``pack()`` does.
+
+    Shared by every packing entry point (pack, pack_stream, allocation,
+    cache topology) so none of them can return a "successful" pack for an
+    invalid budget.
+
+    Raises:
+        ValidationError: If maxTokens <= 0 or reserveTokens < 0.
+        BudgetExceededError: If reserveTokens >= maxTokens.
+    """
+    if budget.max_tokens <= 0:
+        raise ValidationError(
+            f"maxTokens must be positive, got {budget.max_tokens}",
+            [{"path": "maxTokens", "message": "must be positive"}],
+        )
+    if budget.reserve_tokens is not None and budget.reserve_tokens < 0:
+        raise ValidationError(
+            f"reserveTokens must be non-negative, got {budget.reserve_tokens}",
+            [{"path": "reserveTokens", "message": "must be non-negative"}],
+        )
+    if budget.reserve_tokens is not None and budget.reserve_tokens >= budget.max_tokens:
+        raise BudgetExceededError(
+            f"reserveTokens ({budget.reserve_tokens}) must be less than "
+            f"maxTokens ({budget.max_tokens})"
+        )
 
 
 class ContextPlan(BaseModel):
@@ -349,7 +377,7 @@ def pack(
         ContextPack with selected items, dropped items, and totalTokens.
 
     Raises:
-        ValidationError: If budget.maxTokens <= 0.
+        ValidationError: If budget.maxTokens <= 0 or budget.reserveTokens < 0.
         BudgetExceededError: If reserveTokens >= maxTokens.
 
     Example::
@@ -359,16 +387,7 @@ def pack(
         result = pack(items, Budget(maxTokens=1000))
         print(f"Selected {len(result.selected)} items")
     """
-    if budget.max_tokens <= 0:
-        raise ValidationError(
-            f"maxTokens must be positive, got {budget.max_tokens}",
-            [{"path": "maxTokens", "message": "must be positive"}],
-        )
-    if budget.reserve_tokens is not None and budget.reserve_tokens >= budget.max_tokens:
-        raise BudgetExceededError(
-            f"reserveTokens ({budget.reserve_tokens}) must be less than "
-            f"maxTokens ({budget.max_tokens})"
-        )
+    validate_budget(budget)
 
     # Sync keyword-based redundancy elimination when no embedding provider
     if redundancy_config is not None and not getattr(redundancy_config, "embedding_provider", None):

@@ -17,12 +17,22 @@ import { pack, packAsync } from "./pack.js";
 import { createScorer } from "./score.js";
 import { estimateTokens } from "./estimate.js";
 import { hash64 } from "./hash.js";
-import { CacheConfigSchema, validateWithSchema } from "./schemas.js";
+import {
+  CacheConfigSchema,
+  validatePackInputs,
+  validateWithSchema,
+} from "./schemas.js";
 import type { MaybeAsync } from "./maybe-async.js";
 import { chain } from "./maybe-async.js";
 
 /** Volatility level for cache partitioning. */
 export type Volatility = "static" | "session" | "request";
+
+const VOLATILITY_LEVELS: ReadonlySet<string> = new Set([
+  "static",
+  "session",
+  "request",
+]);
 
 /**
  * Provider-specific cache configuration.
@@ -31,7 +41,11 @@ export type Volatility = "static" | "session" | "request";
 export interface CacheConfig {
   /** Provider name for cache-specific behavior */
   provider?: "anthropic" | "openai" | "auto";
-  /** Minimum prefix length for cache eligibility (tokens) */
+  /**
+   * Minimum prefix length for cache eligibility (tokens). When the selected
+   * static prefix is shorter than this, it is reported as not cacheable
+   * (`cacheableTokens: 0`, `cacheEfficiency: 0`).
+   */
   minPrefixTokens?: number;
   /** Whether to insert cache breakpoint markers in metadata */
   markBreakpoints?: boolean;
@@ -61,6 +75,10 @@ export interface CacheAwarePack extends ContextPack {
  * - session: conversation history, memory retrievals (change per session)
  * - request: current query, fresh RAG results (change every request)
  *
+ * An explicit `metadata.volatility` takes precedence when it is one of
+ * "static" | "session" | "request"; any other value is ignored and the item is
+ * classified by `kind` (falling back to "request").
+ *
  * @param item - The context item to classify
  * @returns The volatility level: "static", "session", or "request"
  *
@@ -72,8 +90,9 @@ export interface CacheAwarePack extends ContextPack {
  */
 export function classifyVolatility(item: ContextItem): Volatility {
   // Explicit volatility in metadata takes precedence
-  if (item.metadata?.volatility) {
-    return item.metadata.volatility as Volatility;
+  const explicit = item.metadata?.volatility;
+  if (typeof explicit === "string" && VOLATILITY_LEVELS.has(explicit)) {
+    return explicit as Volatility;
   }
 
   const kind = item.kind?.toLowerCase() ?? "";
@@ -134,6 +153,7 @@ function packWithCacheTopologyImpl(
   cacheConfig: CacheConfig,
   packFn: PackFn
 ): MaybeAsync<CacheAwarePack> {
+  validatePackInputs(items, budget);
   validateWithSchema(CacheConfigSchema, cacheConfig, "cacheConfig");
 
   const estimator = options.tokenEstimator;
@@ -153,6 +173,7 @@ function packWithCacheTopologyImpl(
         sessionItems.push(item);
         break;
       case "request":
+      default:
         requestItems.push(item);
         break;
     }
@@ -175,12 +196,16 @@ function packWithCacheTopologyImpl(
   // consistently — preventing high-value cacheable content being evicted first.
   const scorer = options.scorer ?? createScorer(options.weights);
   const selectedStatic: ContextItem[] = [];
+  // Tracked by object identity (not id) so duplicate ids can't hide a dropped item.
+  const droppedStatic: ContextItem[] = [];
   for (const item of staticItems) {
     const tokens = item.tokens ?? estimateTokens(item.content, { estimator });
     if (tokens <= remaining) {
       const withTokens = { ...item, tokens };
       selectedStatic.push({ ...withTokens, score: scorer(withTokens) });
       remaining -= tokens;
+    } else {
+      droppedStatic.push(item);
     }
   }
 
@@ -219,9 +244,8 @@ function packWithCacheTopologyImpl(
         ...requestPack.selected,
       ];
 
-      const selectedStaticIds = new Set(selectedStatic.map(i => i.id));
       const dropped = [
-        ...staticItems.filter(i => !selectedStaticIds.has(i.id)),
+        ...droppedStatic,
         ...sessionPack.dropped,
         ...requestPack.dropped,
       ];
@@ -257,11 +281,14 @@ function packWithCacheTopologyImpl(
         .join("|");
       const cacheKey = hash64(staticContent);
 
-      const staticTokens = selectedStatic.reduce(
+      const prefixTokens = selectedStatic.reduce(
         (sum, i) => sum + (i.tokens ?? 0),
         0
       );
       const totalTokens = selected.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
+      // Providers only cache prefixes above a minimum length.
+      const staticTokens =
+        prefixTokens >= (cacheConfig.minPrefixTokens ?? 0) ? prefixTokens : 0;
 
       return {
         budget,

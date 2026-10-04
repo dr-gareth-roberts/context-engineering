@@ -184,3 +184,38 @@ describe("effectiveBudget", () => {
     expect(effectiveBudget(200_000, "unknown")).toBe(140_000);
   });
 });
+
+describe("placeItems — final attention bucket (P1 regression)", () => {
+  it("maps the last position to the last attention bucket", () => {
+    // default profile: first and last buckets both have 0.95 attention, so
+    // the two highest-scored items must land at the start and the very end.
+    const items = [
+      { id: "a", content: "a", score: 3 },
+      { id: "b", content: "b", score: 2 },
+      { id: "c", content: "c", score: 1 },
+    ];
+    const placed = placeItems(items, { strategy: "attention-optimized" });
+    expect(placed.map(i => i.id)).toEqual(["a", "c", "b"]);
+  });
+
+  it("lets the highest-scored item reach a recency-peaked final bucket", () => {
+    // Only the last bucket has high attention; with n < bucketCount the old
+    // floor((i / n) * bucketCount) mapping never reached it.
+    const profile = {
+      name: "recency-peak",
+      effectiveCapacity: 1,
+      positionWeights: [0.5, 0.1, 0.1, 0.1, 0.9],
+    };
+    const items = Array.from({ length: 4 }, (_, i) => ({
+      id: `i${i}`,
+      content: "x",
+      score: 4 - i,
+    }));
+    const placed = placeItems(items, {
+      strategy: "attention-optimized",
+      profile,
+    });
+    expect(placed[placed.length - 1].id).toBe("i0");
+    expect(new Set(placed.map(i => i.id)).size).toBe(4);
+  });
+});

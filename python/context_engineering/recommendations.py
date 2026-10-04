@@ -13,6 +13,7 @@ timeout, malformed response).
 from __future__ import annotations
 
 import logging
+import math
 import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
@@ -200,7 +201,13 @@ def fetch_budget_recommendation(
         max_tokens = int(max_tokens)
 
     reserve_tokens = data.get("reserveTokens")
-    if not isinstance(reserve_tokens, (int, float)):
+    # Negative (or non-finite) reserves would inflate the effective budget.
+    if (
+        not isinstance(reserve_tokens, (int, float))
+        or isinstance(reserve_tokens, bool)
+        or not math.isfinite(reserve_tokens)
+        or reserve_tokens < 0
+    ):
         reserve_tokens = None
     else:
         reserve_tokens = int(reserve_tokens)
