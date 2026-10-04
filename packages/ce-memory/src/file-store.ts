@@ -1,4 +1,5 @@
 import type { MemoryItem } from "@context-engineering/core";
+import { randomBytes } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import type { MemoryQuery, MemoryStore } from "./types.js";
@@ -83,6 +84,62 @@ export class FileStore implements MemoryStore {
     return this.filePath + ".lock";
   }
 
+  private createLockToken(): { pid: number; nonce: string; timestamp: string } {
+    return {
+      pid: process.pid,
+      nonce: randomBytes(16).toString("hex"),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private isProcessAlive(pid: number): boolean {
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === "EPERM";
+    }
+  }
+
+  /**
+   * Decide whether an existing lock may be broken. A lock whose owner PID is
+   * alive is never stolen; otherwise it is broken when the owner is dead, or
+   * (for legacy/unparseable locks) when its mtime is older than staleLockAge.
+   * Returns the lock contents that were judged stale, or null.
+   */
+  private async staleLockContents(
+    staleLockAge: number
+  ): Promise<string | null> {
+    const stat = await fs.stat(this.lockPath);
+    const raw = await fs.readFile(this.lockPath, "utf-8");
+    let parsed: { pid?: unknown } | null;
+    try {
+      parsed = JSON.parse(raw) as { pid?: unknown };
+    } catch {
+      parsed = null;
+    }
+
+    if (typeof parsed?.pid === "number" && Number.isInteger(parsed.pid)) {
+      return this.isProcessAlive(parsed.pid) ? null : raw;
+    }
+
+    return Date.now() - stat.mtimeMs > staleLockAge ? raw : null;
+  }
+
+  private async releaseLock(token: { nonce: string }): Promise<void> {
+    try {
+      const current = JSON.parse(await fs.readFile(this.lockPath, "utf-8")) as {
+        nonce?: unknown;
+      };
+      if (current.nonce === token.nonce) {
+        await fs.unlink(this.lockPath);
+      }
+    } catch {
+      // Lock file may have been cleaned up externally; ignore.
+    }
+  }
+
   private async withFileLock<T>(fn: () => Promise<T>): Promise<T> {
     if (this.options.disableLocking) {
       return fn();
@@ -90,10 +147,8 @@ export class FileStore implements MemoryStore {
 
     const lockTimeout = this.options.lockTimeout ?? 5000;
     const staleLockAge = this.options.staleLockAge ?? 10000;
-    const lockContent = JSON.stringify({
-      pid: process.pid,
-      timestamp: new Date().toISOString(),
-    });
+    const token = this.createLockToken();
+    const lockContent = JSON.stringify(token);
 
     const deadline = Date.now() + lockTimeout;
     let delay = 50;
@@ -104,9 +159,7 @@ export class FileStore implements MemoryStore {
         try {
           await handle.writeFile(lockContent);
         } catch (writeErr) {
-          // We created this lock with "wx"; remove the orphan so it does not
-          // linger as a non-stale lock blocking the next writer for staleLockAge.
-          await fs.unlink(this.lockPath).catch(() => {});
+          await this.releaseLock(token);
           throw writeErr;
         } finally {
           await handle.close().catch(() => {});
@@ -117,12 +170,16 @@ export class FileStore implements MemoryStore {
           throw err;
         }
 
-        // Check for stale lock
         try {
-          const stat = await fs.stat(this.lockPath);
-          if (Date.now() - stat.mtimeMs > staleLockAge) {
+          const stale = await this.staleLockContents(staleLockAge);
+          // Re-check just before unlinking so a waiter that raced us and
+          // already replaced the stale lock doesn't lose its fresh lock.
+          if (
+            stale !== null &&
+            (await fs.readFile(this.lockPath, "utf-8")) === stale
+          ) {
             await fs.unlink(this.lockPath);
-            continue; // Retry immediately after removing stale lock
+            continue; // Retry immediately after removing stale/dead-owner lock
           }
         } catch (statErr) {
           if ((statErr as NodeJS.ErrnoException).code === "ENOENT") {
@@ -147,11 +204,7 @@ export class FileStore implements MemoryStore {
     try {
       return await fn();
     } finally {
-      try {
-        await fs.unlink(this.lockPath);
-      } catch {
-        // Lock file may have been cleaned up externally; ignore
-      }
+      await this.releaseLock(token);
     }
   }
 
@@ -174,10 +227,14 @@ export class FileStore implements MemoryStore {
             JSON.stringify(item)
           );
           const content = lines.join("\n") + (lines.length ? "\n" : "");
-          // Atomic write: write to temp file, then rename.
-          const tmpPath = this.filePath + ".tmp";
-          await fs.writeFile(tmpPath, content);
-          await fs.rename(tmpPath, this.filePath);
+          const tmpPath = `${this.filePath}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
+          try {
+            await fs.writeFile(tmpPath, content);
+            await fs.rename(tmpPath, this.filePath);
+          } catch (error) {
+            await fs.unlink(tmpPath).catch(() => {});
+            throw error;
+          }
         });
       } catch (error) {
         // Roll back in-memory state to match what's on disk

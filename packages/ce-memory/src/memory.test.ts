@@ -4,15 +4,16 @@ import { FileStore } from "./file-store.js";
 import { SqliteStore } from "./sqlite-store.js";
 import { createMemoryStore } from "./factory.js";
 import { normalizeMemoryItem, decaySalience } from "./utils.js";
+import Database from "better-sqlite3";
 import { promises as fs } from "fs";
-import os from "os";
 import path from "path";
 
 let tempDir: string;
 
 beforeEach(async () => {
   tempDir = path.join(
-    os.tmpdir(),
+    process.cwd(),
+    ".test-artifacts",
     `ce-memory-tests-${Date.now()}-${Math.random().toString(36).slice(2)}`
   );
   await fs.mkdir(tempDir, { recursive: true });
@@ -497,6 +498,62 @@ describe("FileStore", () => {
     expect(fetched?.content).toBe("Recovered");
   });
 
+  it("does not lose writes when two instances contend for the lock", async () => {
+    const filePath = tempPath("contended.jsonl");
+    // staleLockAge 0 makes every lock look stale by mtime; the old
+    // mtime-only check let each writer steal the other's lock.
+    const a = new FileStore(filePath, { staleLockAge: 0, lockTimeout: 5000 });
+    const b = new FileStore(filePath, { staleLockAge: 0, lockTimeout: 5000 });
+
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        Promise.all([
+          a.put({ id: `a${i}`, content: `from a ${i}` }),
+          b.put({ id: `b${i}`, content: `from b ${i}` }),
+        ])
+      )
+    );
+
+    const reloaded = new FileStore(filePath);
+    const ids = (await reloaded.query({ limit: 100 })).map(i => i.id).sort();
+    expect(ids).toHaveLength(20);
+    const leftovers = (await fs.readdir(path.dirname(filePath))).filter(
+      f =>
+        f.startsWith(path.basename(filePath)) && f !== path.basename(filePath)
+    );
+    expect(leftovers).toEqual([]);
+  });
+
+  it("does not steal a stale-looking lock owned by a live process", async () => {
+    const filePath = tempPath("live-lock.jsonl");
+    const lockPath = filePath + ".lock";
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify({
+        pid: process.pid,
+        nonce: "live-owner",
+        timestamp: "2020-01-01T00:00:00Z",
+      })
+    );
+    const pastTime = new Date(Date.now() - 20_000);
+    await fs.utimes(lockPath, pastTime, pastTime);
+
+    const store = new FileStore(filePath, {
+      staleLockAge: 1,
+      lockTimeout: 50,
+    });
+
+    await expect(
+      store.put({ id: "blocked", content: "Blocked" })
+    ).rejects.toThrow("Failed to acquire file lock");
+    const lock = JSON.parse(await fs.readFile(lockPath, "utf-8")) as {
+      nonce: string;
+    };
+    expect(lock.nonce).toBe("live-owner");
+    await fs.unlink(lockPath);
+  });
+
   it("throws on put/get/query/forget after close()", async () => {
     const filePath = tempPath("close-guard.jsonl");
     const store = new FileStore(filePath);
@@ -619,6 +676,73 @@ describe("SqliteStore", () => {
     });
     const fetched = await store.get("meta");
     expect(fetched?.metadata).toEqual({ key: "value", nested: { a: 1 } });
+    await store.close();
+  });
+
+  it("round-trips all optional MemoryItem fields", async () => {
+    const store = new SqliteStore(":memory:");
+    await store.put({
+      id: "rich",
+      content: "With optional fields",
+      metadata: { key: "value" },
+      lastAccessedAt: "2026-01-02T03:04:05.000Z",
+      isSummary: true,
+      embedding: [0.1, 0.2, 0.3],
+      links: ["parent", "sibling"],
+    });
+
+    const fetched = await store.get("rich");
+    expect(fetched).toMatchObject({
+      id: "rich",
+      content: "With optional fields",
+      metadata: { key: "value" },
+      lastAccessedAt: "2026-01-02T03:04:05.000Z",
+      isSummary: true,
+      embedding: [0.1, 0.2, 0.3],
+      links: ["parent", "sibling"],
+    });
+    await store.close();
+  });
+
+  it("migrates old sqlite schemas and preserves new fields after write", async () => {
+    const dbPath = tempPath("old-schema.db");
+    const db = new Database(dbPath);
+    db.exec(`
+      CREATE TABLE memory_items (
+        id TEXT PRIMARY KEY,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT,
+        salience REAL,
+        ttl_seconds INTEGER,
+        metadata_json TEXT
+      );
+      INSERT INTO memory_items
+        (id, content, created_at, updated_at, salience, ttl_seconds, metadata_json)
+      VALUES
+        ('old', 'Old row', '2026-01-01T00:00:00.000Z', NULL, 0.5, NULL, '{"legacy":true}');
+    `);
+    db.close();
+
+    const store = new SqliteStore(dbPath);
+    expect((await store.get("old"))?.metadata).toEqual({ legacy: true });
+
+    await store.put({
+      id: "new",
+      content: "New row",
+      embedding: [1, 2],
+      links: ["old"],
+      isSummary: false,
+      lastAccessedAt: "2026-01-02T00:00:00.000Z",
+    });
+
+    const fetched = await store.get("new");
+    expect(fetched).toMatchObject({
+      embedding: [1, 2],
+      links: ["old"],
+      isSummary: false,
+      lastAccessedAt: "2026-01-02T00:00:00.000Z",
+    });
     await store.close();
   });
 

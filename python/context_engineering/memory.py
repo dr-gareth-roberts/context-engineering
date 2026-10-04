@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import secrets
 import sqlite3
 import threading
 import time
@@ -56,6 +57,21 @@ class MemoryQuery:
     now: Optional[int] = None
     # Weights for hybrid ranking
     alpha: float = 0.5  # 1.0 = pure vector, 0.0 = pure salience
+
+
+def _pid_alive(pid: int) -> bool:
+    """True if a process with this PID exists (permission errors count as alive)."""
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
 
 
 class MemoryStore:
@@ -271,25 +287,62 @@ class FileStore(MemoryStore):
         self._last_mtime = current_mtime
 
     def _persist(self):
-        # Atomic write: write to temp file, then rename (atomic on POSIX).
-        tmp_path = self.file_path + ".tmp"
-        with open(tmp_path, "w") as f:
-            for i in self._items.values():
-                f.write(i.model_dump_json(by_alias=True) + "\n")
-        os.replace(tmp_path, self.file_path)
+        # Atomic write: write to a unique temp file, then rename (atomic on
+        # POSIX). A per-write name means concurrent writers never share it.
+        tmp_path = f"{self.file_path}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+        try:
+            with open(tmp_path, "w") as f:
+                for i in self._items.values():
+                    f.write(i.model_dump_json(by_alias=True) + "\n")
+            os.replace(tmp_path, self.file_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+            raise
         # Record our own write's mtime so it does not trigger a needless reload.
         try:
             self._last_mtime = os.path.getmtime(self.file_path)
         except FileNotFoundError:
             self._last_mtime = None
 
+    def _stale_lock_contents(self) -> Optional[str]:
+        """Return the lock contents if the lock may be broken, else None.
+
+        A lock whose owner PID is alive is never stolen. Otherwise it is
+        broken when the owner is dead, or (for legacy/unparseable locks) when
+        its mtime is older than ``stale_lock_age``.
+        """
+        mtime = os.path.getmtime(self._lock_path)
+        with open(self._lock_path, "r") as f:
+            raw = f.read()
+        try:
+            pid = json.loads(raw).get("pid")
+        except (ValueError, AttributeError):
+            pid = None
+        if isinstance(pid, int) and not isinstance(pid, bool):
+            return None if _pid_alive(pid) else raw
+        return raw if time.time() - mtime > self._stale_lock_age else None
+
+    def _release_lock(self, nonce: str) -> None:
+        """Remove the lock only if it is still ours (matching nonce)."""
+        try:
+            with open(self._lock_path, "r") as f:
+                current = json.loads(f.read())
+            if isinstance(current, dict) and current.get("nonce") == nonce:
+                os.unlink(self._lock_path)
+        except (FileNotFoundError, ValueError):
+            pass
+
     @contextmanager
     def _with_file_lock(self) -> Generator[None, None, None]:
         """Advisory file lock using exclusive file creation.
 
-        Uses os.open with O_CREAT | O_EXCL for atomic lock acquisition.
-        Writes PID + timestamp for debugging. Retries with exponential
-        backoff and detects stale locks via mtime.
+        Uses os.open with O_CREAT | O_EXCL for atomic lock acquisition and
+        writes an owner token (PID + random nonce) so only the owner releases
+        it. Retries with exponential backoff; a lock is only broken when its
+        owner process is dead (or, for legacy locks without a PID, by mtime).
         """
         if self._disable_locking:
             yield
@@ -297,29 +350,32 @@ class FileStore(MemoryStore):
 
         backoff = 0.05  # 50ms base
         deadline = time.monotonic() + self._lock_timeout
+        nonce = secrets.token_hex(16)
+        token = json.dumps({"pid": os.getpid(), "nonce": nonce, "ts": time.time()})
 
         while True:
             try:
                 fd = os.open(self._lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                 try:
-                    os.write(fd, f"pid={os.getpid()} ts={time.time()}\n".encode())
+                    os.write(fd, token.encode())
                 finally:
                     os.close(fd)
                 break
             except FileExistsError:
-                # Check for stale lock
+                # Check for a stale (dead-owner) lock
                 try:
-                    mtime = os.path.getmtime(self._lock_path)
-                    if time.time() - mtime > self._stale_lock_age:
-                        logger.warning(
-                            "Removing stale lock file %s (age=%.1fs)",
-                            self._lock_path,
-                            time.time() - mtime,
-                        )
-                        try:
-                            os.unlink(self._lock_path)
-                        except FileNotFoundError:
-                            pass  # Another process beat us to it
+                    stale = self._stale_lock_contents()
+                    if stale is not None:
+                        # Re-check just before unlinking so a waiter that raced
+                        # us and already replaced the lock keeps its fresh lock.
+                        with open(self._lock_path, "r") as f:
+                            still_stale = f.read() == stale
+                        if still_stale:
+                            logger.warning("Removing stale lock file %s", self._lock_path)
+                            try:
+                                os.unlink(self._lock_path)
+                            except FileNotFoundError:
+                                pass  # Another process beat us to it
                         continue
                 except FileNotFoundError:
                     # Lock was released between our open attempt and stat
@@ -337,10 +393,7 @@ class FileStore(MemoryStore):
         try:
             yield
         finally:
-            try:
-                os.unlink(self._lock_path)
-            except FileNotFoundError:
-                pass
+            self._release_lock(nonce)
 
     def _sync_put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
         with self._with_file_lock():
@@ -433,9 +486,14 @@ class SqliteStore(MemoryStore):
             CREATE TABLE IF NOT EXISTS memory_items (
                 id TEXT PRIMARY KEY, content TEXT NOT NULL, created_at TEXT NOT NULL,
                 updated_at TEXT, last_accessed_at TEXT, salience REAL, ttl_seconds INTEGER,
-                is_summary INTEGER DEFAULT 0, embedding_json TEXT, metadata_json TEXT
+                is_summary INTEGER DEFAULT 0, embedding_json TEXT, metadata_json TEXT,
+                links_json TEXT
             )
         """)
+        # Migrate databases created before links were persisted.
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(memory_items)")}
+        if "links_json" not in columns:
+            self.conn.execute("ALTER TABLE memory_items ADD COLUMN links_json TEXT")
         self.conn.commit()
 
     def _sync_put(self, item: MemoryItem | List[MemoryItem]) -> List[MemoryItem]:
@@ -446,11 +504,12 @@ class SqliteStore(MemoryStore):
                 for e in normalized:
                     self.conn.execute(
                         """
-                        INSERT INTO memory_items (id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO memory_items (id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json, links_json)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(id) DO UPDATE SET content=excluded.content, updated_at=excluded.updated_at,
                         last_accessed_at=excluded.last_accessed_at, salience=excluded.salience, ttl_seconds=excluded.ttl_seconds,
-                        is_summary=excluded.is_summary, embedding_json=excluded.embedding_json, metadata_json=excluded.metadata_json
+                        is_summary=excluded.is_summary, embedding_json=excluded.embedding_json, metadata_json=excluded.metadata_json,
+                        links_json=excluded.links_json
                     """,
                         (
                             e.id,
@@ -463,6 +522,7 @@ class SqliteStore(MemoryStore):
                             1 if e.is_summary else 0,
                             json.dumps(e.embedding) if e.embedding else None,
                             json.dumps(e.metadata or {}),
+                            json.dumps(e.links) if e.links else None,
                         ),
                     )
             return normalized
@@ -477,7 +537,7 @@ class SqliteStore(MemoryStore):
             )
             self.conn.commit()
             r = self.conn.execute(
-                "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json FROM memory_items WHERE id = ?",
+                "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json, links_json FROM memory_items WHERE id = ?",
                 (item_id,),
             ).fetchone()
             if not r:
@@ -493,6 +553,7 @@ class SqliteStore(MemoryStore):
                 isSummary=bool(r[7]),
                 embedding=json.loads(r[8]) if r[8] else None,
                 metadata=json.loads(r[9]) if r[9] else {},
+                links=json.loads(r[10]) if r[10] else [],
             )
 
     def get(self, item_id: str) -> Optional[MemoryItem]:
@@ -501,7 +562,7 @@ class SqliteStore(MemoryStore):
     def _sync_query(self, query: Optional[MemoryQuery] = None):
         with self._lock:
             cursor = self.conn.execute(
-                "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json FROM memory_items"
+                "SELECT id, content, created_at, updated_at, last_accessed_at, salience, ttl_seconds, is_summary, embedding_json, metadata_json, links_json FROM memory_items"
             )
             items = [
                 MemoryItem(
@@ -515,6 +576,7 @@ class SqliteStore(MemoryStore):
                     isSummary=bool(r[7]),
                     embedding=json.loads(r[8]) if r[8] else None,
                     metadata=json.loads(r[9]) if r[9] else {},
+                    links=json.loads(r[10]) if r[10] else [],
                 )
                 for r in cursor.fetchall()
             ]

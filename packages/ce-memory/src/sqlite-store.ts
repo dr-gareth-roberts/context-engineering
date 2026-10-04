@@ -17,10 +17,14 @@ interface SqliteRow {
   salience: number | null;
   ttl_seconds: number | null;
   metadata_json: string | null;
+  last_accessed_at: string | null;
+  is_summary: number | null;
+  embedding_json: string | null;
+  links_json: string | null;
 }
 
 function rowToItem(row: SqliteRow): MemoryItem {
-  return {
+  const item: MemoryItem = {
     id: row.id,
     content: row.content,
     createdAt: row.created_at,
@@ -29,6 +33,15 @@ function rowToItem(row: SqliteRow): MemoryItem {
     ttlSeconds: row.ttl_seconds ?? undefined,
     metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
   };
+  if (row.last_accessed_at !== null) item.lastAccessedAt = row.last_accessed_at;
+  if (row.is_summary !== null) item.isSummary = Boolean(row.is_summary);
+  if (row.embedding_json !== null) {
+    item.embedding = JSON.parse(row.embedding_json) as number[];
+  }
+  if (row.links_json !== null) {
+    item.links = JSON.parse(row.links_json) as string[];
+  }
+  return item;
 }
 
 export class SqliteStore implements MemoryStore {
@@ -66,14 +79,39 @@ export class SqliteStore implements MemoryStore {
         updated_at TEXT,
         salience REAL,
         ttl_seconds INTEGER,
-        metadata_json TEXT
+        metadata_json TEXT,
+        last_accessed_at TEXT,
+        is_summary INTEGER,
+        embedding_json TEXT,
+        links_json TEXT
       );
     `);
+    this.migrate();
     // Index for salience-sorted queries
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_${this.tableName}_salience
         ON ${this.tableName} (salience DESC);
     `);
+  }
+
+  private migrate() {
+    const rows = this.db
+      .prepare(`PRAGMA table_info(${this.tableName})`)
+      .all() as Array<{ name: string }>;
+    const columns = new Set(rows.map(row => row.name));
+    const additions: Array<[string, string]> = [
+      ["last_accessed_at", "TEXT"],
+      ["is_summary", "INTEGER"],
+      ["embedding_json", "TEXT"],
+      ["links_json", "TEXT"],
+    ];
+    for (const [column, type] of additions) {
+      if (!columns.has(column)) {
+        this.db.exec(
+          `ALTER TABLE ${this.tableName} ADD COLUMN ${column} ${type}`
+        );
+      }
+    }
   }
 
   private assertOpen(): void {
@@ -90,14 +128,20 @@ export class SqliteStore implements MemoryStore {
     const normalized = list.map(entry => normalizeMemoryItem(entry));
     const stmt = this.db.prepare(
       `INSERT INTO ${this.tableName}
-       (id, content, created_at, updated_at, salience, ttl_seconds, metadata_json)
-       VALUES (@id, @content, @created_at, @updated_at, @salience, @ttl_seconds, @metadata_json)
+       (id, content, created_at, updated_at, salience, ttl_seconds, metadata_json,
+        last_accessed_at, is_summary, embedding_json, links_json)
+       VALUES (@id, @content, @created_at, @updated_at, @salience, @ttl_seconds,
+        @metadata_json, @last_accessed_at, @is_summary, @embedding_json, @links_json)
        ON CONFLICT(id) DO UPDATE SET
          content=excluded.content,
          updated_at=excluded.updated_at,
          salience=excluded.salience,
          ttl_seconds=excluded.ttl_seconds,
-         metadata_json=excluded.metadata_json`
+         metadata_json=excluded.metadata_json,
+         last_accessed_at=excluded.last_accessed_at,
+         is_summary=excluded.is_summary,
+         embedding_json=excluded.embedding_json,
+         links_json=excluded.links_json`
     );
 
     const tx = this.db.transaction((entries: MemoryItem[]) => {
@@ -110,6 +154,15 @@ export class SqliteStore implements MemoryStore {
           salience: entry.salience ?? 1,
           ttl_seconds: entry.ttlSeconds ?? null,
           metadata_json: JSON.stringify(entry.metadata ?? {}),
+          last_accessed_at: entry.lastAccessedAt ?? null,
+          is_summary:
+            entry.isSummary === undefined ? null : entry.isSummary ? 1 : 0,
+          embedding_json:
+            entry.embedding === undefined
+              ? null
+              : JSON.stringify(entry.embedding),
+          links_json:
+            entry.links === undefined ? null : JSON.stringify(entry.links),
         });
       }
     });
