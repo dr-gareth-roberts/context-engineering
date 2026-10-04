@@ -328,3 +328,47 @@ describe("pack with query", () => {
     ).rejects.toThrow(ValidationError);
   });
 });
+
+describe("pack invariants", () => {
+  // Deterministic pseudo-random generator so failures are reproducible.
+  function lcg(seed: number): () => number {
+    let s = seed;
+    return () => {
+      s = (s * 1103515245 + 12345) % 2147483648;
+      return s / 2147483648;
+    };
+  }
+
+  it("partitions inputs, respects the effective budget and never mutates inputs", () => {
+    const rand = lcg(42);
+    for (let round = 0; round < 50; round++) {
+      const items: ContextItem[] = Array.from(
+        { length: 1 + Math.floor(rand() * 12) },
+        (_, i) => ({
+          id: `i${i % 5}`, // duplicate ids on purpose
+          content: `item ${i}`,
+          tokens: Math.floor(rand() * 40),
+          priority: Math.floor(rand() * 10),
+          recency: Math.floor(rand() * 10),
+          compressions:
+            rand() < 0.3 ? [{ content: "short", tokens: 2 }] : undefined,
+        })
+      );
+      const snapshot = JSON.parse(JSON.stringify(items));
+      const maxTokens = 10 + Math.floor(rand() * 100);
+      const reserveTokens = Math.floor(rand() * 10);
+      const result = pack(
+        items,
+        { maxTokens, reserveTokens },
+        { allowCompression: rand() < 0.5 }
+      );
+
+      expect(result.selected.length + result.dropped.length).toBe(items.length);
+      expect(result.totalTokens).toBeLessThanOrEqual(maxTokens - reserveTokens);
+      expect(result.totalTokens).toBe(
+        result.selected.reduce((s, i) => s + (i.tokens ?? 0), 0)
+      );
+      expect(items).toEqual(snapshot);
+    }
+  });
+});

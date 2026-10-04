@@ -620,3 +620,38 @@ class TestPipelineRegressions:
         ]
         result = asyncio.run(pack_async(items, Budget(max_tokens=10), query="needle"))
         assert _ids(result.selected) == ["needle"]
+
+
+class TestPackInvariants:
+    def test_partition_budget_and_no_mutation(self):
+        import random
+
+        from context_engineering.core import Budget, Compression, pack
+
+        rng = random.Random(42)
+        for _ in range(50):
+            items = [
+                ContextItem(
+                    id=f"i{i % 5}",  # duplicate ids on purpose
+                    content=f"item {i}",
+                    tokens=rng.randrange(40),
+                    priority=rng.randrange(10),
+                    recency=rng.randrange(10),
+                    compressions=[Compression(content="short", tokens=2)]
+                    if rng.random() < 0.3
+                    else [],
+                )
+                for i in range(1 + rng.randrange(12))
+            ]
+            snapshot = [i.model_dump() for i in items]
+            max_tokens = 10 + rng.randrange(100)
+            reserve = rng.randrange(10)
+            result = pack(
+                items,
+                Budget(max_tokens=max_tokens, reserve_tokens=reserve),
+                allow_compression=rng.random() < 0.5,
+            )
+            assert len(result.selected) + len(result.dropped) == len(items)
+            assert result.total_tokens <= max_tokens - reserve
+            assert result.total_tokens == sum(i.tokens or 0 for i in result.selected)
+            assert [i.model_dump() for i in items] == snapshot
