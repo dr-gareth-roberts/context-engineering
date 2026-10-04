@@ -413,3 +413,210 @@ class TestCompactionRegressions:
 
         result = mgr.compile()
         assert [t.content for t in result.turns] == ["fresh context", "now"]
+
+
+# ---------------------------------------------------------------------------
+# Scoring: explicit score and query relevance (bug 28)
+# ---------------------------------------------------------------------------
+
+
+class TestExplicitScoreAndQuery:
+    def test_explicit_score_is_honoured(self):
+        from context_engineering.core import Budget, pack
+
+        items = [
+            ContextItem(id="scored", content="x", tokens=10, score=100, priority=0),
+            ContextItem(id="prio", content="y", tokens=10, priority=10),
+        ]
+        result = pack(items, Budget(max_tokens=10))
+        assert _ids(result.selected) == ["scored"]
+
+    def test_query_relevance_changes_selection(self):
+        from context_engineering.core import Budget, pack
+
+        items = [
+            ContextItem(id="hay", content="unrelated filler text", tokens=10),
+            ContextItem(id="needle", content="the needle is here", tokens=10),
+        ]
+        result = pack(items, Budget(max_tokens=10), query="needle")
+        assert _ids(result.selected) == ["needle"]
+
+    def test_query_does_not_override_explicit_score(self):
+        from context_engineering.core import Budget, pack
+
+        items = [
+            ContextItem(id="pinned", content="unrelated filler", tokens=10, score=1000),
+            ContextItem(id="needle", content="the needle is here", tokens=10),
+        ]
+        result = pack(items, Budget(max_tokens=10), query="needle")
+        assert _ids(result.selected) == ["pinned"]
+
+    def test_link_rescoring_keeps_explicit_base_score(self):
+        from context_engineering.core import Budget, pack
+
+        items = [
+            ContextItem(id="P", content="p", tokens=10, priority=20),
+            # base 15 + relation boost 2.0 once P is selected => 17 > B's 16
+            ContextItem(id="A", content="a", tokens=10, score=15, links=["P"]),
+            ContextItem(id="B", content="b", tokens=10, priority=16),
+        ]
+        result = pack(items, Budget(max_tokens=20))
+        assert _ids(result.selected) == ["P", "A"]
+
+
+# ---------------------------------------------------------------------------
+# pack_stream parity with pack() (bug 35)
+# ---------------------------------------------------------------------------
+
+
+class TestPackStreamParity:
+    def _collect(self, items, budget, **kwargs):
+        import asyncio
+
+        from context_engineering.stream import pack_stream
+
+        async def run():
+            return [i async for i in pack_stream(items, budget, **kwargs)]
+
+        return asyncio.run(run())
+
+    def test_uses_compression(self):
+        from context_engineering.core import Budget, Compression
+
+        item = ContextItem(
+            id="big",
+            content="x",
+            tokens=100,
+            compressions=[Compression(content="short", tokens=10)],
+        )
+        out = self._collect([item], Budget(max_tokens=10))
+        assert [(i.id, i.tokens, i.content) for i in out] == [("big", 10, "short")]
+
+    def test_compression_can_be_disabled(self):
+        from context_engineering.core import Budget, Compression
+
+        item = ContextItem(
+            id="big",
+            content="x",
+            tokens=100,
+            compressions=[Compression(content="short", tokens=10)],
+        )
+        assert self._collect([item], Budget(max_tokens=10), allow_compression=False) == []
+
+    def test_honours_explicit_score_and_matches_pack(self):
+        from context_engineering.core import Budget, pack
+
+        items = [
+            ContextItem(id="prio", content="y", tokens=10, priority=10),
+            ContextItem(id="scored", content="x", tokens=10, score=100),
+        ]
+        out = self._collect(items, Budget(max_tokens=10))
+        assert _ids(out) == ["scored"]
+        assert _ids(out) == _ids(pack(items, Budget(max_tokens=10)).selected)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline: session budget (bug 10) and option plumbing (bug 33)
+# ---------------------------------------------------------------------------
+
+
+def _four_items() -> List[ContextItem]:
+    return [
+        ContextItem(id=c, content=f"content {c}", tokens=25, priority=10 - i)
+        for i, c in enumerate("abcd")
+    ]
+
+
+class TestPipelineRegressions:
+    def test_session_stage_respects_session_budget(self):
+        import asyncio
+
+        from context_engineering.core import Budget
+        from context_engineering.pipeline import create_pipeline
+        from context_engineering.session import create_session
+
+        for mode in ("sync", "async"):
+            session = create_session(Budget(max_tokens=50))
+            items = _four_items()
+            p = create_pipeline(100).add(*items).session(session)
+            result = p.build() if mode == "sync" else asyncio.run(p.build_async())
+            assert result.total_tokens <= 50
+            assert _ids(result.selected) == ["a", "b"]
+            assert sorted(_ids(result.dropped)) == ["c", "d"]
+            assert sum(i.tokens or 0 for i in result.selected) == result.total_tokens
+            _assert_partition(items, result.selected, result.dropped)
+
+    def test_session_stage_preserves_placement_order(self):
+        from context_engineering.core import Budget
+        from context_engineering.pipeline import create_pipeline
+        from context_engineering.session import create_session
+
+        placed = create_pipeline(100).add(*_four_items()).place("attention-optimized").build()
+        with_session = (
+            create_pipeline(100)
+            .add(*_four_items())
+            .place("attention-optimized")
+            .session(create_session(Budget(max_tokens=1000)))
+            .build()
+        )
+        assert _ids(with_session.selected) == _ids(placed.selected)
+        assert with_session.total_tokens == placed.total_tokens
+
+    def _weighted_items(self, kind: str) -> List[ContextItem]:
+        return [
+            ContextItem(id="recent", content="r", kind=kind, tokens=10, priority=0, recency=100),
+            ContextItem(id="important", content="i", kind=kind, tokens=10, priority=10),
+        ]
+
+    def test_weights_apply_in_allocation_and_cache_topology_paths(self):
+        import asyncio
+
+        from context_engineering.allocation import KindAllocation
+        from context_engineering.pipeline import create_pipeline
+
+        for configure in (
+            lambda p: p.allocate([KindAllocation(kind="doc", target_ratio=1.0)]),
+            lambda p: p.cache_topology(),
+        ):
+            for mode in ("sync", "async"):
+                p = configure(
+                    create_pipeline(10)
+                    .add(*self._weighted_items("doc"))
+                    .weights(priority=1.0, recency=0.0)
+                )
+                result = p.build() if mode == "sync" else asyncio.run(p.build_async())
+                assert _ids(result.selected) == ["important"], (configure, mode)
+
+    def test_query_applies_in_every_path(self):
+        import asyncio
+
+        from context_engineering.allocation import KindAllocation
+        from context_engineering.pipeline import create_pipeline
+
+        def items():
+            return [
+                ContextItem(id="hay", content="unrelated filler text", kind="doc", tokens=10),
+                ContextItem(id="needle", content="the needle is here", kind="doc", tokens=10),
+            ]
+
+        for configure in (
+            lambda p: p,
+            lambda p: p.allocate([KindAllocation(kind="doc", target_ratio=1.0)]),
+            lambda p: p.cache_topology(),
+        ):
+            for mode in ("sync", "async"):
+                p = configure(create_pipeline(10).add(*items()).with_query("needle"))
+                result = p.build() if mode == "sync" else asyncio.run(p.build_async())
+                assert _ids(result.selected) == ["needle"], (configure, mode)
+
+    def test_pack_async_accepts_query(self):
+        import asyncio
+
+        from context_engineering.core import Budget, pack_async
+
+        items = [
+            ContextItem(id="hay", content="unrelated filler text", tokens=10),
+            ContextItem(id="needle", content="the needle is here", tokens=10),
+        ]
+        result = asyncio.run(pack_async(items, Budget(max_tokens=10), query="needle"))
+        assert _ids(result.selected) == ["needle"]

@@ -98,6 +98,34 @@ export interface PipelineResult {
   stages: string[];
 }
 
+/**
+ * Keep the pipeline items that the session selected, in pipeline order,
+ * using the session's version of each item (it may carry compressed content).
+ * Items are matched by id in order, so duplicate ids are handled one-to-one.
+ */
+function reconcileWithSession(
+  ordered: ContextItem[],
+  sessionSelected: ContextItem[]
+): { selected: ContextItem[]; dropped: ContextItem[] } {
+  const queues = new Map<string, ContextItem[]>();
+  for (const item of sessionSelected) {
+    const queue = queues.get(item.id) ?? [];
+    queue.push(item);
+    queues.set(item.id, queue);
+  }
+  const selected: ContextItem[] = [];
+  const dropped: ContextItem[] = [];
+  for (const item of ordered) {
+    const match = queues.get(item.id)?.shift();
+    if (match) {
+      selected.push(match);
+    } else {
+      dropped.push(item);
+    }
+  }
+  return { selected, dropped };
+}
+
 /** Function signatures for the sync/async pack variants. */
 type PackFn = (
   items: ContextItem[],
@@ -215,7 +243,9 @@ export class ContextPipeline {
 
   /**
    * Attach a session for differential context tracking.
-   * The pipeline will set items on the session and compile through it.
+   * The pipeline will set items on the session and compile through it: the
+   * result keeps only the items the session selects (within the session's
+   * budget), in pipeline order, and reports the session's delta.
    */
   session(session: ContextSession): this {
     this.sessionInstance = session;
@@ -441,6 +471,15 @@ export class ContextPipeline {
         this.sessionInstance.setItems(selected);
         const sessionResult = this.sessionInstance.compile();
         delta = sessionResult.delta;
+        // Respect the session's selection (and therefore its budget) while
+        // keeping the pipeline's ordering (e.g. placement).
+        const reconciled = reconcileWithSession(
+          selected,
+          sessionResult.selected
+        );
+        selected = reconciled.selected;
+        dropped.push(...reconciled.dropped);
+        totalTokens = selected.reduce((sum, i) => sum + (i.tokens ?? 0), 0);
       }
 
       // Stage 5: Template
@@ -478,7 +517,8 @@ export class ContextPipeline {
    * 3. Standard pack (if no allocation/topology) — greedy by score
    * 4. Placement (if configured) — reorder for attention patterns
    * 5. Quality gate (if configured) — analyze and filter
-   * 6. Session (if configured) — compute delta from previous
+   * 6. Session (if configured) — compile through the session (its budget
+   *    applies) and compute the delta from the previous compile
    */
   build(): PipelineResult {
     return this.buildImpl(

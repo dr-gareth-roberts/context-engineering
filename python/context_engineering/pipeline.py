@@ -29,7 +29,7 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .allocation import KindAllocation, pack_with_allocation, pack_with_allocation_async
 from .bridge import BridgeOptions, memory_to_context
@@ -61,6 +61,29 @@ class PipelineResult:
     messages: Optional[PromptMessages] = None
     input_count: int = 0
     stages: List[str] = field(default_factory=list)
+
+
+def _reconcile_with_session(
+    ordered: List[ContextItem], session_selected: List[ContextItem]
+) -> Tuple[List[ContextItem], List[ContextItem]]:
+    """Keep the pipeline items the session selected, in pipeline order.
+
+    Uses the session's version of each item (it may carry compressed
+    content). Items are matched by id in order, so duplicate ids are handled
+    one-to-one. Returns ``(selected, dropped)``.
+    """
+    queues: Dict[str, List[ContextItem]] = {}
+    for item in session_selected:
+        queues.setdefault(item.id, []).append(item)
+    selected: List[ContextItem] = []
+    dropped: List[ContextItem] = []
+    for item in ordered:
+        queue = queues.get(item.id)
+        if queue:
+            selected.append(queue.pop(0))
+        else:
+            dropped.append(item)
+    return selected, dropped
 
 
 class ContextPipeline:
@@ -134,7 +157,12 @@ class ContextPipeline:
         return self
 
     def session(self, session: ContextSession) -> "ContextPipeline":
-        """Attach a session for differential context tracking."""
+        """Attach a session for differential context tracking.
+
+        The pipeline compiles through the session: the result keeps only the
+        items the session selects (within the session's budget), in pipeline
+        order, and reports the session's delta.
+        """
         self._session_instance = session
         return self
 
@@ -158,6 +186,15 @@ class ContextPipeline:
             salience=salience,
         )
         return self
+
+    def _build_pack_options(self, pack_query: Optional[QueryInput]) -> Dict[str, Any]:
+        """Pack options shared by every packing path (sync and async)."""
+        options: Dict[str, Any] = {}
+        if "weights" in self._pack_options:
+            options["weights"] = self._pack_options["weights"]
+        if pack_query is not None:
+            options["query"] = pack_query
+        return options
 
     def _prepare_items(self) -> List[ContextItem]:
         """Ensure all items have token estimates."""
@@ -220,9 +257,7 @@ class ContextPipeline:
         allocation_efficiency = None
 
         # Stage 1: Pack (allocation -> cache topology -> standard)
-        pack_options = {}
-        if pack_query is not None:
-            pack_options["query"] = pack_query
+        pack_options = self._build_pack_options(pack_query)
 
         if self._allocation_config:
             stages.append("allocate")
@@ -268,12 +303,7 @@ class ContextPipeline:
 
         else:
             stages.append("pack")
-            pack_kwargs: Dict[str, Any] = {}
-            if "weights" in self._pack_options:
-                pack_kwargs["weights"] = self._pack_options["weights"]
-            if pack_query is not None:
-                pack_kwargs["query"] = pack_query
-            result = pack(items, self._budget, **pack_kwargs)
+            result = pack(items, self._budget, **pack_options)
             selected = list(result.selected)
             dropped = list(result.dropped)
             total_tokens = result.total_tokens
@@ -299,6 +329,11 @@ class ContextPipeline:
             self._session_instance.set_items(selected)
             session_result = self._session_instance.compile()
             delta = session_result.delta
+            # Respect the session's selection (and therefore its budget) while
+            # keeping the pipeline's ordering (e.g. placement).
+            selected, session_dropped = _reconcile_with_session(selected, session_result.selected)
+            dropped.extend(session_dropped)
+            total_tokens = sum(i.tokens or 0 for i in selected)
 
         # Stage 5: Template
         prompt_messages = None
@@ -350,11 +385,7 @@ class ContextPipeline:
         allocation_efficiency = None
 
         # Stage 1: Pack (allocation -> cache topology -> standard)
-        pack_options: Dict[str, Any] = {}
-        if pack_query is not None:
-            pack_options["query"] = pack_query
-        if "weights" in self._pack_options:
-            pack_options["weights"] = self._pack_options["weights"]
+        pack_options = self._build_pack_options(pack_query)
 
         if self._allocation_config:
             stages.append("allocate")
@@ -400,10 +431,7 @@ class ContextPipeline:
 
         else:
             stages.append("pack")
-            async_kwargs: Dict[str, Any] = {}
-            if "weights" in self._pack_options:
-                async_kwargs["weights"] = self._pack_options["weights"]
-            result = await pack_async(items, self._budget, **async_kwargs)
+            result = await pack_async(items, self._budget, **pack_options)
             selected = list(result.selected)
             dropped = list(result.dropped)
             total_tokens = result.total_tokens
@@ -429,6 +457,11 @@ class ContextPipeline:
             self._session_instance.set_items(selected)
             session_result = self._session_instance.compile()
             delta = session_result.delta
+            # Respect the session's selection (and therefore its budget) while
+            # keeping the pipeline's ordering (e.g. placement).
+            selected, session_dropped = _reconcile_with_session(selected, session_result.selected)
+            dropped.extend(session_dropped)
+            total_tokens = sum(i.tokens or 0 for i in selected)
 
         # Stage 5: Template
         prompt_messages = None

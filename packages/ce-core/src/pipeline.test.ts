@@ -515,3 +515,53 @@ describe("pipeline quality gate", () => {
     expect(result.totalTokens).toBe(expectedTokens);
   });
 });
+
+describe("pipeline session stage respects the session budget (P1 regression)", () => {
+  function items4(): ContextItem[] {
+    return ["a", "b", "c", "d"].map((id, i) => ({
+      id,
+      content: `content ${id}`,
+      tokens: 25,
+      priority: 10 - i,
+    }));
+  }
+
+  it("uses the session's selection and budget, not just its delta", async () => {
+    for (const build of ["sync", "async"] as const) {
+      const session = createSession({ budget: { maxTokens: 50 } });
+      const input = items4();
+      const p = pipeline({ maxTokens: 100 })
+        .add(...input)
+        .session(session);
+      const result = build === "sync" ? p.build() : await p.buildAsync();
+
+      expect(result.totalTokens).toBeLessThanOrEqual(50);
+      expect(result.selected.map(i => i.id)).toEqual(["a", "b"]);
+      expect(result.dropped.map(i => i.id).sort()).toEqual(["c", "d"]);
+      expect(result.selected.reduce((s, i) => s + (i.tokens ?? 0), 0)).toBe(
+        result.totalTokens
+      );
+      const selectedIds = new Set(result.selected.map(i => i.id));
+      expect(result.dropped.some(i => selectedIds.has(i.id))).toBe(false);
+      expect(result.selected.length + result.dropped.length).toBe(input.length);
+    }
+  });
+
+  it("preserves placement order for items the session keeps", () => {
+    const session = createSession({ budget: { maxTokens: 1000 } });
+    const input = items4();
+    const placedOnly = pipeline({ maxTokens: 100 })
+      .add(...input)
+      .place("attention-optimized")
+      .build();
+    const withSession = pipeline({ maxTokens: 100 })
+      .add(...input)
+      .place("attention-optimized")
+      .session(session)
+      .build();
+    expect(withSession.selected.map(i => i.id)).toEqual(
+      placedOnly.selected.map(i => i.id)
+    );
+    expect(withSession.totalTokens).toBe(placedOnly.totalTokens);
+  });
+});

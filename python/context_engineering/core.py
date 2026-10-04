@@ -329,6 +329,7 @@ async def pack_async(
     provider: Optional[str] = None,
     weights: Optional[ScoringWeights] = None,
     redundancy_config: Optional[Any] = None,
+    query: Optional[Any] = None,
 ) -> ContextPack:
     """Async version of pack() that supports asynchronous redundancy elimination."""
     processed_items = items
@@ -344,6 +345,7 @@ async def pack_async(
         allow_compression=allow_compression,
         provider=provider,
         weights=weights,
+        query=query,
     )
 
 
@@ -415,9 +417,13 @@ def pack(
         for item in items:
             bm25_index.add(item.id, item.content)
 
-        # Pre-compute relevance for each item and inject via score override
+        # Pre-compute relevance for each item and inject via score override.
+        # An explicit item.score wins, matching TS createQueryAwareScorer.
         scored_items: List[ContextItem] = []
         for item in items:
+            if item.score is not None:
+                scored_items.append(item)
+                continue
             rel = compute_relevance(q, item, index=bm25_index)
             base_score = calculate_weighted_score(item, base_w)
             final_score = base_score + rel * rel_weight
@@ -499,7 +505,9 @@ def internal_pack(
                 f"Item '{item.id}' has negative tokens ({tokens})",
                 [{"path": f"items[{item.id}].tokens", "message": "must be non-negative"}],
             )
-        score = calculate_weighted_score(item, weights)
+        # An explicit score (set by the caller or by query-aware scoring in
+        # pack()) wins over the weighted score, matching TS createScorer.
+        score = item.score if item.score is not None else calculate_weighted_score(item, weights)
         scored.append(item.model_copy(update={"tokens": tokens, "score": score}))
 
     # 2. Negation Resolution (Iterative -- safe against long chains)
@@ -540,11 +548,13 @@ def internal_pack(
                 any_links_in_pool = True
 
     # Build a max-heap (negate scores for heapq min-heap).
-    # Heap entries: (-score, -recency, index, item)
-    # The index is a tiebreaker to avoid comparing ContextItem objects.
-    heap: List[tuple[float, float, int, ContextItem]] = []
+    # Heap entries: (-score, -recency, index, pool_index, item)
+    # The index is a tiebreaker to avoid comparing ContextItem objects; the
+    # pool index lets link re-scoring start from each item's base score.
+    base_scores: List[float] = [item.score or 0 for item in pool]
+    heap: List[tuple[float, float, int, int, ContextItem]] = []
     for idx, item in enumerate(pool):
-        heapq.heappush(heap, (-(item.score or 0), -(item.recency or 0), idx, item))
+        heapq.heappush(heap, (-(item.score or 0), -(item.recency or 0), idx, idx, item))
 
     # Counter for unique heap indices when we re-push items.
     heap_counter = len(pool)
@@ -557,19 +567,20 @@ def internal_pack(
         # If items have links and selected_ids changed, we must rebuild the heap
         # with updated boost scores.
         if any_links_in_pool and needs_rescore:
-            new_heap: List[tuple[float, float, int, ContextItem]] = []
-            for _, _, _, item in heap:
+            new_heap: List[tuple[float, float, int, int, ContextItem]] = []
+            for _, _, _, pool_idx, item in heap:
                 boost = sum(w.relation_boost for sid in selected_ids if sid in item.links)
-                new_score = calculate_weighted_score(item, weights) + boost
+                new_score = base_scores[pool_idx] + boost
                 item = item.model_copy(update={"score": new_score})
                 heapq.heappush(
-                    new_heap, (-(item.score or 0), -(item.recency or 0), heap_counter, item)
+                    new_heap,
+                    (-(item.score or 0), -(item.recency or 0), heap_counter, pool_idx, item),
                 )
                 heap_counter += 1
             heap = new_heap
             needs_rescore = False
 
-        _, _, _, item = heapq.heappop(heap)
+        _, _, _, _, item = heapq.heappop(heap)
 
         # A. Hierarchical exclusion
         if item.parent_id and item.parent_id in selected_ids:

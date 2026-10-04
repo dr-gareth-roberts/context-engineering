@@ -297,6 +297,8 @@ def _extract_async_kwargs(options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         kwargs["provider"] = options["provider"]
     if "allow_compression" in options:
         kwargs["allow_compression"] = options["allow_compression"]
+    if "query" in options:
+        kwargs["query"] = options["query"]
     return kwargs
 
 
