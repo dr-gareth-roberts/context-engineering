@@ -35,9 +35,31 @@ describe("createSnapshot", () => {
     expect(snap.items[0].metadata!["key"]).toBe("val");
   });
 
+  it("deep-clones nested item metadata when creating a snapshot", () => {
+    const items = [
+      makeItem("a", "original", {
+        metadata: { nested: { key: "val" } },
+      }),
+    ];
+    const snap = createSnapshot("v1", items, "main", null);
+
+    (items[0].metadata!.nested as { key: string }).key = "changed";
+
+    expect((snap.items[0].metadata!.nested as { key: string }).key).toBe("val");
+  });
+
   it("stores metadata when provided", () => {
     const snap = createSnapshot("v1", [], "main", null, { author: "test" });
     expect(snap.metadata).toEqual({ author: "test" });
+  });
+
+  it("deep-clones snapshot metadata when provided", () => {
+    const metadata = { nested: { author: "test" } };
+    const snap = createSnapshot("v1", [], "main", null, metadata);
+
+    metadata.nested.author = "changed";
+
+    expect((snap.metadata!.nested as { author: string }).author).toBe("test");
   });
 
   it("links to parent snapshot ID", () => {
@@ -75,6 +97,19 @@ describe("deepCopyItems", () => {
     expect(copy[0].links).toEqual(["http://x"]);
     expect(copy[0].embedding).toEqual([1, 2, 3]);
     expect(copy[0].dependsOn).toEqual(["dep1"]);
+  });
+
+  it("deep-clones nested metadata values", () => {
+    const original = [
+      makeItem("a", "hello", {
+        metadata: { nested: { k: "v" } },
+      }),
+    ];
+    const copy = deepCopyItems(original);
+
+    (original[0].metadata!.nested as { k: string }).k = "changed";
+
+    expect((copy[0].metadata!.nested as { k: string }).k).toBe("v");
   });
 });
 

@@ -12,19 +12,20 @@ function generateSnapshotId(): string {
 }
 
 /**
+ * Deep-copy a value to prevent shared nested references.
+ */
+export function deepClone<T>(value: T): T {
+  if (typeof globalThis.structuredClone === "function") {
+    return globalThis.structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+/**
  * Deep-copy an array of ContextItems to prevent shared references.
  */
 export function deepCopyItems(items: ContextItem[]): ContextItem[] {
-  return items.map(item => ({
-    ...item,
-    metadata: item.metadata ? { ...item.metadata } : undefined,
-    compressions: item.compressions
-      ? item.compressions.map(c => ({ ...c }))
-      : undefined,
-    embedding: item.embedding ? [...item.embedding] : undefined,
-    links: item.links ? [...item.links] : undefined,
-    dependsOn: item.dependsOn ? [...item.dependsOn] : undefined,
-  }));
+  return deepClone(items);
 }
 
 /**
@@ -47,7 +48,7 @@ export function createSnapshot(
     createdAt: Date.now(),
     parentId,
     branchName,
-    metadata,
+    metadata: metadata ? deepClone(metadata) : undefined,
   };
 }
 

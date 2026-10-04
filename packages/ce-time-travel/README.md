@@ -46,6 +46,13 @@ tl.merge("with-docs", {
 | `highest-priority` | For conflicts, keep the item with higher priority. Include all unique. |
 | `manual`           | Pass a resolver function that receives both item sets.                 |
 
+`union` and `highest-priority` are **three-way merges** against the state both branches
+shared when they diverged (the fork snapshot of the nearest common branch): an item
+changed on only one side takes that side's version, an item deleted on one side and
+unchanged on the other stays deleted (deletions are never resurrected), and only items
+changed differently on both sides count as `conflicts` and are resolved by recency /
+priority. Without a shared fork they fall back to the plain two-way behaviour above.
+
 ## API Reference
 
 ### `createTimeline(options?): Timeline`

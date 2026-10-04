@@ -47,6 +47,131 @@ function mergeUnion(
   return { items: result, added, removed: [], conflicts };
 }
 
+/** Deterministic serialisation (sorted keys) for structural comparison. */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries
+      .map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
+/** True when the item is unchanged from its merge-base version (any field). */
+function sameContent(a: ContextItem | undefined, b: ContextItem): boolean {
+  return a !== undefined && stableStringify(a) === stableStringify(b);
+}
+
+function resolveUnionConflict(
+  ours: ContextItem,
+  theirs: ContextItem
+): ContextItem {
+  const ourRecency = ours.recency ?? 0;
+  const theirRecency = theirs.recency ?? 0;
+  return theirRecency > ourRecency ? theirs : ours;
+}
+
+function resolvePriorityConflict(
+  ours: ContextItem,
+  theirs: ContextItem
+): ContextItem {
+  const ourPriority = ours.priority ?? 0;
+  const theirPriority = theirs.priority ?? 0;
+  return theirPriority > ourPriority ? theirs : ours;
+}
+
+function mergeThreeWayUnionLike(
+  ours: ContextItem[],
+  theirs: ContextItem[],
+  ancestor: ContextItem[],
+  resolveConflict: (ours: ContextItem, theirs: ContextItem) => ContextItem
+): {
+  items: ContextItem[];
+  added: ContextItem[];
+  removed: ContextItem[];
+  conflicts: number;
+} {
+  const oursMap = new Map(ours.map(item => [item.id, item]));
+  const theirsMap = new Map(theirs.map(item => [item.id, item]));
+  const ancestorMap = new Map(ancestor.map(item => [item.id, item]));
+  const orderedIds = new Set<string>([
+    ...ours.map(item => item.id),
+    ...theirs.map(item => item.id),
+    ...ancestor.map(item => item.id),
+  ]);
+
+  const items: ContextItem[] = [];
+  let conflicts = 0;
+
+  for (const id of orderedIds) {
+    const ourItem = oursMap.get(id);
+    const theirItem = theirsMap.get(id);
+    const baseItem = ancestorMap.get(id);
+
+    if (!baseItem) {
+      if (ourItem && theirItem) {
+        if (ourItem.content !== theirItem.content) {
+          conflicts++;
+          items.push(resolveConflict(ourItem, theirItem));
+        } else {
+          items.push(ourItem);
+        }
+      } else if (ourItem) {
+        items.push(ourItem);
+      } else if (theirItem) {
+        items.push(theirItem);
+      }
+      continue;
+    }
+
+    if (!ourItem && !theirItem) continue;
+
+    const oursChanged =
+      ourItem !== undefined && !sameContent(ourItem, baseItem);
+    const theirsChanged =
+      theirItem !== undefined && !sameContent(theirItem, baseItem);
+
+    if (!ourItem) {
+      if (theirItem && theirsChanged) {
+        items.push(theirItem);
+      }
+      continue;
+    }
+
+    if (!theirItem) {
+      if (oursChanged) {
+        items.push(ourItem);
+      }
+      continue;
+    }
+
+    if (!oursChanged && !theirsChanged) {
+      items.push(ourItem);
+    } else if (oursChanged && !theirsChanged) {
+      items.push(ourItem);
+    } else if (!oursChanged && theirsChanged) {
+      items.push(theirItem);
+    } else if (sameContent(ourItem, theirItem)) {
+      items.push(ourItem);
+    } else {
+      conflicts++;
+      items.push(resolveConflict(ourItem, theirItem));
+    }
+  }
+
+  const resultMap = new Map(items.map(item => [item.id, item]));
+  const added = items.filter(item => !oursMap.has(item.id));
+  const removed = ours.filter(item => !resultMap.has(item.id));
+
+  return { items, added, removed, conflicts };
+}
+
 /**
  * Intersection merge: keep only items that exist in both branches (by ID).
  */
@@ -226,7 +351,8 @@ export function executeMerge(
   theirs: ContextItem[],
   fromBranch: string,
   intoBranch: string,
-  options: MergeOptions = { strategy: "union" }
+  options: MergeOptions = { strategy: "union" },
+  ancestor?: ContextItem[]
 ): MergeResult {
   const strategy = options.strategy;
 
@@ -239,7 +365,9 @@ export function executeMerge(
 
   switch (strategy) {
     case "union":
-      result = mergeUnion(ours, theirs);
+      result = ancestor
+        ? mergeThreeWayUnionLike(ours, theirs, ancestor, resolveUnionConflict)
+        : mergeUnion(ours, theirs);
       break;
     case "intersection":
       result = mergeIntersection(ours, theirs);
@@ -252,7 +380,14 @@ export function executeMerge(
       );
       break;
     case "highest-priority":
-      result = mergeHighestPriority(ours, theirs);
+      result = ancestor
+        ? mergeThreeWayUnionLike(
+            ours,
+            theirs,
+            ancestor,
+            resolvePriorityConflict
+          )
+        : mergeHighestPriority(ours, theirs);
       break;
     case "manual": {
       if (!options.resolver) {

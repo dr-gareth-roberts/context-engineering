@@ -249,9 +249,90 @@ describe("createTimeline", () => {
       tl.checkout("main");
       const result = tl.merge("feature", { strategy: "union" });
 
+      // Only the feature branch changed "a" since the fork, so this is a
+      // clean three-way merge rather than a conflict.
+      expect(result.conflicts).toBe(0);
+      expect(tl.getItems()[0].content).toBe("feature-version");
+    });
+
+    it("resolves items changed on both branches by recency (union)", () => {
+      const tl = createTimeline();
+      tl.setItems([makeItem("a", "base-version", { recency: 1 })]);
+
+      tl.fork("feature");
+      tl.setItems([makeItem("a", "feature-version", { recency: 9 })]);
+
+      tl.checkout("main");
+      tl.setItems([makeItem("a", "main-version", { recency: 5 })]);
+      const result = tl.merge("feature", { strategy: "union" });
+
       expect(result.conflicts).toBe(1);
       // Feature has higher recency, so it should win
       expect(tl.getItems()[0].content).toBe("feature-version");
+    });
+
+    it("does not resurrect items deleted on the target branch during union merge", () => {
+      const tl = createTimeline();
+      tl.setItems([makeItem("base", "base at fork")]);
+      tl.checkpoint("base");
+
+      tl.fork("feature");
+      tl.addItems(makeItem("feature", "feature-only"));
+
+      tl.checkout("main");
+      tl.removeItems("base");
+      const result = tl.merge("feature", { strategy: "union" });
+
+      expect(result.items.map(i => i.id)).toEqual(["feature"]);
+      expect(result.added.map(i => i.id)).toEqual(["feature"]);
+      expect(tl.getItems().map(i => i.id)).toEqual(["feature"]);
+    });
+
+    it("does not resurrect deletions when the fork was taken without a checkpoint", () => {
+      const tl = createTimeline();
+      tl.setItems([makeItem("base", "base at fork")]);
+      // No checkpoint: the branch head snapshot is still the empty initial one.
+      tl.fork("feature");
+      tl.addItems(makeItem("feature", "feature-only"));
+
+      tl.checkout("main");
+      tl.removeItems("base");
+      const result = tl.merge("feature", { strategy: "union" });
+
+      expect(result.items.map(i => i.id)).toEqual(["feature"]);
+      expect(tl.getItems().map(i => i.id)).toEqual(["feature"]);
+    });
+
+    it("uses the shared fork state for nested branches", () => {
+      const tl = createTimeline();
+      tl.setItems([makeItem("root", "root")]);
+      tl.fork("child");
+      tl.addItems(makeItem("child-add", "added on child"));
+      tl.fork("grandchild");
+      tl.addItems(makeItem("gc-add", "added on grandchild"));
+
+      tl.checkout("main");
+      tl.removeItems("root");
+      const result = tl.merge("grandchild", { strategy: "union" });
+
+      // root was deleted on main since the shared fork; additions made on the
+      // source lineage after that fork are kept.
+      expect(result.items.map(i => i.id).sort()).toEqual([
+        "child-add",
+        "gc-add",
+      ]);
+    });
+
+    it("propagates non-content changes made on one side (highest-priority)", () => {
+      const tl = createTimeline();
+      tl.setItems([{ ...makeItem("a", "same content"), priority: 1 }]);
+      tl.fork("feature");
+      tl.setItems([{ ...makeItem("a", "same content"), priority: 9 }]);
+
+      tl.checkout("main");
+      const result = tl.merge("feature", { strategy: "highest-priority" });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].priority).toBe(9);
     });
 
     it("creates a merge snapshot in history", () => {
@@ -369,6 +450,19 @@ describe("createTimeline", () => {
       expect(restored).toHaveLength(1);
       expect(restored[0].content).toBe("original");
       expect(restored[0].metadata!["k"]).toBe("v");
+    });
+
+    it("returns snapshot metadata as a deep copy", () => {
+      const tl = createTimeline();
+      tl.checkpoint("cp1", { nested: { reason: "original" } });
+
+      const snap = tl.getSnapshot("cp1");
+      (snap!.metadata!.nested as { reason: string }).reason = "changed";
+
+      const fresh = tl.getSnapshot("cp1");
+      expect((fresh!.metadata!.nested as { reason: string }).reason).toBe(
+        "original"
+      );
     });
 
     it("returns a fresh reference on each call", () => {

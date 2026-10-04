@@ -10,7 +10,7 @@ import type {
   TimelineOptions,
   TimelineState,
 } from "./types.js";
-import { createSnapshot, deepCopyItems } from "./snapshot.js";
+import { createSnapshot, deepClone, deepCopyItems } from "./snapshot.js";
 import { executeMerge } from "./merge-strategies.js";
 
 /**
@@ -280,18 +280,75 @@ export function createTimeline(options?: TimelineOptions): Timeline {
     };
   }
 
+  /** The branch and its ancestors, following `parentBranch` up to the root. */
+  function lineage(branch: Branch): Branch[] {
+    const chain = [branch];
+    let current = branch;
+    while (current.parentBranch) {
+      const parent = branches.find(b => b.name === current.parentBranch);
+      if (!parent || chain.includes(parent)) break;
+      chain.push(parent);
+      current = parent;
+    }
+    return chain;
+  }
+
+  /**
+   * The snapshot recording a branch's items at the moment it was forked.
+   * Falls back to the fork-point snapshot if the fork snapshot was pruned.
+   */
+  function forkSnapshot(branch: Branch): Snapshot | undefined {
+    if (!branch.forkPoint) return undefined;
+    return (
+      snapshots.find(
+        s => s.branchName === branch.name && s.parentId === branch.forkPoint
+      ) ??
+      findSnapshotGlobal(branch.forkPoint) ??
+      undefined
+    );
+  }
+
+  /**
+   * Items of the most recent state both branches share (the merge base):
+   * the earliest fork off their nearest common ancestor branch. Repeated
+   * merges between the same branches still use the original fork state.
+   */
+  function mergeBaseItems(
+    source: Branch,
+    target: Branch
+  ): ContextItem[] | undefined {
+    const sourceLine = lineage(source);
+    const targetLine = lineage(target);
+    const common = sourceLine.find(b => targetLine.includes(b));
+    if (!common) return undefined;
+
+    const forks = [
+      sourceLine[sourceLine.indexOf(common) - 1],
+      targetLine[targetLine.indexOf(common) - 1],
+    ]
+      .filter((b): b is Branch => b !== undefined)
+      .map(forkSnapshot)
+      .filter((snap): snap is Snapshot => snap !== undefined)
+      .sort((a, b) => snapshots.indexOf(a) - snapshots.indexOf(b));
+
+    return forks[0]?.items;
+  }
+
   function merge(fromBranch: string, mergeOptions?: MergeOptions): MergeResult {
-    getBranch(fromBranch);
+    const sourceBranch = getBranch(fromBranch);
+    const targetBranch = getBranch(activeBranch);
 
     const ours = branchItems.get(activeBranch) ?? [];
     const theirs = branchItems.get(fromBranch) ?? [];
+    const ancestor = mergeBaseItems(sourceBranch, targetBranch);
 
     const result = executeMerge(
       ours,
       theirs,
       fromBranch,
       activeBranch,
-      mergeOptions
+      mergeOptions,
+      ancestor
     );
 
     // Apply the merged items to the current branch
@@ -319,7 +376,7 @@ export function createTimeline(options?: TimelineOptions): Timeline {
       .map(s => ({
         ...s,
         items: deepCopyItems(s.items),
-        metadata: s.metadata ? { ...s.metadata } : undefined,
+        metadata: s.metadata ? deepClone(s.metadata) : undefined,
       }));
   }
 
@@ -345,7 +402,7 @@ export function createTimeline(options?: TimelineOptions): Timeline {
     return {
       ...snap,
       items: deepCopyItems(snap.items),
-      metadata: snap.metadata ? { ...snap.metadata } : undefined,
+      metadata: snap.metadata ? deepClone(snap.metadata) : undefined,
     };
   }
 
@@ -355,7 +412,7 @@ export function createTimeline(options?: TimelineOptions): Timeline {
       snapshots: snapshots.map(s => ({
         ...s,
         items: deepCopyItems(s.items),
-        metadata: s.metadata ? { ...s.metadata } : undefined,
+        metadata: s.metadata ? deepClone(s.metadata) : undefined,
       })),
       currentBranch: activeBranch,
     };
@@ -366,7 +423,7 @@ export function createTimeline(options?: TimelineOptions): Timeline {
     snapshots = state.snapshots.map(s => ({
       ...s,
       items: deepCopyItems(s.items),
-      metadata: s.metadata ? { ...s.metadata } : undefined,
+      metadata: s.metadata ? deepClone(s.metadata) : undefined,
     }));
     activeBranch = state.currentBranch;
 
