@@ -3,6 +3,23 @@ import { resolveConfig } from "./types.js";
 import { interceptMessages } from "./intercept.js";
 import type { GenericMessage } from "./message-converter.js";
 
+type AnthropicSystemBlock = {
+  type: string;
+  text?: string;
+  [key: string]: unknown;
+};
+type AnthropicSystem = string | AnthropicSystemBlock[];
+
+function appendSystemText(
+  system: AnthropicSystem | undefined,
+  text: string
+): AnthropicSystem {
+  if (Array.isArray(system)) {
+    return [...system, { type: "text", text }];
+  }
+  return system ? `${system}\n\n${text}` : text;
+}
+
 /**
  * Wrap an Anthropic client with automatic context management.
  *
@@ -79,7 +96,7 @@ function createAnthropicInterceptor(
     const apiCall: Promise<{ call: unknown }> = (async () => {
       const messages = params.messages as GenericMessage[] | undefined;
       const model = (params.model as string) ?? "claude-sonnet-4-6";
-      const systemPrompt = params.system as string | undefined;
+      const systemPrompt = params.system as AnthropicSystem | undefined;
 
       if (!messages || messages.length === 0) {
         return { call: originalCreate(params, ...rest) };
@@ -119,12 +136,15 @@ function createAnthropicInterceptor(
             typeof packedMessages[1].content === "string" &&
             packedMessages[1].content.startsWith("[Context summary")
           ) {
-            // Append summary to system prompt
-            newSystem = `${systemPrompt}\n\n${packedMessages[1].content}`;
+            newSystem = appendSystemText(
+              systemPrompt,
+              packedMessages[1].content
+            );
             newMessages = packedMessages.slice(2);
           } else {
             newSystem =
-              typeof sysMsg.content === "string"
+              typeof sysMsg.content === "string" ||
+              Array.isArray(sysMsg.content)
                 ? sysMsg.content
                 : systemPrompt;
             newMessages = packedMessages.slice(1);

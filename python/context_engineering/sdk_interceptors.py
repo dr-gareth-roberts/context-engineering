@@ -125,6 +125,19 @@ def _context_items_to_messages(
     ]
 
 
+def _append_system_text(system: Any, text: str) -> Any:
+    """Append text to an Anthropic ``system`` value without changing its form.
+
+    ``system`` may be a string or a list of content blocks; lists get a new
+    ``{"type": "text"}`` block (the caller's list is not mutated).
+    """
+    if isinstance(system, list):
+        return [*system, {"type": "text", "text": text}]
+    if system:
+        return f"{system}\n\n{text}"
+    return text
+
+
 def _build_event(
     model: str,
     total_messages: int,
@@ -347,19 +360,20 @@ def _intercept_anthropic_create(
                         )
                     summarized = True
 
-            # Separate system and non-system messages
-            packed_messages = _context_items_to_messages(packed_items)
-            new_system = None
+            # Separate system and non-system messages. The original system
+            # prompt (msg-0 when present) is passed through in its original
+            # form (string or content-block list); any summary text is appended.
+            system_kept = bool(system) and any(item.id == "msg-0" for item in packed_items)
+            new_system: Any = system if system_kept else None
             new_messages = []
-            for msg in packed_messages:
-                if msg["role"] == "system":
-                    new_system = (
-                        msg["content"]
-                        if new_system is None
-                        else new_system + "\n\n" + msg["content"]
-                    )
+            for item in sorted(packed_items, key=lambda i: i.metadata.get("index", 0)):
+                role = item.metadata.get("role", "user")
+                if role == "system":
+                    if system and item.id == "msg-0":
+                        continue
+                    new_system = _append_system_text(new_system, item.content)
                 else:
-                    new_messages.append(msg)
+                    new_messages.append({"role": role, "content": item.content})
 
             # Build and emit event
             event = _build_event(
@@ -443,7 +457,10 @@ def with_context(client: T, **kwargs: Any) -> T:
     """Wrap an OpenAI client with automatic context management.
 
     The returned client proxies ``client.chat.completions.create()`` to
-    automatically pack messages within the configured token budget.
+    automatically pack messages within the configured token budget. Only the
+    Chat Completions API is intercepted: ``client.responses.create()`` (the
+    Responses API) is passed through unchanged, so pack its ``input``
+    separately if needed.
 
     Args:
         client: An OpenAI client instance (or any duck-typed equivalent).

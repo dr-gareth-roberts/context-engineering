@@ -61,6 +61,8 @@ const response = await client.messages.create({
 ### `withContext(client, options?): client`
 
 Wraps an OpenAI client. Intercepts `client.chat.completions.create()`.
+`client.responses.create()` is passed through unchanged; wrap or pack Responses
+API inputs separately.
 
 ### `withContextAnthropic(client, options?): client`
 

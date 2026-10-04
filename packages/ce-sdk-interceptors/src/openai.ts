@@ -8,6 +8,9 @@ import type { GenericMessage } from "./message-converter.js";
  *
  * Returns a proxy that intercepts `client.chat.completions.create()` calls,
  * packing messages within the model's token budget before forwarding.
+ * Only the Chat Completions API is intercepted: `client.responses.create()`
+ * (the Responses API) is passed through unchanged, so pack its `input`
+ * separately if needed.
  *
  * @example
  * ```ts

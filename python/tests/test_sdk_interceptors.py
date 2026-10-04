@@ -250,6 +250,35 @@ class TestOpenAIInterceptor:
 
 
 class TestAnthropicInterceptor:
+    def test_list_system_prompt_preserved_when_summarizing(self):
+        # Regression for P1 bug 22 parity: list-form Anthropic system prompts
+        # must remain block arrays when a summary is appended.
+        create = MagicMock(return_value={"content": [{"text": "ok"}]})
+        client = SimpleNamespace(messages=SimpleNamespace(create=create))
+        client = with_context_anthropic(
+            client,
+            budget=100,
+            reserve_tokens=10,
+            strategy=lambda _dropped: "summary text",
+            log=False,
+        )
+        system = [{"type": "text", "text": "You are helpful."}]
+        messages = [
+            {
+                "role": "user" if i % 2 == 0 else "assistant",
+                "content": " ".join(f"word{j}" for j in range(30)),
+            }
+            for i in range(20)
+        ]
+
+        client.messages.create(model="claude", system=system, messages=messages)
+
+        assert create.call_args.kwargs["system"] == [
+            {"type": "text", "text": "You are helpful."},
+            {"type": "text", "text": "summary text"},
+        ]
+        assert system == [{"type": "text", "text": "You are helpful."}]
+
     def test_messages_packed_when_over_budget(self):
         client = _make_anthropic_client()
         client = with_context_anthropic(client, budget=200, reserve_tokens=50, log=False)

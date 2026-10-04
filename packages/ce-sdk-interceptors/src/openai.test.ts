@@ -155,6 +155,32 @@ describe("withContext (OpenAI)", () => {
     expect(client.models.list).toBe(mock.models.list);
   });
 
+  it("passes through responses.create untouched", async () => {
+    const responsesCreate = vi.fn().mockResolvedValue({ id: "resp_123" });
+    const mock = {
+      ...createMockOpenAIClient(),
+      responses: {
+        create: responsesCreate,
+      },
+    };
+    const client = withContext(mock, {
+      budget: 1,
+      reserveTokens: 0,
+      log: false,
+    });
+
+    await client.responses.create({
+      model: "gpt-4o",
+      input: "This endpoint is outside chat completions.",
+    });
+
+    expect(client.responses.create).toBe(responsesCreate);
+    expect(responsesCreate).toHaveBeenCalledWith({
+      model: "gpt-4o",
+      input: "This endpoint is outside chat completions.",
+    });
+  });
+
   it("falls through to original on packing error", async () => {
     const mock = createMockOpenAIClient();
     const errorHandler = vi.fn();

@@ -195,6 +195,43 @@ describe("withContextAnthropic", () => {
     expect(passedParams.system as string).toContain("[Context summary");
   });
 
+  it("appends summaries to array-form system prompts without mutating the caller array", async () => {
+    const mock = createMockAnthropicClient();
+    const system = [{ type: "text", text: "You are helpful." }];
+    const client = withContextAnthropic(mock, {
+      budget: 100,
+      reserveTokens: 10,
+      strategy: "summarize",
+      log: false,
+    });
+
+    const longMessages = Array.from({ length: 20 }, (_, i) => ({
+      role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+      content: `This is message number ${i} with enough words to consume several tokens`,
+    }));
+
+    await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      system,
+      messages: longMessages,
+    });
+
+    const passedParams = mock._createFn.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(Array.isArray(passedParams.system)).toBe(true);
+    expect(passedParams.system).toEqual([
+      { type: "text", text: "You are helpful." },
+      {
+        type: "text",
+        text: expect.stringContaining("[Context summary"),
+      },
+    ]);
+    expect(system).toEqual([{ type: "text", text: "You are helpful." }]);
+  });
+
   describe("APIPromise helper forwarding", () => {
     it("awaiting the wrapped create() still yields the response body", async () => {
       const mock = createApiPromiseMockAnthropicClient();
