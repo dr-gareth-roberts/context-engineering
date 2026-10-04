@@ -113,11 +113,11 @@ import {
 } from "@context-engineering/providers";
 ```
 
-| Export                             | Description                                                                       |
-| ---------------------------------- | --------------------------------------------------------------------------------- |
-| `createLLMSummarizer(provider)`    | Creates an `AsyncSummarizer` compatible with ce-core, wrapping an `LLMProvider`   |
-| `adaptEmbeddingProvider(provider)` | Bridges ce-providers `EmbeddingProvider` to ce-core `EmbeddingProvider` interface |
-| `createLazyClient(factory)`        | Lazy-initializes API clients on first use                                         |
+| Export                                                                           | Description                                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createLLMSummarizer({ provider, model?, maxOutputTokens?, prompt?, onError? })` | Creates an `AsyncSummarizer` compatible with ce-core, wrapping an `LLMProvider`. Omitting `model` uses the provider default; on errors it returns `null` (truncation fallback) and reports via `onError` or `console.warn` |
+| `adaptEmbeddingProvider(provider)`                                               | Bridges ce-providers `EmbeddingProvider` to ce-core `EmbeddingProvider` interface                                                                                                                                          |
+| `createLazyClient(factory)`                                                      | Lazy-initializes API clients on first use                                                                                                                                                                                  |
 
 ## Model Metadata
 

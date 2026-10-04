@@ -13,6 +13,8 @@ export interface LLMUsage {
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
+  cacheCreationInputTokens?: number;
+  cacheReadInputTokens?: number;
 }
 
 export interface LLMResult {

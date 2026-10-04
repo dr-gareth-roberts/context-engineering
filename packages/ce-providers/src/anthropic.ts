@@ -88,11 +88,30 @@ export class AnthropicProvider implements LLMProvider {
       .join("");
 
     const usage = message.usage
-      ? {
-          inputTokens: message.usage.input_tokens,
-          outputTokens: message.usage.output_tokens,
-          totalTokens: message.usage.input_tokens + message.usage.output_tokens,
-        }
+      ? (() => {
+          const rawUsage = message.usage as typeof message.usage & {
+            cache_creation_input_tokens?: number;
+            cache_read_input_tokens?: number;
+          };
+          const cacheCreationInputTokens =
+            rawUsage.cache_creation_input_tokens ?? 0;
+          const cacheReadInputTokens = rawUsage.cache_read_input_tokens ?? 0;
+          const inputTokens =
+            rawUsage.input_tokens +
+            cacheCreationInputTokens +
+            cacheReadInputTokens;
+          return {
+            inputTokens,
+            outputTokens: rawUsage.output_tokens,
+            totalTokens: inputTokens + rawUsage.output_tokens,
+            ...(rawUsage.cache_creation_input_tokens !== undefined && {
+              cacheCreationInputTokens,
+            }),
+            ...(rawUsage.cache_read_input_tokens !== undefined && {
+              cacheReadInputTokens,
+            }),
+          };
+        })()
       : undefined;
 
     return {

@@ -101,4 +101,22 @@ describe("createLLMSummarizer", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(apiError);
   });
+
+  it("warns when provider throws and no onError callback is supplied", async () => {
+    const apiError = new Error("API unavailable");
+    const mockProvider = {
+      generate: vi.fn().mockRejectedValue(apiError),
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const summarizer = createLLMSummarizer({ provider: mockProvider as any });
+
+    const result = await summarizer({ id: "warn", content: "text" }, 50);
+
+    expect(result).toBeNull();
+    expect(warn).toHaveBeenCalledWith(
+      "[context-engineering] LLM summarizer failed",
+      apiError
+    );
+    warn.mockRestore();
+  });
 });

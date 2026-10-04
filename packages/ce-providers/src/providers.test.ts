@@ -346,6 +346,35 @@ describe("AnthropicProvider", () => {
     });
   });
 
+  it("includes prompt-cache tokens in Anthropic input and total usage", async () => {
+    const provider = new AnthropicProvider({ apiKey: "test-key" });
+
+    injectClient(provider, {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "Hello from Claude" }],
+          model: "claude-sonnet-4-6",
+          usage: {
+            input_tokens: 10,
+            cache_creation_input_tokens: 7,
+            cache_read_input_tokens: 3,
+            output_tokens: 5,
+          },
+        }),
+      },
+    });
+
+    const result = await provider.generate([{ role: "user", content: "Hi" }]);
+
+    expect(result.usage).toEqual({
+      inputTokens: 20,
+      outputTokens: 5,
+      totalTokens: 25,
+      cacheCreationInputTokens: 7,
+      cacheReadInputTokens: 3,
+    });
+  });
+
   it("generate extracts system messages and passes to system param", async () => {
     const provider = new AnthropicProvider({ apiKey: "test-key" });
     const createMock = vi.fn().mockResolvedValue({

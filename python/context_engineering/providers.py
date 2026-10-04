@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 import os
 from dataclasses import dataclass
@@ -15,6 +16,8 @@ else:
 
 from .core import ContextItem, estimate_tokens
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class LLMMessage:
@@ -28,6 +31,9 @@ class LLMResult:
     model: str
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
 
 
 @dataclass
@@ -217,11 +223,23 @@ class AnthropicProvider:
         content_blocks = data.get("content", [])
         text = "".join(block.get("text", "") for block in content_blocks)
         usage = data.get("usage", {})
+        cache_creation_input_tokens = usage.get("cache_creation_input_tokens") or 0
+        cache_read_input_tokens = usage.get("cache_read_input_tokens") or 0
+        input_tokens = None
+        total_tokens = None
+        if usage.get("input_tokens") is not None:
+            input_tokens = (
+                usage.get("input_tokens", 0) + cache_creation_input_tokens + cache_read_input_tokens
+            )
+            total_tokens = input_tokens + (usage.get("output_tokens") or 0)
         return LLMResult(
             text=text,
             model=data.get("model", model),
-            input_tokens=usage.get("input_tokens"),
+            input_tokens=input_tokens,
             output_tokens=usage.get("output_tokens"),
+            total_tokens=total_tokens,
+            cache_creation_input_tokens=usage.get("cache_creation_input_tokens"),
+            cache_read_input_tokens=usage.get("cache_read_input_tokens"),
         )
 
 
@@ -249,6 +267,7 @@ def create_llm_summarizer(
     model: Optional[str] = None,
     max_output_tokens: int = 256,
     prompt: str = _DEFAULT_SUMMARIZE_PROMPT,
+    on_error: Optional[Callable[[Exception], None]] = None,
 ) -> Callable[[ContextItem, int], ContextItem | None]:
     """Create a synchronous LLM summarizer for use with compaction.
 
@@ -258,20 +277,25 @@ def create_llm_summarizer(
 
     def summarize(item: ContextItem, _target_tokens: int) -> ContextItem | None:
         try:
-            result = provider.generate(
-                messages=[
+            kwargs = {
+                "messages": [
                     LLMMessage(role="system", content=prompt),
                     LLMMessage(role="user", content=item.content),
                 ],
-                model=model or "",
-                max_tokens=max_output_tokens,
-            )
+                "max_tokens": max_output_tokens,
+            }
+            if model:
+                kwargs["model"] = model
+            result = provider.generate(**kwargs)
             content = result.text
             if not content:
                 return None
             tokens = estimate_tokens(content)
             return item.model_copy(update={"content": content, "tokens": tokens})
-        except Exception:
+        except Exception as exc:
+            logger.warning("LLM summarizer failed: %s", exc, exc_info=True)
+            if on_error:
+                on_error(exc)
             return None
 
     return summarize
