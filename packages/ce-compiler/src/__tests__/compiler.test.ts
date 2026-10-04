@@ -70,6 +70,133 @@ describe("createContextCompiler", () => {
     expect(result.totalTokens).toBeLessThanOrEqual(100);
   });
 
+  it("uses packOptions.tokenEstimator for budget accounting", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram().declare("code", { kind: "code" }).build();
+
+    const items = [
+      item("a", "tiny content", { kind: "code", tokens: undefined }),
+    ];
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items,
+      budget: { maxTokens: 10 },
+      packOptions: { tokenEstimator: () => 999 },
+    });
+
+    expect(result.items).toHaveLength(0);
+    expect(result.dropped).toHaveLength(1);
+    expect(result.dropped[0]).toBe(items[0]);
+    expect(result.totalTokens).toBe(0);
+  });
+
+  it("uses packOptions.tokenEstimator in optimization token accounting", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram()
+      .declare("code", { kind: "code", maxStaleness: 5 })
+      .build();
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items: [
+        item("stale", "stale content", {
+          kind: "code",
+          recency: 0,
+          tokens: undefined,
+        }),
+      ],
+      budget: { maxTokens: 1000 },
+      packOptions: { tokenEstimator: () => 99 },
+    });
+
+    const stalenessPass = result.optimizations.find(
+      pass => pass.name === "staleness-pruning"
+    );
+    expect(stalenessPass?.tokensAffected).toBe(99);
+  });
+
+  it("uses packOptions.tokenEstimator in budget diagnostics", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram()
+      .declare("code", { kind: "code" })
+      .constraint("budget-utilization", { threshold: 0.5 })
+      .build();
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items: [
+        item("a", "estimated content", { kind: "code", tokens: undefined }),
+      ],
+      budget: { maxTokens: 100 },
+      packOptions: { tokenEstimator: () => 99 },
+    });
+
+    expect(
+      result.diagnostics.some(
+        d =>
+          d.constraint === "budget-utilization" &&
+          d.message.includes("very high")
+      )
+    ).toBe(true);
+  });
+
+  it("lets explicit item.tokens win over packOptions.tokenEstimator (like pack)", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram().declare("code", { kind: "code" }).build();
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items: [item("a", "tiny content", { kind: "code", tokens: 3 })],
+      budget: { maxTokens: 10 },
+      packOptions: { tokenEstimator: () => 999 },
+    });
+
+    expect(result.items.map(i => i.id)).toEqual(["a"]);
+    expect(result.totalTokens).toBe(3);
+  });
+
+  it("keeps an explicit slot strategy over packOptions scoring", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram()
+      .declare("code", { kind: "code", strategy: "recency" })
+      .build();
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items: [
+        item("old", "old", { kind: "code", tokens: 10, recency: 1 }),
+        item("new", "new", { kind: "code", tokens: 10, recency: 9 }),
+      ],
+      budget: { maxTokens: 10 },
+      packOptions: { scorer: c => (c.id === "old" ? 100 : 0) },
+    });
+
+    expect(result.items.map(i => i.id)).toEqual(["new"]);
+  });
+
+  it("uses packOptions.scorer to rank candidates within slots", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram().declare("code", { kind: "code" }).build();
+
+    const items = [
+      item("default-first", "first", { kind: "code", tokens: 10 }),
+      item("scored-first", "second", { kind: "code", tokens: 10 }),
+    ];
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items,
+      budget: { maxTokens: 10 },
+      packOptions: {
+        scorer: candidate => (candidate.id === "scored-first" ? 100 : 0),
+      },
+    });
+
+    expect(result.items.map(i => i.id)).toEqual(["scored-first"]);
+    expect(result.dropped.map(i => i.id)).toEqual(["default-first"]);
+  });
+
   it("generates error diagnostics for unsatisfied required slots", () => {
     const compiler = createContextCompiler();
     const program = contextProgram()
@@ -88,6 +215,29 @@ describe("createContextCompiler", () => {
     const errors = result.diagnostics.filter(d => d.level === "error");
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some(d => d.slot === "system")).toBe(true);
+  });
+
+  it("prioritizes required slots over earlier optional slots", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram()
+      .declare("optional", { kind: "optional" })
+      .declare("required", { kind: "required", required: true })
+      .build();
+
+    const items = [
+      item("optional", "optional content", { kind: "optional", tokens: 10 }),
+      item("required", "required content", { kind: "required", tokens: 10 }),
+    ];
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items,
+      budget: { maxTokens: 10 },
+    });
+
+    expect(result.items.map(i => i.id)).toEqual(["required"]);
+    expect(result.dropped.map(i => i.id)).toEqual(["optional"]);
+    expect(result.diagnostics.some(d => d.slot === "required")).toBe(false);
   });
 
   it("fillRemaining slots get leftover budget", () => {
@@ -322,6 +472,29 @@ describe("createContextCompiler", () => {
     const fillTokens =
       result.slots["fill1"].tokensUsed + result.slots["fill2"].tokensUsed;
     expect(fillTokens).toBe(25);
+  });
+
+  it("does not report the same uncategorized item as both selected and dropped", () => {
+    const compiler = createContextCompiler();
+    const program = contextProgram()
+      .declare("fill1", { kind: "fill1", fillRemaining: true })
+      .declare("fill2", { kind: "fill2", fillRemaining: true })
+      .build();
+
+    const orphan = item("orphan", "uncategorized content here", {
+      kind: "unknown",
+      tokens: 10,
+    });
+
+    const result = compiler.compile(program, {
+      target: "generic",
+      items: [orphan, orphan],
+      budget: { maxTokens: 10 },
+    });
+
+    expect(result.items).toEqual([orphan]);
+    expect(result.totalTokens).toBeLessThanOrEqual(10);
+    expect(result.dropped).not.toContain(orphan);
   });
 
   it("uncategorized items go to fillRemaining slots", () => {

@@ -1,4 +1,8 @@
-import type { ContextItem, Budget } from "@context-engineering/core";
+import type {
+  ContextItem,
+  Budget,
+  TokenEstimator,
+} from "@context-engineering/core";
 import { estimateTokens } from "@context-engineering/core";
 import type { Slot, Constraint, CompileDiagnostic } from "./types.js";
 
@@ -142,11 +146,15 @@ function validateBudgetUtilization(
   items: ContextItem[],
   constraint: Constraint,
   _slots: Slot[],
-  budget: Budget
+  budget: Budget,
+  tokenEstimator?: TokenEstimator
 ): CompileDiagnostic[] {
   const diagnostics: CompileDiagnostic[] = [];
   const totalTokens = items.reduce(
-    (sum, item) => sum + (item.tokens ?? estimateTokens(item.content)),
+    (sum, item) =>
+      sum +
+      (item.tokens ??
+        estimateTokens(item.content, { estimator: tokenEstimator })),
     0
   );
   const maxTokens = budget.maxTokens - (budget.reserveTokens ?? 0);
@@ -216,7 +224,8 @@ export function validateConstraints(
   items: ContextItem[],
   constraints: Constraint[],
   slots: Slot[],
-  budget: Budget
+  budget: Budget,
+  tokenEstimator?: TokenEstimator
 ): CompileDiagnostic[] {
   const diagnostics: CompileDiagnostic[] = [];
 
@@ -233,7 +242,13 @@ export function validateConstraints(
         break;
       case "budget-utilization":
         diagnostics.push(
-          ...validateBudgetUtilization(items, constraint, slots, budget)
+          ...validateBudgetUtilization(
+            items,
+            constraint,
+            slots,
+            budget,
+            tokenEstimator
+          )
         );
         break;
       case "max-redundancy":

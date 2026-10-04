@@ -86,12 +86,12 @@ Fluent builder for declaring programs. Chain `.declare()`, `.constraint()`, then
 
 ### `compiler.compile(program, options): CompileResult`
 
-| Option        | Type            | Description                  |
-| ------------- | --------------- | ---------------------------- |
-| `target`      | `CompileTarget` | Target model family          |
-| `items`       | `ContextItem[]` | Items to compile             |
-| `budget`      | `Budget`        | Token budget                 |
-| `packOptions` | `PackOptions`   | Options forwarded to ce-core |
+| Option        | Type            | Description                                                                                                                                                                                                               |
+| ------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `target`      | `CompileTarget` | Target model family                                                                                                                                                                                                       |
+| `items`       | `ContextItem[]` | Items to compile                                                                                                                                                                                                          |
+| `budget`      | `Budget`        | Token budget                                                                                                                                                                                                              |
+| `packOptions` | `PackOptions`   | Options forwarded to ce-core: `tokenEstimator` is used for all token accounting (an explicit `item.tokens` wins, as in `pack()`); `scorer` / `query` / `weights` rank candidates in slots that don't declare a `strategy` |
 
 ### `CompileResult`
 

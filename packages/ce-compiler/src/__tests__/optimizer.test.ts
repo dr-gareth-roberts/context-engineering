@@ -210,6 +210,24 @@ describe("optimizeForTarget", () => {
       const result = optimizeForTarget(items, "generic", slots);
       expect(result.items).toHaveLength(2);
     });
+
+    it("uses the supplied token estimator for tokensAffected", () => {
+      const items = [
+        item("a", "old content", {
+          kind: "data",
+          recency: 1,
+          tokens: undefined,
+        }),
+      ];
+      const slots: Slot[] = [{ name: "data", kind: "data", maxStaleness: 5 }];
+
+      const result = optimizeForTarget(items, "generic", slots, () => 99);
+
+      expect(
+        result.passes.find(pass => pass.name === "staleness-pruning")
+          ?.tokensAffected
+      ).toBe(99);
+    });
   });
 
   describe("different targets produce different orderings", () => {

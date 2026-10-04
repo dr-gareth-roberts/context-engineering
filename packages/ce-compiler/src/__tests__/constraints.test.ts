@@ -225,6 +225,30 @@ describe("validateConstraints", () => {
       );
       expect(budgetDiags).toHaveLength(0);
     });
+
+    it("uses the supplied token estimator for utilization", () => {
+      const items = [item("a", "content", { kind: "data", tokens: undefined })];
+      const slots: Slot[] = [{ name: "data", kind: "data" }];
+      const constraints: Constraint[] = [
+        { type: "budget-utilization", threshold: 0.5 },
+      ];
+
+      const diagnostics = validateConstraints(
+        items,
+        constraints,
+        slots,
+        { maxTokens: 100 },
+        () => 99
+      );
+
+      expect(
+        diagnostics.some(
+          d =>
+            d.constraint === "budget-utilization" &&
+            d.message.includes("very high")
+        )
+      ).toBe(true);
+    });
   });
 
   describe("max-redundancy", () => {

@@ -1,6 +1,16 @@
-import type { ContextItem } from "@context-engineering/core";
+import type { ContextItem, TokenEstimator } from "@context-engineering/core";
 import { estimateTokens } from "@context-engineering/core";
 import type { Slot, CompileTarget, OptimizationPass } from "./types.js";
+
+function getItemTokens(
+  item: ContextItem,
+  tokenEstimator?: TokenEstimator
+): number {
+  // Explicit item.tokens wins, matching pack() in ce-core.
+  return (
+    item.tokens ?? estimateTokens(item.content, { estimator: tokenEstimator })
+  );
+}
 
 function wordSet(text: string): Set<string> {
   return new Set(
@@ -31,7 +41,8 @@ function getSlotForItem(item: ContextItem, slots: Slot[]): Slot | undefined {
 function positionAwarePlacement(
   items: ContextItem[],
   target: CompileTarget,
-  slots: Slot[]
+  slots: Slot[],
+  tokenEstimator?: TokenEstimator
 ): { items: ContextItem[]; pass: OptimizationPass } {
   const firstItems: ContextItem[] = [];
   const lastItems: ContextItem[] = [];
@@ -72,7 +83,7 @@ function positionAwarePlacement(
 
   const result = [...firstItems, ...anyItems, ...lastItems];
   const totalTokens = result.reduce(
-    (sum, item) => sum + (item.tokens ?? estimateTokens(item.content)),
+    (sum, item) => sum + getItemTokens(item, tokenEstimator),
     0
   );
 
@@ -94,7 +105,8 @@ function positionAwarePlacement(
 function cachePrefixOrdering(
   items: ContextItem[],
   _target: CompileTarget,
-  slots: Slot[]
+  slots: Slot[],
+  tokenEstimator?: TokenEstimator
 ): { items: ContextItem[]; pass: OptimizationPass } {
   // Identify contiguous groups of first/any items before any "last" items
   const lastStartIndex = items.findIndex(item => {
@@ -123,7 +135,7 @@ function cachePrefixOrdering(
 
   const result = [...firstPrefix, ...anyPrefix, ...suffix];
   const tokensAffected = firstPrefix.reduce(
-    (sum, item) => sum + (item.tokens ?? estimateTokens(item.content)),
+    (sum, item) => sum + getItemTokens(item, tokenEstimator),
     0
   );
 
@@ -146,7 +158,8 @@ function cachePrefixOrdering(
 function deduplication(
   items: ContextItem[],
   _target: CompileTarget,
-  slots: Slot[]
+  slots: Slot[],
+  tokenEstimator?: TokenEstimator
 ): { items: ContextItem[]; pass: OptimizationPass } {
   const deduplicateKinds = new Set(
     slots.filter(s => s.deduplicate).map(s => s.kind)
@@ -190,7 +203,7 @@ function deduplication(
     for (const existingWs of keptWordSets) {
       if (jaccardSimilarity(ws, existingWs) > 0.8) {
         isDuplicate = true;
-        removedTokens.push(item.tokens ?? estimateTokens(item.content));
+        removedTokens.push(getItemTokens(item, tokenEstimator));
         break;
       }
     }
@@ -230,7 +243,8 @@ function deduplication(
 function stalenessPruning(
   items: ContextItem[],
   _target: CompileTarget,
-  slots: Slot[]
+  slots: Slot[],
+  tokenEstimator?: TokenEstimator
 ): { items: ContextItem[]; pass: OptimizationPass } {
   const stalenessMap = new Map<string, number>();
   for (const slot of slots) {
@@ -261,7 +275,7 @@ function stalenessPruning(
       const recency = item.recency ?? 0;
       if (recency < threshold) {
         removedCount++;
-        removedTokens += item.tokens ?? estimateTokens(item.content);
+        removedTokens += getItemTokens(item, tokenEstimator);
         continue;
       }
     }
@@ -291,28 +305,39 @@ function stalenessPruning(
 export function optimizeForTarget(
   items: ContextItem[],
   target: CompileTarget,
-  slots: Slot[]
+  slots: Slot[],
+  tokenEstimator?: TokenEstimator
 ): { items: ContextItem[]; passes: OptimizationPass[] } {
   const passes: OptimizationPass[] = [];
   let current = [...items];
 
   // 1. Staleness pruning
-  const staleness = stalenessPruning(current, target, slots);
+  const staleness = stalenessPruning(current, target, slots, tokenEstimator);
   current = staleness.items;
   passes.push(staleness.pass);
 
   // 2. Deduplication
-  const dedup = deduplication(current, target, slots);
+  const dedup = deduplication(current, target, slots, tokenEstimator);
   current = dedup.items;
   passes.push(dedup.pass);
 
   // 3. Position-aware placement
-  const placement = positionAwarePlacement(current, target, slots);
+  const placement = positionAwarePlacement(
+    current,
+    target,
+    slots,
+    tokenEstimator
+  );
   current = placement.items;
   passes.push(placement.pass);
 
   // 4. Cache prefix ordering
-  const cacheOrder = cachePrefixOrdering(current, target, slots);
+  const cacheOrder = cachePrefixOrdering(
+    current,
+    target,
+    slots,
+    tokenEstimator
+  );
   current = cacheOrder.items;
   passes.push(cacheOrder.pass);
 
