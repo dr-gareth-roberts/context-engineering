@@ -1,6 +1,6 @@
 # Package Overview
 
-The toolkit is organised into 17 packages across 5 categories. All packages depend only on `ce-core` (no inter-package dependencies beyond that). Every TypeScript package has full Python parity.
+The toolkit is organised into 17 packages across 5 categories. All packages depend only on `ce-core` (no inter-package dependencies beyond that). Every TypeScript package has a Python port with a matching API (see [known divergences](../../python/README.md#known-divergences-from-typescript)).
 
 ## Architecture Diagram
 

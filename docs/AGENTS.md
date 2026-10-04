@@ -51,7 +51,7 @@ This file helps AI coding agents understand how to work with this project.
 
 ### Python
 
-- `context_engineering` — full parity with all TS packages above
+- `context_engineering` — API parity with all TS packages above (known packing divergences are listed in `python/README.md`)
 - `context_framework` — tri-provider orchestration and domain runtimes
 
 ## Commands

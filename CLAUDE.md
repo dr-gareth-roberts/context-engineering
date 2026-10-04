@@ -12,7 +12,7 @@ The core pipeline is:
 items + budget → score → place → pack → quality gate → trace
 ```
 
-The workspace is a **pnpm monorepo of 17 TypeScript library packages** (plus a two-package web inspector) with a **1:1 Python port**, 2,200+ tests across both stacks, and an interactive in-browser inspector.
+The workspace is a **pnpm monorepo of 17 TypeScript library packages** (plus a two-package web inspector) with a **Python port** (API parity; see `python/README.md` for known packing divergences), 2,200+ tests across both stacks, and an interactive in-browser inspector.
 
 ## Project Structure
 
@@ -40,7 +40,7 @@ packages/                 # 17 library packages + the web inspector (client + se
   ce-web-server/          # Express server for production deployment of the inspector
 examples/                 # Runnable demonstrations (rag-chatbot, code-review-council, …)
 python/
-  context_engineering/    # Python port of the packages above (1:1 parity; the published package)
+  context_engineering/    # Python port of the packages above (API parity; the published package)
   context_framework/      # Domain-specific runtime modules built on the toolkit
   tests/                  # pytest suite
 docs/                     # Documentation and wiki

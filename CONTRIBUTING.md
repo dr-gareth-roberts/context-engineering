@@ -65,7 +65,7 @@ packages/
   ce-web-client/        React 19 docs + demos web app
   ce-web-server/        Express server for the web app
 python/
-  context_engineering/  Python SDK (full API parity with TS + advanced features)
+  context_engineering/  Python SDK (API parity with TS + advanced features)
   context_framework/    Tri-provider orchestration and domain runtimes
 schemas/                Shared JSON Schemas (cross-language validation)
 ```

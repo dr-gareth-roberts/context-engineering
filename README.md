@@ -7,7 +7,7 @@
 
 **Most LLM apps waste 30–50% of their context window on redundant, stale, or irrelevant content.** This toolkit treats context as a first-class engineering problem — deciding _what goes into the window_, with scoring, caching, quality monitoring, adversarial testing, and multi-model orchestration.
 
-A workspace of **17 TypeScript packages with full Python parity**, 2,200+ tests, and an interactive in-browser inspector. [Browse the Wiki →](./docs/wiki/Home.md)
+A workspace of **17 TypeScript packages with a Python port**, 2,200+ tests, and an interactive in-browser inspector. [Browse the Wiki →](./docs/wiki/Home.md)
 
 ```mermaid
 flowchart LR
@@ -71,7 +71,7 @@ These are not wrappers around existing APIs — they are new capabilities for ma
 
 ## All Packages
 
-Every package ships as a standalone module under [`packages/`](./packages/) with its own tests, plus a 1:1 Python implementation under [`python/context_engineering/`](./python/context_engineering/).
+Every package ships as a standalone module under [`packages/`](./packages/) with its own tests, plus a Python implementation under [`python/context_engineering/`](./python/context_engineering/) (see its [known divergences](./python/README.md#known-divergences-from-typescript)).
 
 | Category         | Packages                                                                                                                                          | Purpose                                                                |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -146,7 +146,7 @@ const result = await council.deliberate({
 });
 ```
 
-The Python API mirrors this 1:1 — see [Python](#python).
+The Python API mirrors this closely — see [Python](#python).
 
 ## Context Inspector (web app)
 
@@ -211,13 +211,13 @@ The Python core depends only on `pydantic`. Optional extras pull in what each fe
 
 ## Python
 
-This repository ships **two implementations of the same toolkit**, kept at feature parity so you can use whichever fits your stack:
+This repository ships **two implementations of the same toolkit**, with matching APIs so you can use whichever fits your stack:
 
-| Location                                                       | What it is                                                                                             |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| [`packages/`](./packages/)                                     | The **TypeScript** workspace — 17 packages + the Context Inspector web app. The reference source.      |
-| [`python/context_engineering/`](./python/context_engineering/) | A **1:1 Python port** of those packages — the same APIs and algorithms. This is the published package. |
-| [`python/context_framework/`](./python/context_framework/)     | **Applied Python runtimes** built on the port — domain pipelines, not part of the published package.   |
+| Location                                                       | What it is                                                                                                                                                                    |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`packages/`](./packages/)                                     | The **TypeScript** workspace — 17 packages + the Context Inspector web app. The reference source.                                                                             |
+| [`python/context_engineering/`](./python/context_engineering/) | A **Python port** of those packages — the same APIs; packing differs in a few [documented ways](./python/README.md#known-divergences-from-typescript). The published package. |
+| [`python/context_framework/`](./python/context_framework/)     | **Applied Python runtimes** built on the port — domain pipelines, not part of the published package.                                                                          |
 
 The same packing, scoring, council, drift, immune, time-travel, and compiler algorithms exist in both stacks, so the concepts and API shapes below translate directly between them.
 

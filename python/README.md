@@ -1,6 +1,28 @@
 # Context Engineering (Python)
 
-Full Python SDK with API parity to the TypeScript packages.
+Python SDK mirroring the APIs of the TypeScript packages. The packing algorithm is
+not byte-for-byte identical — see
+[Known divergences from TypeScript](#known-divergences-from-typescript).
+
+### Known divergences from TypeScript
+
+The two stacks share the scoring, budget, placement, compaction, allocation and
+cache-topology semantics (and are tested against the same invariants), but Python's
+`pack()` deliberately does more than TypeScript's:
+
+| Behaviour                  | Python `pack()`                                                                                       | TypeScript `pack()`                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Compression default        | `allow_compression=True` (on)                                                                         | `allowCompression` off unless set                   |
+| `supersedes`               | Superseded items are dropped (`negated_by_newer_info`) and the superseding item gets a +5 score boost | Ignored                                             |
+| `parent_id`                | An item is dropped if its parent was already selected (`parent_already_included`)                     | Ignored                                             |
+| `links`                    | Linked items get `relation_boost` once a linked item is selected (dynamic re-ranking)                 | Ignored                                             |
+| `cost` / `latency`         | Penalised via `ScoringWeights.cost` (-0.3) and `latency` (-0.2) when no explicit `score` is set       | Ignored                                             |
+| `redundancy_threshold`     | Embedding-similarity de-duplication during selection                                                  | Not available (use `redundancyConfig`)              |
+| Cache-topology `cache_key` | 32-bit hash                                                                                           | 64-bit hash — keys are not comparable across stacks |
+
+When none of these fields/options are used (and compression is set explicitly), both
+stacks are expected to select the same items. An explicit `item.score` always wins over computed scores
+in both.
 
 ## Installation
 
